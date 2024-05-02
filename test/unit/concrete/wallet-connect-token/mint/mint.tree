@@ -1,0 +1,7 @@
+mint.t.sol
+├── given the caller is not the owner
+│  └── it should revert
+└── given the caller is the owner
+  ├── it should mint the tokens to the address
+  ├── it should emit a {Transfer} event
+  └── it should update the total supply
