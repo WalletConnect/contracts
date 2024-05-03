@@ -193,6 +193,21 @@ simply copy paste the path):
 $ bun run test:coverage:report
 ```
 
+#### BTT
+
+##### Decision Guide: Given vs When
+
+This document serves as a quick reference to understand when to use "Given" or "When" based on different programming
+scenarios.
+
+###### Table of Decisions
+
+| Scenario                                                                          | Answer |
+| --------------------------------------------------------------------------------- | ------ |
+| Is it a contract state that is prepared in advance?                               | Given  |
+| Is it a mode of execution, e.g., call vs delegatecall?                            | When   |
+| Is it a function parameter that the user is in control when calling the function? | When   |
+
 ## Related Efforts
 
 - [abigger87/femplate](https://github.com/abigger87/femplate)
