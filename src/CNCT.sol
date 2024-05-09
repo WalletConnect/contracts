@@ -8,6 +8,18 @@ import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
+/*
+
+ __        __    _ _      _    ____                            _
+ \ \      / /_ _| | | ___| |_ / ___|___  _ __  _ __   ___  ___| |_
+  \ \ /\ / / _` | | |/ _ \ __| |   / _ \| '_ \| '_ \ / _ \/ __| __|
+   \ V  V / (_| | | |  __/ |_| |__| (_) | | | | | | |  __/ (__| |_
+    \_/\_/ \__,_|_|_|\___|\__|\____\___/|_| |_|_| |_|\___|\___|\__|
+*/
+
+/// @title WalletConnect Token
+/// @author WalletConnect
+/// @notice WalletConnect Token (CNCT) is the fee token for the WalletConnect network.
 contract CNCT is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes, Ownable {
     /**
      * @dev Constructor
