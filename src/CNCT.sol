@@ -8,13 +8,13 @@ import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract WalletConnectToken is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes, Ownable {
+contract CNCT is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes, Ownable {
     /**
      * @dev Constructor
      */
     constructor(address initialOwner)
-        ERC20("WalletConnectToken", "WAL")
-        ERC20Permit("WalletConnectToken")
+        ERC20("WalletConnect", "CNCT")
+        ERC20Permit("WalletConnect")
         Ownable(initialOwner)
     { }
 

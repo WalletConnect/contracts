@@ -3,16 +3,16 @@ pragma solidity >=0.8.19 <0.9.0;
 
 import { console2 } from "forge-std/src/console2.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
-import { WalletConnectToken } from "src/WalletConnectToken.sol";
+import { CNCT } from "src/CNCT.sol";
 
 import { Base_Test } from "../../../Base.t.sol";
 
-contract Mint_WalletConnectToken_Unit_Fuzz_Test is Base_Test {
-    WalletConnectTokenHarness internal walletConnectTokenHarness;
+contract Mint_CNCT_Unit_Fuzz_Test is Base_Test {
+    CNCTHarness internal cnctHarness;
 
     function setUp() public override {
         super.setUp();
-        walletConnectTokenHarness = new WalletConnectTokenHarness(users.mintManagerOwner);
+        cnctHarness = new CNCTHarness(users.mintManagerOwner);
     }
 
     function testFuzz_RevertWhen_CallerNotOwner(address attacker) external {
@@ -25,7 +25,7 @@ contract Mint_WalletConnectToken_Unit_Fuzz_Test is Base_Test {
 
         // Run the test
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, attacker));
-        walletConnectToken.mint(attacker, 1);
+        cnct.mint(attacker, 1);
     }
 
     modifier whenCallerOwner() {
@@ -35,26 +35,26 @@ contract Mint_WalletConnectToken_Unit_Fuzz_Test is Base_Test {
 
     function testFuzz_Mint(address to, uint256 amount) external whenCallerOwner {
         vm.assume(to != address(0));
-        amount = bound(amount, 1, walletConnectTokenHarness.maxSupply() - walletConnectTokenHarness.totalSupply() - 1);
+        amount = bound(amount, 1, cnctHarness.maxSupply() - cnctHarness.totalSupply() - 1);
         console2.logUint(amount);
         // Get the total supply before minting
-        uint256 totalSupply = walletConnectToken.totalSupply();
+        uint256 totalSupply = cnct.totalSupply();
         // Expect the relevant event to be emitted.
-        vm.expectEmit({ emitter: address(walletConnectToken) });
+        vm.expectEmit({ emitter: address(cnct) });
         emit Transfer(address(0), to, amount);
 
         // Mint {amount} token
-        walletConnectToken.mint(to, amount);
+        cnct.mint(to, amount);
 
         // Assert the token was minted
-        assertEq(walletConnectToken.balanceOf(to), amount);
+        assertEq(cnct.balanceOf(to), amount);
         // Assert the total supply was updated
-        assertEq(walletConnectToken.totalSupply(), totalSupply + amount);
+        assertEq(cnct.totalSupply(), totalSupply + amount);
     }
 }
 
-contract WalletConnectTokenHarness is WalletConnectToken {
-    constructor(address owner) WalletConnectToken(owner) { }
+contract CNCTHarness is CNCT {
+    constructor(address owner) CNCT(owner) { }
 
     function maxSupply() external view returns (uint256) {
         return _maxSupply();

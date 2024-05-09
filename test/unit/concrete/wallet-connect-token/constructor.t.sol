@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.19 <0.9.0;
 
-import { WalletConnectToken } from "src/WalletConnectToken.sol";
+import { CNCT } from "src/CNCT.sol";
 
 import { Base_Test } from "../../../Base.t.sol";
 
-contract Constructor_WalletConnectToken_Unit_Concrete_Test is Base_Test {
+contract Constructor_CNCT_Unit_Concrete_Test is Base_Test {
     function test_Constructor() external {
         // Construct the contract.
-        WalletConnectToken token = new WalletConnectToken({ initialOwner: users.mintManagerOwner });
+        CNCT token = new CNCT({ initialOwner: users.mintManagerOwner });
 
         // Assert that the owner has been set
         address actualOwner = token.owner();

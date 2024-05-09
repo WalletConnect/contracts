@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.19 <0.9.0;
 
-import { WalletConnectToken } from "src/WalletConnectToken.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { CNCT } from "src/CNCT.sol";
 import { Test } from "forge-std/src/Test.sol";
 
 import { Users } from "./utils/Types.sol";
@@ -20,7 +19,7 @@ abstract contract Base_Test is Test, Events {
                                    TEST CONTRACTS
     //////////////////////////////////////////////////////////////////////////*/
 
-    WalletConnectToken internal walletConnectToken;
+    CNCT internal cnct;
 
     /*//////////////////////////////////////////////////////////////////////////
                                   SET-UP FUNCTION
@@ -31,10 +30,10 @@ abstract contract Base_Test is Test, Events {
         users = Users({ mintManagerOwner: createUser("MintManagerOwner"), attacker: createUser("Attacker") });
 
         // Deploy the base test contracts.
-        walletConnectToken = new WalletConnectToken(users.mintManagerOwner);
+        cnct = new CNCT(users.mintManagerOwner);
 
         // Label the base test contracts.
-        vm.label({ account: address(walletConnectToken), newLabel: "WalletConnectToken" });
+        vm.label({ account: address(cnct), newLabel: "CNCT" });
     }
 
     /*//////////////////////////////////////////////////////////////////////////

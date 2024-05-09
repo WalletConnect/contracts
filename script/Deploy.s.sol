@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.25 <0.9.0;
 
-import { WalletConnectToken } from "../src/WalletConnectToken.sol";
+import { CNCT } from "../src/CNCT.sol";
 
 import { BaseScript } from "./Base.s.sol";
 
 /// @dev See the Solidity Scripting tutorial: https://book.getfoundry.sh/tutorials/solidity-scripting
 contract Deploy is BaseScript {
-    function run(address initialAdmin) public broadcast returns (WalletConnectToken token) {
-        token = new WalletConnectToken(initialAdmin);
+    function run(address initialAdmin) public broadcast returns (CNCT token) {
+        token = new CNCT(initialAdmin);
     }
 }
