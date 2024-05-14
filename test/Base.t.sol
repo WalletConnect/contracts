@@ -26,11 +26,11 @@ abstract contract Base_Test is Test, Events {
     //////////////////////////////////////////////////////////////////////////*/
 
     function setUp() public virtual {
-        // Create users for testing.
-        users = Users({ mintManagerOwner: createUser("MintManagerOwner"), attacker: createUser("Attacker") });
-
         // Deploy the base test contracts.
-        cnct = new CNCT(users.mintManagerOwner);
+        cnct = new CNCT(users.admin);
+
+        // Create users for testing.
+        users = Users({ admin: createUser("Admin"), attacker: createUser("Attacker") });
 
         // Label the base test contracts.
         vm.label({ account: address(cnct), newLabel: "CNCT" });

@@ -2,8 +2,8 @@
 pragma solidity >=0.8.19;
 
 struct Users {
-    // MintManager owner
-    address payable mintManagerOwner;
+    // Admin
+    address payable admin;
     // Attacker
     address payable attacker;
 }

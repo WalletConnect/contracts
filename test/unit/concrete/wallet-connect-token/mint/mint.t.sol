@@ -17,7 +17,7 @@ contract Mint_CNCT_Unit_Concrete_Test is Base_Test {
     }
 
     modifier whenCallerOwner() {
-        vm.startPrank(users.mintManagerOwner);
+        vm.startPrank(users.admin);
         _;
     }
 
@@ -25,13 +25,13 @@ contract Mint_CNCT_Unit_Concrete_Test is Base_Test {
         // Expect the relevant event to be emitted.
         uint256 totalSupply = cnct.totalSupply();
         vm.expectEmit({ emitter: address(cnct) });
-        emit Transfer(address(0), users.mintManagerOwner, 1);
+        emit Transfer(address(0), users.admin, 1);
 
         // Mint 1 token
-        cnct.mint(users.mintManagerOwner, 1);
+        cnct.mint(users.admin, 1);
 
         // Assert the token was minted
-        assertEq(cnct.balanceOf(users.mintManagerOwner), 1);
+        assertEq(cnct.balanceOf(users.admin), 1);
         // Assert the total supply was updated
         assertEq(cnct.totalSupply(), totalSupply + 1);
     }

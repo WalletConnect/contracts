@@ -12,12 +12,12 @@ contract Mint_CNCT_Unit_Fuzz_Test is Base_Test {
 
     function setUp() public override {
         super.setUp();
-        cnctHarness = new CNCTHarness(users.mintManagerOwner);
+        cnctHarness = new CNCTHarness(users.admin);
     }
 
     function testFuzz_RevertWhen_CallerNotOwner(address attacker) external {
         // // Run the test.
-        vm.assume(attacker != address(0) && attacker != users.mintManagerOwner);
+        vm.assume(attacker != address(0) && attacker != users.admin);
         assumeNotPrecompile(attacker);
 
         // Make the attacker the caller
@@ -29,7 +29,7 @@ contract Mint_CNCT_Unit_Fuzz_Test is Base_Test {
     }
 
     modifier whenCallerOwner() {
-        vm.startPrank(users.mintManagerOwner);
+        vm.startPrank(users.admin);
         _;
     }
 

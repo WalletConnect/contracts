@@ -8,11 +8,11 @@ import { Base_Test } from "../../../Base.t.sol";
 contract Constructor_CNCT_Unit_Concrete_Test is Base_Test {
     function test_Constructor() external {
         // Construct the contract.
-        CNCT token = new CNCT({ initialOwner: users.mintManagerOwner });
+        CNCT token = new CNCT({ initialOwner: users.admin });
 
         // Assert that the owner has been set
         address actualOwner = token.owner();
-        address expectedOwner = users.mintManagerOwner;
+        address expectedOwner = users.admin;
         assertEq(actualOwner, expectedOwner, "owner");
     }
 }
