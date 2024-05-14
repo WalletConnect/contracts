@@ -26,9 +26,6 @@ abstract contract Base_Test is Test, Events {
     //////////////////////////////////////////////////////////////////////////*/
 
     function setUp() public virtual {
-        // Deploy the base test contracts.
-        cnct = new CNCT(users.admin);
-
         // Create users for testing.
         users = Users({ admin: createUser("Admin"), attacker: createUser("Attacker") });
 
@@ -45,5 +42,11 @@ abstract contract Base_Test is Test, Events {
         address payable user = payable(makeAddr(name));
         vm.deal({ account: user, newBalance: 100 ether });
         return user;
+    }
+
+    /// @dev Conditionally deploys WalletConnect Core
+    function deployCoreConditionally() internal {
+        walletConnectConfig = new WalletConnectConfig(users.admin);
+        cnct = new CNCT(users.admin);
     }
 }

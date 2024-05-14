@@ -7,6 +7,11 @@ import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { Base_Test } from "../../../../Base.t.sol";
 
 contract Mint_CNCT_Unit_Concrete_Test is Base_Test {
+    function setUp() public override {
+        super.setUp();
+        deployCoreConditionally();
+    }
+
     function test_RevertWhen_CallerNotOwner() external {
         // Make the attacker the caller
         vm.startPrank(users.attacker);
