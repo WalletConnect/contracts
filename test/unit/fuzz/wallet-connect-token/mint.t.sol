@@ -13,10 +13,11 @@ contract Mint_CNCT_Unit_Fuzz_Test is Base_Test {
     function setUp() public override {
         super.setUp();
         cnctHarness = new CNCTHarness(users.admin);
+        // Label the contract
+        vm.label({ account: address(cnctHarness), newLabel: "CNCTHarness" });
     }
 
     function testFuzz_RevertWhen_CallerNotOwner(address attacker) external {
-        // // Run the test.
         vm.assume(attacker != address(0) && attacker != users.admin);
         assumeNotPrecompile(attacker);
 
@@ -25,7 +26,7 @@ contract Mint_CNCT_Unit_Fuzz_Test is Base_Test {
 
         // Run the test
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, attacker));
-        cnct.mint(attacker, 1);
+        cnctHarness.mint(attacker, 1);
     }
 
     modifier whenCallerOwner() {
@@ -38,18 +39,18 @@ contract Mint_CNCT_Unit_Fuzz_Test is Base_Test {
         amount = bound(amount, 1, cnctHarness.maxSupply() - cnctHarness.totalSupply() - 1);
         console2.logUint(amount);
         // Get the total supply before minting
-        uint256 totalSupply = cnct.totalSupply();
+        uint256 totalSupply = cnctHarness.totalSupply();
         // Expect the relevant event to be emitted.
-        vm.expectEmit({ emitter: address(cnct) });
+        vm.expectEmit({ emitter: address(cnctHarness) });
         emit Transfer(address(0), to, amount);
 
         // Mint {amount} token
-        cnct.mint(to, amount);
+        cnctHarness.mint(to, amount);
 
         // Assert the token was minted
-        assertEq(cnct.balanceOf(to), amount);
+        assertEq(cnctHarness.balanceOf(to), amount);
         // Assert the total supply was updated
-        assertEq(cnct.totalSupply(), totalSupply + amount);
+        assertEq(cnctHarness.totalSupply(), totalSupply + amount);
     }
 }
 

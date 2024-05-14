@@ -2,6 +2,10 @@
 pragma solidity >=0.8.19 <0.9.0;
 
 import { CNCT } from "src/CNCT.sol";
+import { Pauser } from "src/Pauser.sol";
+import { PermissionedNodeRegistry } from "src/PermissionedNodeRegistry.sol";
+import { WalletConnectConfig } from "src/WalletConnectConfig.sol";
+
 import { Test } from "forge-std/src/Test.sol";
 
 import { Users } from "./utils/Types.sol";
@@ -20,6 +24,9 @@ abstract contract Base_Test is Test, Events {
     //////////////////////////////////////////////////////////////////////////*/
 
     CNCT internal cnct;
+    Pauser internal pauser;
+    PermissionedNodeRegistry internal permissionedNodeRegistry;
+    WalletConnectConfig internal walletConnectConfig;
 
     /*//////////////////////////////////////////////////////////////////////////
                                   SET-UP FUNCTION
@@ -48,5 +55,12 @@ abstract contract Base_Test is Test, Events {
     function deployCoreConditionally() internal {
         walletConnectConfig = new WalletConnectConfig(users.admin);
         cnct = new CNCT(users.admin);
+        pauser = new Pauser(Pauser.Init({ admin: users.admin, pauser: users.admin, unpauser: users.admin }));
+        permissionedNodeRegistry = new PermissionedNodeRegistry(users.admin);
+
+        vm.label({ account: address(walletConnectConfig), newLabel: "WalletConnectConfig" });
+        vm.label({ account: address(cnct), newLabel: "CNCT" });
+        vm.label({ account: address(pauser), newLabel: "Pauser" });
+        vm.label({ account: address(permissionedNodeRegistry), newLabel: "PermissionedNodeRegistry" });
     }
 }
