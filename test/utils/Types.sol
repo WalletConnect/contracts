@@ -4,6 +4,8 @@ pragma solidity >=0.8.19;
 struct Users {
     // Admin
     address payable admin;
+    // Treasury
+    address treasury;
     // Attacker
     address payable attacker;
 }

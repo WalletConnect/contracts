@@ -1,0 +1,52 @@
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity >=0.8.25 <0.9.0;
+
+import { Base_Test } from "../../../../Base.t.sol";
+import { RewardManager } from "src/RewardManager.sol";
+
+contract PostPerformanceRecords_RewardManager_Unit_Fuzz_Test is Base_Test {
+    function setUp() public override {
+        super.setUp();
+        deployCoreConditionally();
+    }
+
+    modifier whenCallerOwner() {
+        vm.startPrank(users.admin);
+        _;
+    }
+
+    modifier whenReportingEpochIsGTLastUpdatedEpoch() {
+        _;
+    }
+
+    modifier whenInputArraysMatchInLength() {
+        _;
+    }
+
+    function testFuzz_postPerformanceRecords(uint256[] memory performance)
+        external
+        whenCallerOwner
+        whenReportingEpochIsGTLastUpdatedEpoch
+        whenInputArraysMatchInLength
+    {
+        // Set a min and max number of nodes for the fuzz
+        vm.assume(performance.length > 0 && performance.length < defaults.MAX_NODES());
+        // Prepare the input arrays
+        address[] memory users = new address[](performance.length);
+        uint256 totalPerformance = 0;
+        for (uint8 i = 0; i < performance.length; i++) {
+            users[i] = createUser(string(abi.encodePacked("user", i)));
+            performance[i] = bound(performance[i], 0, 100);
+            totalPerformance += performance[i];
+        }
+        vm.assume(totalPerformance > 0);
+        // Run the test
+        rewardManager.postPerformanceRecords(
+            RewardManager.PerformanceData({
+                users: users,
+                performance: performance,
+                reportingEpoch: defaults.FIRST_EPOCH()
+            })
+        );
+    }
+}
