@@ -2,6 +2,21 @@
 pragma solidity >=0.8.25 <0.9.0;
 
 import { Script } from "forge-std/src/Script.sol";
+import { CNCT } from "src/CNCT.sol";
+import { Pauser } from "src/Pauser.sol";
+import { PermissionedNodeRegistry } from "src/PermissionedNodeRegistry.sol";
+import { RewardManager } from "src/RewardManager.sol";
+import { Staking } from "src/Staking.sol";
+import { WalletConnectConfig } from "src/WalletConnectConfig.sol";
+
+struct Deployments {
+    CNCT cnct;
+    Pauser pauser;
+    PermissionedNodeRegistry registry;
+    RewardManager rewardManager;
+    Staking staking;
+    WalletConnectConfig config;
+}
 
 abstract contract BaseScript is Script {
     /// @dev Included to enable compilation of the script without a $MNEMONIC environment variable.
@@ -24,6 +39,7 @@ abstract contract BaseScript is Script {
     ///
     /// The use case for $ETH_FROM is to specify the broadcaster key and its address via the command line.
     constructor() {
+        require(vm.envUint("CHAIN_ID") == block.chainid, "wrong chain id");
         address from = vm.envOr({ name: "ETH_FROM", defaultValue: address(0) });
         if (from != address(0)) {
             broadcaster = from;
@@ -37,5 +53,40 @@ abstract contract BaseScript is Script {
         vm.startBroadcast(broadcaster);
         _;
         vm.stopBroadcast();
+    }
+
+    function _deploymentsFile() internal view returns (string memory) {
+        string memory root = vm.projectRoot();
+        return string.concat(root, "/deployments/", vm.toString(block.chainid));
+    }
+
+    function writeDeployments(Deployments memory deps) public {
+        vm.writeFileBinary(_deploymentsFile(), abi.encode(deps));
+    }
+
+    function safeReadDeployments() public returns (Deployments memory) {
+        Deployments memory depls = _readDeployments();
+        require(address(depls.cnct).code.length > 0, "contracts are not deployed yet");
+        return depls;
+    }
+
+    function readDeployments() public returns (Deployments memory) {
+        return _readDeployments();
+    }
+
+    function _readDeployments() private returns (Deployments memory) {
+        if (vm.exists(_deploymentsFile()) == false) {
+            return Deployments({
+                cnct: CNCT(address(0)),
+                pauser: Pauser(address(0)),
+                registry: PermissionedNodeRegistry(address(0)),
+                rewardManager: RewardManager(address(0)),
+                staking: Staking(address(0)),
+                config: WalletConnectConfig(address(0))
+            });
+        }
+        bytes memory data = vm.readFileBinary(_deploymentsFile());
+        Deployments memory depls = abi.decode(data, (Deployments));
+        return depls;
     }
 }
