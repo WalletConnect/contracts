@@ -31,6 +31,9 @@ abstract contract BaseScript is Script {
     /// @dev Used to derive the broadcaster's address if $ETH_FROM is not defined.
     string internal mnemonic;
 
+    /// @dev Used to prevent using reserved protocol addresses for other purposes.
+    uint32 lastReservedMnemonicIndex = 1;
+
     /// @dev Initializes the transaction broadcaster like this:
     ///
     /// - If $ETH_FROM is defined, use it.

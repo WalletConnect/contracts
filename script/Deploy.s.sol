@@ -17,11 +17,19 @@ import { BaseScript, Deployments } from "./Base.s.sol";
 
 struct DeploymentParams {
     address manager;
+    address treasury;
+    uint256 rewardsPerEpoch;
+    uint256 initialTreasuryBalance;
 }
 
 contract Deploy is BaseScript {
     function _readDeploymentParamsFromEnv() internal view returns (DeploymentParams memory) {
-        return DeploymentParams({ manager: vm.envOr("MANAGER_ADDRESS", broadcaster) });
+        return DeploymentParams({
+            manager: vm.envOr("MANAGER_ADDRESS", vm.addr(vm.deriveKey(mnemonic, 0))),
+            treasury: vm.envOr("TREASURY_ADDRESS", vm.addr(vm.deriveKey(mnemonic, 1))),
+            rewardsPerEpoch: vm.envUint("REWARDS_PER_EPOCH"),
+            initialTreasuryBalance: vm.envUint("INITIAL_TREASURY_BALANCE")
+        });
     }
 
     function _deployAll(DeploymentParams memory params) internal returns (Deployments memory) {
@@ -35,11 +43,16 @@ contract Deploy is BaseScript {
         console2.log("Pauser address:", address(pauser));
         PermissionedNodeRegistry registry = new PermissionedNodeRegistry({ initialOwner: params.manager });
         console2.log("PermissionedNodeRegistry address:", address(registry));
-        RewardManager rewardManager =
-            new RewardManager({ initialOwner: params.manager, initialRewardsPerEpoch: 0, walletConnectConfig_: config });
+        RewardManager rewardManager = new RewardManager({
+            initialOwner: params.manager,
+            initialRewardsPerEpoch: params.rewardsPerEpoch,
+            walletConnectConfig_: config
+        });
         console2.log("RewardManager address:", address(rewardManager));
         Staking staking = new Staking({ initialOwner: params.manager });
         console2.log("Staking address:", address(staking));
+        cnct.mint(params.treasury, params.initialTreasuryBalance);
+        vm.stopBroadcast();
 
         Deployments memory deploys = Deployments({
             cnct: cnct,
@@ -49,7 +62,6 @@ contract Deploy is BaseScript {
             staking: staking,
             config: config
         });
-        vm.stopBroadcast();
 
         writeDeployments(deploys);
         return deploys;
