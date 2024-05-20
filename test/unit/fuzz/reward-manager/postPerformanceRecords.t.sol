@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.25 <0.9.0;
 
-import { Base_Test } from "../../../../Base.t.sol";
+import { Base_Test } from "../../../Base.t.sol";
 import { RewardManager } from "src/RewardManager.sol";
 
 contract PostPerformanceRecords_RewardManager_Unit_Fuzz_Test is Base_Test {
