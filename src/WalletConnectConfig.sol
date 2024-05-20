@@ -4,9 +4,8 @@ pragma solidity ^0.8.25;
 
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { UtilLib } from "./library/UtilLib.sol";
-import { IWalletConnectConfig } from "./interfaces/IWalletConnectConfig.sol";
 
-contract WalletConnectConfig is IWalletConnectConfig, Ownable {
+contract WalletConnectConfig is Ownable {
     error IndenticalValue();
 
     event SetContract(bytes32 key, address val);

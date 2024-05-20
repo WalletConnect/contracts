@@ -4,7 +4,9 @@ pragma solidity ^0.8.25;
 
 import { AccessControlEnumerable } from "@openzeppelin/contracts/access/extensions/AccessControlEnumerable.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IPauserRead } from "./interfaces/IPauser.sol";
+import { WalletConnectConfig } from "./WalletConnectConfig.sol";
+import { PermissionedNodeRegistry } from "./PermissionedNodeRegistry.sol";
+import { Pauser } from "./Pauser.sol";
 
 contract Staking is AccessControlEnumerable {
     /*//////////////////////////////////////////////////////////////////////////
@@ -35,12 +37,11 @@ contract Staking is AccessControlEnumerable {
     /// @notice Stake amount for each user.
     mapping(address staker => uint256 amount) public stakes;
 
-    /// @notice The WalletConnect token contract.
-    IERC20 public cnct;
+    WalletConnectConfig public walletConnectConfig;
 
     /// @notice The pauser contract.
     /// @dev Keeps the pause state across the protocol.
-    IPauserRead public pauser;
+    Pauser public pauser;
 
     constructor(address initialOwner) {
         _grantRole(DEFAULT_ADMIN_ROLE, initialOwner);

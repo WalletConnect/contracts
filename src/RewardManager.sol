@@ -3,8 +3,8 @@ pragma solidity 0.8.25;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
-import { IWalletConnectConfig } from "./interfaces/IWalletConnectConfig.sol";
-import "./library/UtilLib.sol";
+import { WalletConnectConfig } from "./WalletConnectConfig.sol";
+import { UtilLib } from "./library/UtilLib.sol";
 
 contract RewardManager is Ownable {
     event PerformanceUpdated(uint256 reportingEpoch, uint256 rewardsPerEpoch);
@@ -16,7 +16,7 @@ contract RewardManager is Ownable {
     error NoRewardsToClaim();
 
     uint256 constant PERFORMANCE_SCALE = 1e18;
-    IWalletConnectConfig public walletConnectConfig;
+    WalletConnectConfig public walletConnectConfig;
     uint256 public rewardsPerEpoch; // tokens to be distributed per epoch
     uint256 public lastUpdatedEpoch; // Last epoch for which rewards were updated
 
@@ -32,7 +32,7 @@ contract RewardManager is Ownable {
     constructor(
         address initialOwner,
         uint256 initialRewardsPerEpoch,
-        IWalletConnectConfig walletConnectConfig_
+        WalletConnectConfig walletConnectConfig_
     )
         Ownable(initialOwner)
     {
