@@ -12,6 +12,10 @@ contract PermissionedNodeRegistry is Ownable {
     error NodeNotWhitelisted(address node);
     error NodeAlreadyWhitelisted(address node);
 
+    // events
+    event NodeWhitelisted(address indexed node);
+    event NodeRemovedFromWhitelist(address indexed node);
+
     EnumerableSet.AddressSet private stakingAllowlist; // set of nodes to iterate over
 
     constructor(address initialOwner) Ownable(initialOwner) { }
@@ -21,6 +25,7 @@ contract PermissionedNodeRegistry is Ownable {
             revert NodeAlreadyWhitelisted(node);
         }
         stakingAllowlist.add(node);
+        emit NodeWhitelisted(node);
     }
 
     function removeNodeFromWhitelist(address node) external onlyOwner {
@@ -28,6 +33,7 @@ contract PermissionedNodeRegistry is Ownable {
             revert NodeNotWhitelisted(node);
         }
         stakingAllowlist.remove(node);
+        emit NodeRemovedFromWhitelist(node);
     }
 
     function isNodeWhitelisted(address node) external view returns (bool) {
