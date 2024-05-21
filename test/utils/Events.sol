@@ -13,7 +13,7 @@ abstract contract Events {
                             WALLETCONNECT-REWARD-MANAGER
     //////////////////////////////////////////////////////////////////////////*/
     event PerformanceUpdated(uint256 reportingEpoch, uint256 rewardsPerEpoch);
-    event RewardsClaimed(address indexed user, uint256 reward);
+    event RewardsClaimed(address indexed node, uint256 reward);
 
     /*//////////////////////////////////////////////////////////////////////////
                         WALLETCONNECT-PERMISSIONED-NODE-REGISTRY

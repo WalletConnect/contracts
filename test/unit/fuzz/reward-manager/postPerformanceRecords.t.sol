@@ -35,7 +35,7 @@ contract PostPerformanceRecords_RewardManager_Unit_Fuzz_Test is Base_Test {
         address[] memory nodes = new address[](performance.length);
         uint256 totalPerformance = 0;
         for (uint8 i = 0; i < performance.length; i++) {
-            nodes[i] = createUser(string(abi.encodePacked("user", i)));
+            nodes[i] = createUser(string(abi.encodePacked("node", i)));
             performance[i] = bound(performance[i], 0, 100);
             totalPerformance += performance[i];
         }

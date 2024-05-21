@@ -68,10 +68,13 @@ contract RewardManager is Ownable {
         // Distribute rewards based on performance
         for (uint256 i = 0; i < data.nodes.length; i++) {
             if (data.performance[i] > 0) {
-                address user = data.nodes[i];
-                uint256 userPerformance = data.performance[i];
-                uint256 userReward = (rewardsPerEpoch * userPerformance) / totalPerformance;
-                pendingRewards[user] += userReward;
+                address node = data.nodes[i];
+                if (staking.stakes(node) < staking.minStakeAmount()) {
+                    continue;
+                }
+                uint256 nodePerformance = data.performance[i];
+                uint256 nodeReward = (maxRewardsPerEpoch * nodePerformance) / totalPerformance;
+                staking.updateRewards(node, nodeReward);
             }
         }
 

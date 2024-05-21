@@ -12,8 +12,10 @@ contract Staking is AccessControlEnumerable {
     /*//////////////////////////////////////////////////////////////////////////
                                     EVENTS
     //////////////////////////////////////////////////////////////////////////*/
-    event Staked(address indexed user, uint256 amount);
-    event Unstaked(address indexed user, uint256 amount);
+
+    event Staked(address indexed node, uint256 amount);
+    event Unstaked(address indexed node, uint256 amount);
+    event RewardsClaimed(address indexed node, uint256 reward);
 
     /*//////////////////////////////////////////////////////////////////////////
                                     ERRORS
@@ -34,7 +36,13 @@ contract Staking is AccessControlEnumerable {
     /// @notice The staking allowlist flag which, when enabled, allows staking only for addresses in allowlist.
     bool public isStakingAllowlist;
 
-    /// @notice Stake amount for each user.
+    /// @notice The minimum staking amount for each node.
+    uint256 public minStakeAmount;
+
+    /// @notice The accrued rewards for each node.
+    mapping(address staker => uint256 pendingRewards) public pendingRewards;
+
+    /// @notice Stake amount for each node.
     mapping(address staker => uint256 amount) public stakes;
 
     WalletConnectConfig public walletConnectConfig;
@@ -51,7 +59,7 @@ contract Staking is AccessControlEnumerable {
     /*//////////////////////////////////////////////////////////////////////////
                                     FUNCTIONS
     //////////////////////////////////////////////////////////////////////////*/
-    /// @notice Interface for users to stake their CNCT with the protocol. Note: when allowlist is enabled, only users
+    /// @notice Interface for nodes to stake their CNCT with the protocol. Note: when allowlist is enabled, only nodes
     /// with the allowlist can stake.
     function stake(uint256 amount) external payable {
         if (pauser.isStakingPaused()) {
