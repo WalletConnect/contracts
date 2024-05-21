@@ -1,0 +1,13 @@
+claimRewards.t.sol
+├── given caller has no pending rewards
+│   └── it should revert
+└── given caller has pending rewards
+    ├── given the staking contract does not have allowance to transfer rewards from the reward vault
+    │   └── it should revert
+    └── given the staking contract has allowance to transfer rewards from the reward vault
+        ├── given the reward vault does not have enough balance
+        │   └── it should revert
+        └── given the reward vault has enough balance
+            ├── it should set pending rewards to 0
+            ├── it should emit a {RewardsClaimed} event
+            └── it should transfer pending rewards to caller

@@ -22,6 +22,15 @@ abstract contract Events {
     event NodeRemovedFromWhitelist(address indexed node);
 
     /*//////////////////////////////////////////////////////////////////////////
+                                WALLETCONNECT-STAKING
+    //////////////////////////////////////////////////////////////////////////*/
+    event Staked(address indexed node, uint256 amount);
+    event Unstaked(address indexed node, uint256 amount);
+    event RewardsUpdated(address indexed node, uint256 indexed reportingEpoch, uint256 newRewards);
+    event StakingAllowlistSet(bool isStakingAllowlist);
+    event MinStakeAmountUpdated(uint256 oldMinStakeAmount, uint256 newMinStakeAmount);
+
+    /*//////////////////////////////////////////////////////////////////////////
                                       GENERICS
     //////////////////////////////////////////////////////////////////////////*/
 

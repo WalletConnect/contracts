@@ -20,6 +20,8 @@ struct DeploymentParams {
     address treasury;
     uint256 rewardsPerEpoch;
     uint256 initialTreasuryBalance;
+    uint8 maxNodes;
+    uint256 minStakeAmount;
 }
 
 contract Deploy is BaseScript {
@@ -28,7 +30,9 @@ contract Deploy is BaseScript {
             manager: vm.envOr("MANAGER_ADDRESS", vm.addr(vm.deriveKey(mnemonic, 0))),
             treasury: vm.envOr("TREASURY_ADDRESS", vm.addr(vm.deriveKey(mnemonic, 1))),
             rewardsPerEpoch: vm.envUint("REWARDS_PER_EPOCH"),
-            initialTreasuryBalance: vm.envUint("INITIAL_TREASURY_BALANCE")
+            initialTreasuryBalance: vm.envUint("INITIAL_TREASURY_BALANCE"),
+            maxNodes: uint8(vm.envUint("MAX_NODES")),
+            minStakeAmount: vm.envUint("MIN_STAKE_AMOUNT")
         });
     }
 
@@ -41,17 +45,32 @@ contract Deploy is BaseScript {
         Pauser pauser =
             new Pauser(Pauser.Init({ admin: params.manager, pauser: params.manager, unpauser: params.manager }));
         console2.log("Pauser address:", address(pauser));
-        PermissionedNodeRegistry registry = new PermissionedNodeRegistry({ initialOwner: params.manager });
+        PermissionedNodeRegistry registry =
+            new PermissionedNodeRegistry({ initialOwner: params.manager, maxNodes_: params.maxNodes });
         console2.log("PermissionedNodeRegistry address:", address(registry));
         RewardManager rewardManager = new RewardManager({
             initialOwner: params.manager,
-            initialRewardsPerEpoch: params.rewardsPerEpoch,
+            initialMaxRewardsPerEpoch: params.rewardsPerEpoch,
             walletConnectConfig_: config
         });
         console2.log("RewardManager address:", address(rewardManager));
-        Staking staking = new Staking({ initialOwner: params.manager });
+        Staking staking = new Staking({
+            initialOwner: params.manager,
+            initialMinStakeAmount: params.minStakeAmount,
+            walletConnectConfig_: config
+        });
         console2.log("Staking address:", address(staking));
         cnct.mint(params.treasury, params.initialTreasuryBalance);
+
+        // Update the addresses in the config
+        config.updateCnct(address(cnct));
+        config.updatePauser(address(pauser));
+        config.updatePermissionedNodeRegistry(address(registry));
+        config.updateRewardManager(address(rewardManager));
+        config.updateStaking(address(staking));
+        config.updateWalletConnectRewardsVault(params.treasury);
+        console2.log("WalletConnectConfig updated");
+
         vm.stopBroadcast();
 
         Deployments memory deploys = Deployments({

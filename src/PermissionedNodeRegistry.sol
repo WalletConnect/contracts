@@ -11,16 +11,26 @@ contract PermissionedNodeRegistry is Ownable {
     // errors
     error NodeNotWhitelisted(address node);
     error NodeAlreadyWhitelisted(address node);
+    error UnchangedState();
 
     // events
     event NodeWhitelisted(address indexed node);
     event NodeRemovedFromWhitelist(address indexed node);
 
+    // state variables
+
+    uint8 public maxNodes;
+
     EnumerableSet.AddressSet private stakingAllowlist; // set of nodes to iterate over
 
-    constructor(address initialOwner) Ownable(initialOwner) { }
+    constructor(address initialOwner, uint8 maxNodes_) Ownable(initialOwner) {
+        maxNodes = maxNodes_;
+    }
 
     function whitelistNode(address node) external onlyOwner {
+        if (stakingAllowlist.length() == maxNodes) {
+            revert UnchangedState();
+        }
         if (stakingAllowlist.contains(node)) {
             revert NodeAlreadyWhitelisted(node);
         }
@@ -54,5 +64,12 @@ contract PermissionedNodeRegistry is Ownable {
 
     function getWhitelistedNodeAtIndex(uint256 index) external view returns (address) {
         return stakingAllowlist.at(index);
+    }
+
+    function setMaxNodes(uint8 maxNodes_) external onlyOwner {
+        if (maxNodes == maxNodes_) {
+            revert UnchangedState();
+        }
+        maxNodes = maxNodes_;
     }
 }

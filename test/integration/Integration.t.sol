@@ -14,8 +14,5 @@ abstract contract Integration_Test is Base_Test {
 
         // Deploy Core.
         deployCoreConditionally();
-
-        // Make the Admin the default caller in this test suite.
-        vm.startPrank({ msgSender: users.admin });
     }
 }

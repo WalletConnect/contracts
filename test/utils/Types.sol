@@ -8,4 +8,8 @@ struct Users {
     address treasury;
     // Attacker
     address payable attacker;
+    // Permissioned Node
+    address payable permissionedNode;
+    // Non-Permissioned Node
+    address payable nonPermissionedNode;
 }

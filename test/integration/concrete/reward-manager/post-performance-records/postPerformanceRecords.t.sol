@@ -2,10 +2,10 @@
 pragma solidity >=0.8.25 <0.9.0;
 
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
-import { Base_Test } from "../../../../Base.t.sol";
+import { Staking_Integration_Shared_Test } from "test/integration/shared/Staking.t.sol";
 import { RewardManager } from "src/RewardManager.sol";
 
-contract PostPerformanceRecords_RewardManager_Unit_Concrete_Test is Base_Test {
+contract PostPerformanceRecords_RewardManager_Integration_Concrete_Test is Staking_Integration_Shared_Test {
     uint256 internal defaultReportingEpoch;
 
     function setUp() public override {
@@ -97,26 +97,29 @@ contract PostPerformanceRecords_RewardManager_Unit_Concrete_Test is Base_Test {
         // Variables
         uint256 nodesLength = 1;
         // Prepare the input arrays
-        address[] memory users = new address[](nodesLength);
+        address[] memory nodes = new address[](nodesLength);
         uint256[] memory performance = new uint256[](nodesLength);
-        users[0] = createUser("user");
+        nodes[0] = createUser("node");
         performance[0] = 100;
         // Prev state
-        uint256 prevPendingRewards = rewardManager.pendingRewards(users[0]);
+        uint256 prevPendingRewards = staking.pendingRewards(nodes[0]);
+        stakeFrom(nodes[0], defaults.MIN_STAKE());
 
         vm.expectEmit({ emitter: address(rewardManager) });
         emit PerformanceUpdated(defaultReportingEpoch, defaults.EPOCH_REWARD_EMISSION());
 
         // Run the test
+        vm.startPrank(users.admin);
         rewardManager.postPerformanceRecords(
             RewardManager.PerformanceData({
-                nodes: users,
+                nodes: nodes,
                 performance: performance,
                 reportingEpoch: defaultReportingEpoch
             })
         );
+        vm.stopPrank();
         // Assert
-        assertEq(rewardManager.pendingRewards(users[0]), prevPendingRewards + defaults.EPOCH_REWARD_EMISSION());
+        assertEq(staking.pendingRewards(nodes[0]), prevPendingRewards + defaults.EPOCH_REWARD_EMISSION());
         assertEq(rewardManager.lastUpdatedEpoch(), defaultReportingEpoch);
     }
 
@@ -129,26 +132,29 @@ contract PostPerformanceRecords_RewardManager_Unit_Concrete_Test is Base_Test {
         // Variables
         uint256 nodesLength = defaults.MAX_NODES();
         // Prepare the input arrays
-        address[] memory users = new address[](nodesLength);
+        address[] memory nodes = new address[](nodesLength);
         uint256[] memory performance = new uint256[](nodesLength);
         for (uint256 i = 0; i < nodesLength; i++) {
-            users[i] = createUser(string(abi.encodePacked("user", i)));
+            nodes[i] = createUser(string(abi.encodePacked("node", i)));
             performance[i] = 100;
+            stakeFrom(nodes[i], defaults.MIN_STAKE());
         }
         vm.expectEmit({ emitter: address(rewardManager) });
         emit PerformanceUpdated(defaultReportingEpoch, defaults.EPOCH_REWARD_EMISSION());
 
         // Run the test
+        vm.startPrank(users.admin);
         rewardManager.postPerformanceRecords(
             RewardManager.PerformanceData({
-                nodes: users,
+                nodes: nodes,
                 performance: performance,
                 reportingEpoch: defaultReportingEpoch
             })
         );
+        vm.stopPrank();
         // Assert
         uint256 expectedReward = defaults.EPOCH_REWARD_EMISSION() / nodesLength;
-        assertEq(rewardManager.pendingRewards(users[0]), expectedReward);
+        assertEq(staking.pendingRewards(nodes[0]), expectedReward);
         assertEq(rewardManager.lastUpdatedEpoch(), defaultReportingEpoch);
     }
 
@@ -161,19 +167,21 @@ contract PostPerformanceRecords_RewardManager_Unit_Concrete_Test is Base_Test {
         // Variables
         uint256 nodesLength = defaults.MAX_NODES();
         // Prepare the input arrays
-        address[] memory users = new address[](nodesLength);
+        address[] memory nodes = new address[](nodesLength);
         uint256[] memory performance = new uint256[](nodesLength);
         for (uint256 i = 0; i < nodesLength; i++) {
-            users[i] = createUser(string(abi.encodePacked("user", i)));
+            nodes[i] = createUser(string(abi.encodePacked("user", i)));
             performance[i] = i == 0 ? 0 : 100;
+            stakeFrom(nodes[i], defaults.MIN_STAKE());
         }
         vm.expectEmit({ emitter: address(rewardManager) });
         emit PerformanceUpdated(defaultReportingEpoch, defaults.EPOCH_REWARD_EMISSION());
 
+        vm.startPrank(users.admin);
         // Run the first time (storage slot are empty) -> 1276450 gas
         rewardManager.postPerformanceRecords(
             RewardManager.PerformanceData({
-                nodes: users,
+                nodes: nodes,
                 performance: performance,
                 reportingEpoch: defaultReportingEpoch
             })
@@ -181,7 +189,7 @@ contract PostPerformanceRecords_RewardManager_Unit_Concrete_Test is Base_Test {
         // Run the second time (storage slots are updated) -> 421450 gas
         rewardManager.postPerformanceRecords(
             RewardManager.PerformanceData({
-                nodes: users,
+                nodes: nodes,
                 performance: performance,
                 reportingEpoch: defaultReportingEpoch + 1
             })
