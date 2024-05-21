@@ -22,7 +22,7 @@ contract PostPerformanceRecords_RewardManager_Unit_Concrete_Test is Base_Test {
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, users.attacker));
         rewardManager.postPerformanceRecords(
             RewardManager.PerformanceData({
-                users: new address[](0),
+                nodes: new address[](0),
                 performance: new uint256[](0),
                 reportingEpoch: defaultReportingEpoch
             })
@@ -48,7 +48,7 @@ contract PostPerformanceRecords_RewardManager_Unit_Concrete_Test is Base_Test {
         vm.expectRevert(RewardManager.PerformanceDataAlreadyUpdated.selector);
         rewardManager.postPerformanceRecords(
             RewardManager.PerformanceData({
-                users: new address[](0),
+                nodes: new address[](0),
                 performance: new uint256[](0),
                 reportingEpoch: lastUpdatedEpoch
             })
@@ -64,7 +64,7 @@ contract PostPerformanceRecords_RewardManager_Unit_Concrete_Test is Base_Test {
         vm.expectRevert(RewardManager.MismatchedDataLengths.selector);
         rewardManager.postPerformanceRecords(
             RewardManager.PerformanceData({
-                users: new address[](1),
+                nodes: new address[](1),
                 performance: new uint256[](0),
                 reportingEpoch: defaultReportingEpoch
             })
@@ -81,7 +81,7 @@ contract PostPerformanceRecords_RewardManager_Unit_Concrete_Test is Base_Test {
         vm.expectRevert(RewardManager.TotalPerformanceZero.selector);
         rewardManager.postPerformanceRecords(
             RewardManager.PerformanceData({
-                users: new address[](1),
+                nodes: new address[](1),
                 performance: new uint256[](1),
                 reportingEpoch: defaultReportingEpoch
             })
@@ -110,7 +110,7 @@ contract PostPerformanceRecords_RewardManager_Unit_Concrete_Test is Base_Test {
         // Run the test
         rewardManager.postPerformanceRecords(
             RewardManager.PerformanceData({
-                users: users,
+                nodes: users,
                 performance: performance,
                 reportingEpoch: defaultReportingEpoch
             })
@@ -141,7 +141,7 @@ contract PostPerformanceRecords_RewardManager_Unit_Concrete_Test is Base_Test {
         // Run the test
         rewardManager.postPerformanceRecords(
             RewardManager.PerformanceData({
-                users: users,
+                nodes: users,
                 performance: performance,
                 reportingEpoch: defaultReportingEpoch
             })
@@ -173,7 +173,7 @@ contract PostPerformanceRecords_RewardManager_Unit_Concrete_Test is Base_Test {
         // Run the first time (storage slot are empty) -> 1276450 gas
         rewardManager.postPerformanceRecords(
             RewardManager.PerformanceData({
-                users: users,
+                nodes: users,
                 performance: performance,
                 reportingEpoch: defaultReportingEpoch
             })
@@ -181,7 +181,7 @@ contract PostPerformanceRecords_RewardManager_Unit_Concrete_Test is Base_Test {
         // Run the second time (storage slots are updated) -> 421450 gas
         rewardManager.postPerformanceRecords(
             RewardManager.PerformanceData({
-                users: users,
+                nodes: users,
                 performance: performance,
                 reportingEpoch: defaultReportingEpoch + 1
             })

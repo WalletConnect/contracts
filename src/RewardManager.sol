@@ -21,7 +21,7 @@ contract RewardManager is Ownable {
     uint256 public lastUpdatedEpoch; // Last epoch for which rewards were updated
 
     struct PerformanceData {
-        address[] users;
+        address[] nodes;
         uint256[] performance;
         uint256 reportingEpoch;
     }
@@ -47,14 +47,15 @@ contract RewardManager is Ownable {
         if (data.reportingEpoch <= lastUpdatedEpoch) {
             revert PerformanceDataAlreadyUpdated();
         }
-        if (data.users.length != data.performance.length) {
+
+        if (data.nodes.length != data.performance.length) {
             revert MismatchedDataLengths();
         }
 
         uint256 totalPerformance = 0;
 
         // Calculate total performance of eligible users
-        for (uint256 i = 0; i < data.users.length; i++) {
+        for (uint256 i = 0; i < data.nodes.length; i++) {
             if (data.performance[i] > 0) {
                 totalPerformance += data.performance[i];
             }
@@ -65,9 +66,9 @@ contract RewardManager is Ownable {
         }
 
         // Distribute rewards based on performance
-        for (uint256 i = 0; i < data.users.length; i++) {
+        for (uint256 i = 0; i < data.nodes.length; i++) {
             if (data.performance[i] > 0) {
-                address user = data.users[i];
+                address user = data.nodes[i];
                 uint256 userPerformance = data.performance[i];
                 uint256 userReward = (rewardsPerEpoch * userPerformance) / totalPerformance;
                 pendingRewards[user] += userReward;
