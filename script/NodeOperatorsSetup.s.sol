@@ -3,7 +3,7 @@ pragma solidity >=0.8.25 <0.9.0;
 
 import { BRR } from "src/BRR.sol";
 import { Defaults } from "test/utils/Defaults.sol";
-import { console2 } from "forge-std/src/console2.sol";
+import { console2 } from "forge-std/console2.sol";
 import { BaseScript, Deployments } from "./Base.s.sol";
 
 contract NodeOperatorsSetup is BaseScript {

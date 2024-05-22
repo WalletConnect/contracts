@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.25 <0.9.0;
 
-import { Script } from "forge-std/src/Script.sol";
+import { Script } from "forge-std/Script.sol";
 import { BRR } from "src/BRR.sol";
 import { Pauser } from "src/Pauser.sol";
 import { PermissionedNodeRegistry } from "src/PermissionedNodeRegistry.sol";

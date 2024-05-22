@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity >=0.8.19;
+pragma solidity >=0.8.25;
 
 /// @notice Abstract contract containing all the events emitted.
 abstract contract Events {
