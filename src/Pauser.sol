@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.25;
 
-import { AccessControlEnumerable } from "@openzeppelin/contracts/access/extensions/AccessControlEnumerable.sol";
+import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
-contract Pauser is AccessControlEnumerable {
+contract Pauser is Initializable, OwnableUpgradeable {
     /*//////////////////////////////////////////////////////////////////////////
                                     EVENTS
     //////////////////////////////////////////////////////////////////////////*/
@@ -32,40 +33,38 @@ contract Pauser is AccessControlEnumerable {
 
     /// @notice Configuration for contract initialization.
     struct Init {
-        address admin;
-        address pauser;
-        address unpauser;
+        address owner;
     }
 
-    constructor(Init memory init) {
-        _grantRole(DEFAULT_ADMIN_ROLE, init.admin);
-        _grantRole(PAUSER_ROLE, init.pauser);
-        _grantRole(UNPAUSER_ROLE, init.unpauser);
+    /// @notice Initializes the contract.
+    /// @dev MUST be called during the contract upgrade to set up the proxies state.
+    function initialize(Init memory init) external initializer {
+        __Ownable_init(init.owner);
     }
 
     /// @notice Pauses or unpauses staking.
     /// @dev If pausing, checks if the caller has the pauser role. If unpausing,
     /// checks if the caller has the unpauser role.
-    function setIsStakingPaused(bool isPaused) external onlyPauserUnpauserRole(isPaused) {
+    function setIsStakingPaused(bool isPaused) external onlyOwner {
         _setIsStakingPaused(isPaused);
     }
 
     /// @notice Pauses or unpauses submit oracle records.
     /// @dev If pausing, checks if the caller has the pauser role. If unpausing,
     /// checks if the caller has the unpauser role.
-    function setIsSubmitOracleRecordsPaused(bool isPaused) external onlyPauserUnpauserRole(isPaused) {
+    function setIsSubmitOracleRecordsPaused(bool isPaused) external onlyOwner {
         _setIsSubmitOracleRecordsPaused(isPaused);
     }
 
     /// @notice Pauses all actions.
     /// @dev Can be called by the oracle or any account with the pauser role.
-    function pauseAll() external onlyRole(PAUSER_ROLE) {
+    function pauseAll() external onlyOwner {
         _setIsStakingPaused(true);
         _setIsSubmitOracleRecordsPaused(true);
     }
 
     /// @notice Unpauses all actions.
-    function unpauseAll() external onlyRole(UNPAUSER_ROLE) {
+    function unpauseAll() external onlyOwner {
         _setIsStakingPaused(false);
         _setIsSubmitOracleRecordsPaused(false);
     }
@@ -79,14 +78,5 @@ contract Pauser is AccessControlEnumerable {
     function _setIsSubmitOracleRecordsPaused(bool isPaused) internal {
         isSubmitOracleRecordsPaused = isPaused;
         emit FlagUpdated(this.isSubmitOracleRecordsPaused.selector, isPaused, "isSubmitOracleRecordsPaused");
-    }
-
-    modifier onlyPauserUnpauserRole(bool isPaused) {
-        if (isPaused) {
-            _checkRole(PAUSER_ROLE);
-        } else {
-            _checkRole(UNPAUSER_ROLE);
-        }
-        _;
     }
 }

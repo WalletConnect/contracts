@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { BakersSyndicateConfig } from "./BakersSyndicateConfig.sol";
 import { UtilLib } from "./library/UtilLib.sol";
 import { Staking } from "./Staking.sol";
 
-contract RewardManager is Ownable {
+contract RewardManager is Initializable, OwnableUpgradeable {
     event PerformanceUpdated(uint256 reportingEpoch, uint256 rewardsPerEpoch);
 
     error PerformanceDataAlreadyUpdated();
@@ -26,17 +27,22 @@ contract RewardManager is Ownable {
 
     mapping(address => uint256) public performance; // Performance scores
 
-    constructor(
-        address initialOwner,
-        uint256 initialMaxRewardsPerEpoch,
-        BakersSyndicateConfig bakersSyndicateConfig_
-    )
-        Ownable(initialOwner)
-    {
-        UtilLib.checkNonZeroAddress(address(bakersSyndicateConfig_));
+    /// @notice Configuration for contract initialization.
+    struct Init {
+        address owner;
+        uint256 maxRewardsPerEpoch;
+        BakersSyndicateConfig bakersSyndicateConfig;
+    }
 
-        bakersSyndicateConfig = bakersSyndicateConfig_;
-        maxRewardsPerEpoch = initialMaxRewardsPerEpoch;
+    /// @notice Initializes the contract.
+    /// @dev MUST be called during the contract upgrade to set up the proxies state.
+    function initialize(Init memory init) external initializer {
+        __Ownable_init(init.owner);
+        UtilLib.checkNonZeroAddress(address(init.bakersSyndicateConfig));
+        bakersSyndicateConfig = init.bakersSyndicateConfig;
+        maxRewardsPerEpoch = init.maxRewardsPerEpoch;
+        maxRewardsPerEpoch = init.maxRewardsPerEpoch;
+        bakersSyndicateConfig = init.bakersSyndicateConfig;
     }
 
     // Function for the Oracle to update performance data and calculate rewards

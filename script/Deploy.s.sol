@@ -1,26 +1,28 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.25 <0.9.0;
 
-import { BRR } from "src/BRR.sol";
-import { Pauser } from "src/Pauser.sol";
-import { PermissionedNodeRegistry } from "src/PermissionedNodeRegistry.sol";
-import { RewardManager } from "src/RewardManager.sol";
-import { Staking } from "src/Staking.sol";
-import { BakersSyndicateConfig } from "src/BakersSyndicateConfig.sol";
-import { console2 } from "forge-std/src/console2.sol";
-
+import { console2 } from "forge-std/console2.sol";
 import { BaseScript, Deployments } from "./Base.s.sol";
+import { BRR } from "src/BRR.sol";
+import { deployAll } from "./helpers/Proxy.sol";
 
-/// @notice Deployment paramaters for the protocol contract
+/// @notice Deployment parameters for the protocol contracts
 /// @dev These are mostly externally controlled addresses
 /// @param manager the manager of the contracts (allowed to access setters, etc.). Using the same manager for all
+/// @param treasury the reward vault treasury
+/// @param maxRewardsPerEpoch the amount of rewards in wei to distribute per epoch
+/// @param initialTreasuryBalance the initial amount in wei to mint to the treasury
+/// @param maxNodes the maximum number of nodes allowed in the registry
+/// @param minStakeAmount the minimum amount of wei required to stake, also unstaking cannot make stake go below this
+/// @param isStakingAllowlist whether to allow only whitelisted addresses to stake
 
 struct DeploymentParams {
     address manager;
     address treasury;
-    uint256 rewardsPerEpoch;
-    uint256 initialTreasuryBalance;
     uint8 maxNodes;
+    bool isStakingAllowlist;
+    uint256 maxRewardsPerEpoch;
+    uint256 initialTreasuryBalance;
     uint256 minStakeAmount;
 }
 
@@ -29,64 +31,15 @@ contract Deploy is BaseScript {
         return DeploymentParams({
             manager: vm.envOr("MANAGER_ADDRESS", vm.addr(vm.deriveKey(mnemonic, 0))),
             treasury: vm.envOr("TREASURY_ADDRESS", vm.addr(vm.deriveKey(mnemonic, 1))),
-            rewardsPerEpoch: vm.envUint("REWARDS_PER_EPOCH"),
+            maxRewardsPerEpoch: vm.envUint("REWARDS_PER_EPOCH"),
             initialTreasuryBalance: vm.envUint("INITIAL_TREASURY_BALANCE"),
+            isStakingAllowlist: vm.envOr("IS_STAKING_ALLOWLIST", true),
             maxNodes: uint8(vm.envUint("MAX_NODES")),
             minStakeAmount: vm.envUint("MIN_STAKE_AMOUNT")
         });
     }
 
-    function _deployAll(DeploymentParams memory params) internal returns (Deployments memory) {
-        vm.startBroadcast();
-        BakersSyndicateConfig config = new BakersSyndicateConfig({ initialOwner: params.manager });
-        console2.log("BakersSyndicateConfig address:", address(config));
-        BRR brr = new BRR({ initialOwner: params.manager });
-        console2.log("BRR address:", address(brr));
-        Pauser pauser =
-            new Pauser(Pauser.Init({ admin: params.manager, pauser: params.manager, unpauser: params.manager }));
-        console2.log("Pauser address:", address(pauser));
-        PermissionedNodeRegistry registry =
-            new PermissionedNodeRegistry({ initialOwner: params.manager, maxNodes_: params.maxNodes });
-        console2.log("PermissionedNodeRegistry address:", address(registry));
-        RewardManager rewardManager = new RewardManager({
-            initialOwner: params.manager,
-            initialMaxRewardsPerEpoch: params.rewardsPerEpoch,
-            bakersSyndicateConfig_: config
-        });
-        console2.log("RewardManager address:", address(rewardManager));
-        Staking staking = new Staking({
-            initialOwner: params.manager,
-            initialMinStakeAmount: params.minStakeAmount,
-            bakersSyndicateConfig_: config
-        });
-        console2.log("Staking address:", address(staking));
-        brr.mint(params.treasury, params.initialTreasuryBalance);
-
-        // Update the addresses in the config
-        config.updateBrr(address(brr));
-        config.updatePauser(address(pauser));
-        config.updatePermissionedNodeRegistry(address(registry));
-        config.updateRewardManager(address(rewardManager));
-        config.updateStaking(address(staking));
-        config.updateBakersSyndicateRewardsVault(params.treasury);
-        console2.log("BakersSyndicateConfig updated");
-
-        vm.stopBroadcast();
-
-        Deployments memory deploys = Deployments({
-            brr: brr,
-            pauser: pauser,
-            registry: registry,
-            rewardManager: rewardManager,
-            staking: staking,
-            config: config
-        });
-
-        writeDeployments(deploys);
-        return deploys;
-    }
-
-    function run() public {
+    function deploy() public {
         Deployments memory existingDeployments = readDeployments();
         if (existingDeployments.brr == BRR(address(0))) {
             console2.log("Deploying all contracts");
@@ -99,7 +52,37 @@ contract Deploy is BaseScript {
             }
         }
         DeploymentParams memory params = _readDeploymentParamsFromEnv();
-        Deployments memory deps = _deployAll(params);
+
+        vm.startBroadcast();
+        Deployments memory deps = deployAll(params);
+        vm.stopBroadcast();
+
         writeDeployments(deps);
+        logDeployments(deps);
+    }
+
+    function logDeployments(Deployments memory deps) public pure {
+        _logDeployments(deps);
+    }
+
+    function logDeployments() public {
+        Deployments memory deps = readDeployments();
+
+        _logDeployments(deps);
+    }
+
+    function _logDeployments(Deployments memory deps) internal pure {
+        console2.log("BRR:", address(deps.brr));
+        console2.log("Pauser:", address(deps.pauser));
+        console2.log("Registry:", address(deps.registry));
+        console2.log("RewardManager:", address(deps.rewardManager));
+        console2.log("Staking:", address(deps.staking));
+        console2.log("Config:", address(deps.config));
+    }
+
+    function mintTreasuryBalance() public {
+        DeploymentParams memory params = _readDeploymentParamsFromEnv();
+        Deployments memory deps = readDeployments();
+        deps.brr.mint(params.treasury, params.initialTreasuryBalance);
     }
 }

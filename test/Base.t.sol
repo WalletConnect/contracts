@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.19 <0.9.0;
+pragma solidity >=0.8.25 <0.9.0;
+
+import { UnsafeUpgrades } from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
 import { BRR } from "src/BRR.sol";
 import { Pauser } from "src/Pauser.sol";
@@ -8,7 +10,7 @@ import { BakersSyndicateConfig } from "src/BakersSyndicateConfig.sol";
 import { RewardManager } from "src/RewardManager.sol";
 import { Staking } from "src/Staking.sol";
 
-import { Test } from "forge-std/src/Test.sol";
+import { Test } from "forge-std/Test.sol";
 
 import { Users } from "./utils/Types.sol";
 import { Events } from "./utils/Events.sol";
@@ -68,22 +70,59 @@ abstract contract Base_Test is Test, Events, Constants {
     function deployCoreConditionally() internal {
         // Admin deploys/sets up the contracts.
         vm.startPrank(users.admin);
-        // Deploy the contracts.
-        bakersSyndicateConfig = new BakersSyndicateConfig(users.admin);
+        // Deploy the proxy contracts
+        bakersSyndicateConfig = BakersSyndicateConfig(
+            UnsafeUpgrades.deployTransparentProxy(
+                address(new BakersSyndicateConfig()),
+                users.admin,
+                abi.encodeCall(BakersSyndicateConfig.initialize, BakersSyndicateConfig.Init({ owner: users.admin }))
+            )
+        );
+
+        pauser = Pauser(
+            UnsafeUpgrades.deployTransparentProxy(
+                address(new Pauser()),
+                users.admin,
+                abi.encodeCall(Pauser.initialize, Pauser.Init({ owner: users.admin }))
+            )
+        );
+
+        rewardManager = RewardManager(
+            UnsafeUpgrades.deployTransparentProxy(
+                address(new RewardManager()),
+                users.admin,
+                abi.encodeCall(
+                    RewardManager.initialize,
+                    RewardManager.Init({
+                        owner: users.admin,
+                        maxRewardsPerEpoch: defaults.EPOCH_REWARD_EMISSION(),
+                        bakersSyndicateConfig: bakersSyndicateConfig
+                    })
+                )
+            )
+        );
+        staking = Staking(
+            UnsafeUpgrades.deployTransparentProxy(
+                address(new Staking()),
+                users.admin,
+                abi.encodeCall(
+                    Staking.initialize,
+                    Staking.Init({
+                        owner: users.admin,
+                        minStakeAmount: defaults.MIN_STAKE(),
+                        isStakingAllowlist: true,
+                        bakersSyndicateConfig: bakersSyndicateConfig
+                    })
+                )
+            )
+        );
+
+        // Deploy the non-proxy contracts
+
         brr = new BRR(users.admin);
-        pauser = new Pauser(Pauser.Init({ admin: users.admin, pauser: users.admin, unpauser: users.admin }));
+
         permissionedNodeRegistry =
             new PermissionedNodeRegistry({ initialOwner: users.admin, maxNodes_: defaults.MAX_REGISTRY_NODES() });
-        rewardManager = new RewardManager({
-            initialOwner: users.admin,
-            initialMaxRewardsPerEpoch: defaults.EPOCH_REWARD_EMISSION(),
-            bakersSyndicateConfig_: bakersSyndicateConfig
-        });
-        staking = new Staking({
-            initialOwner: users.admin,
-            initialMinStakeAmount: defaults.MIN_STAKE(),
-            bakersSyndicateConfig_: bakersSyndicateConfig
-        });
 
         // Update the BakersSyndicateConfig with the necessary contracts.
         bakersSyndicateConfig.updateBrr(address(brr));

@@ -2,7 +2,8 @@
 // Compatible with OpenZeppelin Contracts ^5.0.0
 pragma solidity ^0.8.25;
 
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { UtilLib } from "./library/UtilLib.sol";
@@ -10,7 +11,7 @@ import { BakersSyndicateConfig } from "./BakersSyndicateConfig.sol";
 import { PermissionedNodeRegistry } from "./PermissionedNodeRegistry.sol";
 import { Pauser } from "./Pauser.sol";
 
-contract Staking is Ownable {
+contract Staking is Initializable, OwnableUpgradeable {
     using SafeERC20 for IERC20;
     /*//////////////////////////////////////////////////////////////////////////
                                     EVENTS
@@ -53,18 +54,23 @@ contract Staking is Ownable {
 
     BakersSyndicateConfig public bakersSyndicateConfig;
 
-    constructor(
-        address initialOwner,
-        uint256 initialMinStakeAmount,
-        BakersSyndicateConfig bakersSyndicateConfig_
-    )
-        Ownable(initialOwner)
-    {
-        UtilLib.checkNonZeroAddress(address(bakersSyndicateConfig_));
+    /// @notice Configuration for contract initialization.
+    struct Init {
+        address owner;
+        uint256 minStakeAmount;
+        bool isStakingAllowlist;
+        BakersSyndicateConfig bakersSyndicateConfig;
+    }
 
-        minStakeAmount = initialMinStakeAmount;
-        bakersSyndicateConfig = bakersSyndicateConfig_;
-        isStakingAllowlist = true;
+    /// @notice Initializes the contract.
+    /// @dev MUST be called during the contract upgrade to set up the proxies state.
+    function initialize(Init memory init) external initializer {
+        __Ownable_init(init.owner);
+        UtilLib.checkNonZeroAddress(address(init.bakersSyndicateConfig));
+
+        minStakeAmount = init.minStakeAmount;
+        bakersSyndicateConfig = init.bakersSyndicateConfig;
+        isStakingAllowlist = init.isStakingAllowlist;
     }
 
     /*//////////////////////////////////////////////////////////////////////////
