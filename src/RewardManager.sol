@@ -2,7 +2,7 @@
 pragma solidity 0.8.25;
 
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
-import { WalletConnectConfig } from "./WalletConnectConfig.sol";
+import { BakersSyndicateConfig } from "./BakersSyndicateConfig.sol";
 import { UtilLib } from "./library/UtilLib.sol";
 import { Staking } from "./Staking.sol";
 
@@ -14,7 +14,7 @@ contract RewardManager is Ownable {
     error TotalPerformanceZero();
 
     uint256 constant PERFORMANCE_SCALE = 1e18;
-    WalletConnectConfig public walletConnectConfig;
+    BakersSyndicateConfig public bakersSyndicateConfig;
     uint256 public maxRewardsPerEpoch; // tokens to be distributed per epoch
     uint256 public lastUpdatedEpoch; // Last epoch for which rewards were updated
 
@@ -29,13 +29,13 @@ contract RewardManager is Ownable {
     constructor(
         address initialOwner,
         uint256 initialMaxRewardsPerEpoch,
-        WalletConnectConfig walletConnectConfig_
+        BakersSyndicateConfig bakersSyndicateConfig_
     )
         Ownable(initialOwner)
     {
-        UtilLib.checkNonZeroAddress(address(walletConnectConfig_));
+        UtilLib.checkNonZeroAddress(address(bakersSyndicateConfig_));
 
-        walletConnectConfig = walletConnectConfig_;
+        bakersSyndicateConfig = bakersSyndicateConfig_;
         maxRewardsPerEpoch = initialMaxRewardsPerEpoch;
     }
 
@@ -62,7 +62,7 @@ contract RewardManager is Ownable {
             revert TotalPerformanceZero();
         }
 
-        Staking staking = Staking(walletConnectConfig.getStaking());
+        Staking staking = Staking(bakersSyndicateConfig.getStaking());
         // Distribute rewards based on performance
         for (uint256 i = 0; i < data.nodes.length; i++) {
             if (data.performance[i] > 0) {

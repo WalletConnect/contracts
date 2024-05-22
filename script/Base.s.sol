@@ -7,7 +7,7 @@ import { Pauser } from "src/Pauser.sol";
 import { PermissionedNodeRegistry } from "src/PermissionedNodeRegistry.sol";
 import { RewardManager } from "src/RewardManager.sol";
 import { Staking } from "src/Staking.sol";
-import { WalletConnectConfig } from "src/WalletConnectConfig.sol";
+import { BakersSyndicateConfig } from "src/BakersSyndicateConfig.sol";
 
 struct Deployments {
     BRR brr;
@@ -15,7 +15,7 @@ struct Deployments {
     PermissionedNodeRegistry registry;
     RewardManager rewardManager;
     Staking staking;
-    WalletConnectConfig config;
+    BakersSyndicateConfig config;
 }
 
 abstract contract BaseScript is Script {
@@ -85,7 +85,7 @@ abstract contract BaseScript is Script {
                 registry: PermissionedNodeRegistry(address(0)),
                 rewardManager: RewardManager(address(0)),
                 staking: Staking(address(0)),
-                config: WalletConnectConfig(address(0))
+                config: BakersSyndicateConfig(address(0))
             });
         }
         bytes memory data = vm.readFileBinary(_deploymentsFile());

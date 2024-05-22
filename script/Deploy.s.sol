@@ -6,7 +6,7 @@ import { Pauser } from "src/Pauser.sol";
 import { PermissionedNodeRegistry } from "src/PermissionedNodeRegistry.sol";
 import { RewardManager } from "src/RewardManager.sol";
 import { Staking } from "src/Staking.sol";
-import { WalletConnectConfig } from "src/WalletConnectConfig.sol";
+import { BakersSyndicateConfig } from "src/BakersSyndicateConfig.sol";
 import { console2 } from "forge-std/src/console2.sol";
 
 import { BaseScript, Deployments } from "./Base.s.sol";
@@ -38,8 +38,8 @@ contract Deploy is BaseScript {
 
     function _deployAll(DeploymentParams memory params) internal returns (Deployments memory) {
         vm.startBroadcast();
-        WalletConnectConfig config = new WalletConnectConfig({ initialOwner: params.manager });
-        console2.log("WalletConnectConfig address:", address(config));
+        BakersSyndicateConfig config = new BakersSyndicateConfig({ initialOwner: params.manager });
+        console2.log("BakersSyndicateConfig address:", address(config));
         BRR brr = new BRR({ initialOwner: params.manager });
         console2.log("BRR address:", address(brr));
         Pauser pauser =
@@ -51,13 +51,13 @@ contract Deploy is BaseScript {
         RewardManager rewardManager = new RewardManager({
             initialOwner: params.manager,
             initialMaxRewardsPerEpoch: params.rewardsPerEpoch,
-            walletConnectConfig_: config
+            bakersSyndicateConfig_: config
         });
         console2.log("RewardManager address:", address(rewardManager));
         Staking staking = new Staking({
             initialOwner: params.manager,
             initialMinStakeAmount: params.minStakeAmount,
-            walletConnectConfig_: config
+            bakersSyndicateConfig_: config
         });
         console2.log("Staking address:", address(staking));
         brr.mint(params.treasury, params.initialTreasuryBalance);
@@ -68,8 +68,8 @@ contract Deploy is BaseScript {
         config.updatePermissionedNodeRegistry(address(registry));
         config.updateRewardManager(address(rewardManager));
         config.updateStaking(address(staking));
-        config.updateWalletConnectRewardsVault(params.treasury);
-        console2.log("WalletConnectConfig updated");
+        config.updateBakersSyndicateRewardsVault(params.treasury);
+        console2.log("BakersSyndicateConfig updated");
 
         vm.stopBroadcast();
 

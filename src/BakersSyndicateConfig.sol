@@ -5,7 +5,7 @@ pragma solidity ^0.8.25;
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { UtilLib } from "./library/UtilLib.sol";
 
-contract WalletConnectConfig is Ownable {
+contract BakersSyndicateConfig is Ownable {
     error IndenticalValue();
 
     event SetContract(bytes32 key, address val);
@@ -14,7 +14,7 @@ contract WalletConnectConfig is Ownable {
     mapping(bytes32 => address) private _accountsMap;
     mapping(bytes32 => address) private _contractsMap;
 
-    bytes32 public constant WALLETCONNECT_REWARDS_VAULT = keccak256("WALLETCONNECT_REWARDS_VAULT");
+    bytes32 public constant BAKERSSYNDICATE_REWARDS_VAULT = keccak256("BAKERSSYNDICATE_REWARDS_VAULT");
 
     bytes32 public constant BRR_TOKEN = keccak256("BRR_TOKEN");
     bytes32 public constant PERMISSIONED_NODE_REGISTRY = keccak256("PERMISSIONED_NODE_REGISTRY");
@@ -44,8 +44,8 @@ contract WalletConnectConfig is Ownable {
         return _contractsMap[STAKING];
     }
 
-    function getWalletConnectRewardsVault() external view returns (address) {
-        return _accountsMap[WALLETCONNECT_REWARDS_VAULT];
+    function getBakersSyndicateRewardsVault() external view returns (address) {
+        return _accountsMap[BAKERSSYNDICATE_REWARDS_VAULT];
     }
 
     function updateBrr(address brr) external onlyOwner {
@@ -68,8 +68,8 @@ contract WalletConnectConfig is Ownable {
         setContract(STAKING, staking);
     }
 
-    function updateWalletConnectRewardsVault(address walletConnectRewardsVault) external onlyOwner {
-        setAccount(WALLETCONNECT_REWARDS_VAULT, walletConnectRewardsVault);
+    function updateBakersSyndicateRewardsVault(address bakersSyndicateRewardsVault) external onlyOwner {
+        setAccount(BAKERSSYNDICATE_REWARDS_VAULT, bakersSyndicateRewardsVault);
     }
 
     function setContract(bytes32 key, address val) internal {
@@ -90,7 +90,7 @@ contract WalletConnectConfig is Ownable {
         emit SetAccount(key, val);
     }
 
-    function onlyWalletConnectContract(address _addr, bytes32 _contractName) external view returns (bool) {
+    function onlyBakersSyndicateContract(address _addr, bytes32 _contractName) external view returns (bool) {
         return (_addr == _contractsMap[_contractName]);
     }
 }

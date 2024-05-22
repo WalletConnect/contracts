@@ -10,19 +10,19 @@ abstract contract Events {
     event Transfer(address indexed from, address indexed to, uint256 value);
 
     /*//////////////////////////////////////////////////////////////////////////
-                            WALLETCONNECT-REWARD-MANAGER
+                            BAKERSSYNDICATE-REWARD-MANAGER
     //////////////////////////////////////////////////////////////////////////*/
     event PerformanceUpdated(uint256 reportingEpoch, uint256 rewardsPerEpoch);
     event RewardsClaimed(address indexed node, uint256 reward);
 
     /*//////////////////////////////////////////////////////////////////////////
-                        WALLETCONNECT-PERMISSIONED-NODE-REGISTRY
+                        BAKERSSYNDICATE-PERMISSIONED-NODE-REGISTRY
     //////////////////////////////////////////////////////////////////////////*/
     event NodeWhitelisted(address indexed node);
     event NodeRemovedFromWhitelist(address indexed node);
 
     /*//////////////////////////////////////////////////////////////////////////
-                                WALLETCONNECT-STAKING
+                                BAKERSSYNDICATE-STAKING
     //////////////////////////////////////////////////////////////////////////*/
     event Staked(address indexed node, uint256 amount);
     event Unstaked(address indexed node, uint256 amount);

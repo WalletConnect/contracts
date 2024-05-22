@@ -1,28 +1,28 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.25;
 
-import { WalletConnectConfig } from "./../WalletConnectConfig.sol";
+import { BakersSyndicateConfig } from "./../BakersSyndicateConfig.sol";
 
 library UtilLib {
     error ZeroAddress();
-    error CallerNotWalletConnectContract();
+    error CallerNotBakersSyndicateContract();
 
     /// @notice zero address check modifier
     function checkNonZeroAddress(address addr) internal pure {
         if (addr == address(0)) revert ZeroAddress();
     }
 
-    //checks if caller is a wallet connect contract address
-    function onlyWalletConnectContract(
+    //checks if caller is a BakersSyndicate contract address
+    function onlyBakersSyndicateContract(
         address addr,
-        WalletConnectConfig walletConnectConfig,
+        BakersSyndicateConfig bakersSyndicateConfig,
         bytes32 contractName
     )
         internal
         view
     {
-        if (!walletConnectConfig.onlyWalletConnectContract(addr, contractName)) {
-            revert CallerNotWalletConnectContract();
+        if (!bakersSyndicateConfig.onlyBakersSyndicateContract(addr, contractName)) {
+            revert CallerNotBakersSyndicateContract();
         }
     }
 }

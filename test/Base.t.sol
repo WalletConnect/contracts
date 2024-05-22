@@ -4,7 +4,7 @@ pragma solidity >=0.8.19 <0.9.0;
 import { BRR } from "src/BRR.sol";
 import { Pauser } from "src/Pauser.sol";
 import { PermissionedNodeRegistry } from "src/PermissionedNodeRegistry.sol";
-import { WalletConnectConfig } from "src/WalletConnectConfig.sol";
+import { BakersSyndicateConfig } from "src/BakersSyndicateConfig.sol";
 import { RewardManager } from "src/RewardManager.sol";
 import { Staking } from "src/Staking.sol";
 
@@ -31,7 +31,7 @@ abstract contract Base_Test is Test, Events, Constants {
     BRR internal brr;
     Pauser internal pauser;
     PermissionedNodeRegistry internal permissionedNodeRegistry;
-    WalletConnectConfig internal walletConnectConfig;
+    BakersSyndicateConfig internal bakersSyndicateConfig;
     RewardManager internal rewardManager;
     Staking internal staking;
 
@@ -64,12 +64,12 @@ abstract contract Base_Test is Test, Events, Constants {
         return user;
     }
 
-    /// @dev Conditionally deploys WalletConnect Core
+    /// @dev Conditionally deploys BakersSyndicate Core
     function deployCoreConditionally() internal {
         // Admin deploys/sets up the contracts.
         vm.startPrank(users.admin);
         // Deploy the contracts.
-        walletConnectConfig = new WalletConnectConfig(users.admin);
+        bakersSyndicateConfig = new BakersSyndicateConfig(users.admin);
         brr = new BRR(users.admin);
         pauser = new Pauser(Pauser.Init({ admin: users.admin, pauser: users.admin, unpauser: users.admin }));
         permissionedNodeRegistry =
@@ -77,26 +77,26 @@ abstract contract Base_Test is Test, Events, Constants {
         rewardManager = new RewardManager({
             initialOwner: users.admin,
             initialMaxRewardsPerEpoch: defaults.EPOCH_REWARD_EMISSION(),
-            walletConnectConfig_: walletConnectConfig
+            bakersSyndicateConfig_: bakersSyndicateConfig
         });
         staking = new Staking({
             initialOwner: users.admin,
             initialMinStakeAmount: defaults.MIN_STAKE(),
-            walletConnectConfig_: walletConnectConfig
+            bakersSyndicateConfig_: bakersSyndicateConfig
         });
 
-        // Update the WalletConnectConfig with the necessary contracts.
-        walletConnectConfig.updateBrr(address(brr));
-        walletConnectConfig.updatePermissionedNodeRegistry(address(permissionedNodeRegistry));
-        walletConnectConfig.updateRewardManager(address(rewardManager));
-        walletConnectConfig.updatePauser(address(pauser));
-        walletConnectConfig.updateStaking(address(staking));
-        walletConnectConfig.updateWalletConnectRewardsVault(users.treasury);
+        // Update the BakersSyndicateConfig with the necessary contracts.
+        bakersSyndicateConfig.updateBrr(address(brr));
+        bakersSyndicateConfig.updatePermissionedNodeRegistry(address(permissionedNodeRegistry));
+        bakersSyndicateConfig.updateRewardManager(address(rewardManager));
+        bakersSyndicateConfig.updatePauser(address(pauser));
+        bakersSyndicateConfig.updateStaking(address(staking));
+        bakersSyndicateConfig.updateBakersSyndicateRewardsVault(users.treasury);
 
         vm.stopPrank();
 
         // Label the contracts.
-        vm.label({ account: address(walletConnectConfig), newLabel: "WalletConnectConfig" });
+        vm.label({ account: address(bakersSyndicateConfig), newLabel: "BakersSyndicateConfig" });
         vm.label({ account: address(brr), newLabel: "BRR" });
         vm.label({ account: address(pauser), newLabel: "Pauser" });
         vm.label({ account: address(permissionedNodeRegistry), newLabel: "PermissionedNodeRegistry" });

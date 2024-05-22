@@ -6,7 +6,7 @@ import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { UtilLib } from "./library/UtilLib.sol";
-import { WalletConnectConfig } from "./WalletConnectConfig.sol";
+import { BakersSyndicateConfig } from "./BakersSyndicateConfig.sol";
 import { PermissionedNodeRegistry } from "./PermissionedNodeRegistry.sol";
 import { Pauser } from "./Pauser.sol";
 
@@ -51,19 +51,19 @@ contract Staking is Ownable {
     /// @notice Stake amount for each node.
     mapping(address staker => uint256 amount) public stakes;
 
-    WalletConnectConfig public walletConnectConfig;
+    BakersSyndicateConfig public bakersSyndicateConfig;
 
     constructor(
         address initialOwner,
         uint256 initialMinStakeAmount,
-        WalletConnectConfig walletConnectConfig_
+        BakersSyndicateConfig bakersSyndicateConfig_
     )
         Ownable(initialOwner)
     {
-        UtilLib.checkNonZeroAddress(address(walletConnectConfig_));
+        UtilLib.checkNonZeroAddress(address(bakersSyndicateConfig_));
 
         minStakeAmount = initialMinStakeAmount;
-        walletConnectConfig = walletConnectConfig_;
+        bakersSyndicateConfig = bakersSyndicateConfig_;
         isStakingAllowlist = true;
     }
 
@@ -73,13 +73,13 @@ contract Staking is Ownable {
     /// @notice Interface for nodes to stake their BRR with the protocol. Note: when allowlist is enabled, only nodes
     /// with the allowlist can stake.
     function stake(uint256 amount) external {
-        if (Pauser(walletConnectConfig.getPauser()).isStakingPaused()) {
+        if (Pauser(bakersSyndicateConfig.getPauser()).isStakingPaused()) {
             revert Paused();
         }
 
         if (isStakingAllowlist) {
             if (
-                !PermissionedNodeRegistry(walletConnectConfig.getPermissionedNodeRegistry()).isNodeWhitelisted(
+                !PermissionedNodeRegistry(bakersSyndicateConfig.getPermissionedNodeRegistry()).isNodeWhitelisted(
                     msg.sender
                 )
             ) {
@@ -95,12 +95,12 @@ contract Staking is Ownable {
 
         stakes[msg.sender] += amount;
 
-        IERC20(walletConnectConfig.getBrr()).transferFrom(msg.sender, address(this), amount);
+        IERC20(bakersSyndicateConfig.getBrr()).transferFrom(msg.sender, address(this), amount);
     }
 
     /// @notice Interface for users to unstake their BRR from the protocol.
     function unstake(uint256 amount) external {
-        if (Pauser(walletConnectConfig.getPauser()).isStakingPaused()) {
+        if (Pauser(bakersSyndicateConfig.getPauser()).isStakingPaused()) {
             revert Paused();
         }
 
@@ -124,7 +124,7 @@ contract Staking is Ownable {
 
         emit Unstaked(msg.sender, amount);
 
-        IERC20(walletConnectConfig.getBrr()).transfer(msg.sender, amount);
+        IERC20(bakersSyndicateConfig.getBrr()).transfer(msg.sender, amount);
     }
 
     /// @notice Sets the staking allowlist flag.
@@ -147,8 +147,8 @@ contract Staking is Ownable {
 
     /// @notice Function for the reward manager to add rewards to a node's pending rewards balance.
     function updateRewards(address node, uint256 amount, uint256 reportingEpoch) external {
-        UtilLib.onlyWalletConnectContract(msg.sender, walletConnectConfig, walletConnectConfig.REWARD_MANAGER());
-        if (Pauser(walletConnectConfig.getPauser()).isStakingPaused()) {
+        UtilLib.onlyBakersSyndicateContract(msg.sender, bakersSyndicateConfig, bakersSyndicateConfig.REWARD_MANAGER());
+        if (Pauser(bakersSyndicateConfig.getPauser()).isStakingPaused()) {
             revert Paused();
         }
         if (stakes[node] >= minStakeAmount) {
@@ -171,8 +171,8 @@ contract Staking is Ownable {
         emit RewardsClaimed(msg.sender, reward);
 
         // Transfer the rewards
-        IERC20(walletConnectConfig.getBrr()).safeTransferFrom(
-            walletConnectConfig.getWalletConnectRewardsVault(), msg.sender, reward
+        IERC20(bakersSyndicateConfig.getBrr()).safeTransferFrom(
+            bakersSyndicateConfig.getBakersSyndicateRewardsVault(), msg.sender, reward
         );
     }
 }
