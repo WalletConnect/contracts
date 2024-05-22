@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.25 <0.9.0;
 
-import { CNCT } from "src/CNCT.sol";
+import { BRR } from "src/BRR.sol";
 import { Pauser } from "src/Pauser.sol";
 import { PermissionedNodeRegistry } from "src/PermissionedNodeRegistry.sol";
 import { RewardManager } from "src/RewardManager.sol";
@@ -40,8 +40,8 @@ contract Deploy is BaseScript {
         vm.startBroadcast();
         WalletConnectConfig config = new WalletConnectConfig({ initialOwner: params.manager });
         console2.log("WalletConnectConfig address:", address(config));
-        CNCT cnct = new CNCT({ initialOwner: params.manager });
-        console2.log("CNCT address:", address(cnct));
+        BRR brr = new BRR({ initialOwner: params.manager });
+        console2.log("BRR address:", address(brr));
         Pauser pauser =
             new Pauser(Pauser.Init({ admin: params.manager, pauser: params.manager, unpauser: params.manager }));
         console2.log("Pauser address:", address(pauser));
@@ -60,10 +60,10 @@ contract Deploy is BaseScript {
             walletConnectConfig_: config
         });
         console2.log("Staking address:", address(staking));
-        cnct.mint(params.treasury, params.initialTreasuryBalance);
+        brr.mint(params.treasury, params.initialTreasuryBalance);
 
         // Update the addresses in the config
-        config.updateCnct(address(cnct));
+        config.updateBrr(address(brr));
         config.updatePauser(address(pauser));
         config.updatePermissionedNodeRegistry(address(registry));
         config.updateRewardManager(address(rewardManager));
@@ -74,7 +74,7 @@ contract Deploy is BaseScript {
         vm.stopBroadcast();
 
         Deployments memory deploys = Deployments({
-            cnct: cnct,
+            brr: brr,
             pauser: pauser,
             registry: registry,
             rewardManager: rewardManager,
@@ -88,7 +88,7 @@ contract Deploy is BaseScript {
 
     function run() public {
         Deployments memory existingDeployments = readDeployments();
-        if (existingDeployments.cnct == CNCT(address(0))) {
+        if (existingDeployments.brr == BRR(address(0))) {
             console2.log("Deploying all contracts");
         } else {
             console2.log("Contracts already deployed");

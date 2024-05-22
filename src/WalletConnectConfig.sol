@@ -16,7 +16,7 @@ contract WalletConnectConfig is Ownable {
 
     bytes32 public constant WALLETCONNECT_REWARDS_VAULT = keccak256("WALLETCONNECT_REWARDS_VAULT");
 
-    bytes32 public constant CNCT_TOKEN = keccak256("CNCT_TOKEN");
+    bytes32 public constant BRR_TOKEN = keccak256("BRR_TOKEN");
     bytes32 public constant PERMISSIONED_NODE_REGISTRY = keccak256("PERMISSIONED_NODE_REGISTRY");
     bytes32 public constant REWARD_MANAGER = keccak256("REWARD_MANAGER");
     bytes32 public constant STAKING = keccak256("STAKING");
@@ -24,8 +24,8 @@ contract WalletConnectConfig is Ownable {
 
     constructor(address initialOwner) Ownable(initialOwner) { }
 
-    function getCnct() external view returns (address) {
-        return _contractsMap[CNCT_TOKEN];
+    function getBrr() external view returns (address) {
+        return _contractsMap[BRR_TOKEN];
     }
 
     function getPauser() external view returns (address) {
@@ -48,8 +48,8 @@ contract WalletConnectConfig is Ownable {
         return _accountsMap[WALLETCONNECT_REWARDS_VAULT];
     }
 
-    function updateCnct(address cnct) external onlyOwner {
-        setContract(CNCT_TOKEN, cnct);
+    function updateBrr(address brr) external onlyOwner {
+        setContract(BRR_TOKEN, brr);
     }
 
     function updatePauser(address pauser) external onlyOwner {

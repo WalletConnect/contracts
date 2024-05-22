@@ -74,15 +74,15 @@ contract Unstake_Staking_Integration_Concrete_Test is Staking_Integration_Shared
         assertEq(initialStake, staking.stakes(users.permissionedNode));
 
         uint256 unstakeAmount = defaults.MIN_STAKE();
-        uint256 stakingPoolBalance = cnct.balanceOf(address(staking));
-        uint256 callerBalance = cnct.balanceOf(users.permissionedNode);
+        uint256 stakingPoolBalance = brr.balanceOf(address(staking));
+        uint256 callerBalance = brr.balanceOf(users.permissionedNode);
         vm.expectEmit({ emitter: address(staking) });
         emit Unstaked({ node: users.permissionedNode, amount: unstakeAmount });
         vm.prank(users.permissionedNode);
         staking.unstake(unstakeAmount);
         assertEq(staking.stakes(users.permissionedNode), initialStake - unstakeAmount);
-        assertEq(cnct.balanceOf(address(staking)), stakingPoolBalance - unstakeAmount);
-        assertEq(cnct.balanceOf(users.permissionedNode), callerBalance + unstakeAmount);
+        assertEq(brr.balanceOf(address(staking)), stakingPoolBalance - unstakeAmount);
+        assertEq(brr.balanceOf(users.permissionedNode), callerBalance + unstakeAmount);
     }
 
     function test_WhenUnstakeAmountEqCallerStakes() external givenStakingIsUnpaused {
@@ -90,14 +90,14 @@ contract Unstake_Staking_Integration_Concrete_Test is Staking_Integration_Shared
         uint256 callerStake = staking.stakes(users.permissionedNode);
         assertEq(callerStake, defaults.MIN_STAKE());
 
-        uint256 stakingPoolBalance = cnct.balanceOf(address(staking));
-        uint256 callerBalance = cnct.balanceOf(users.permissionedNode);
+        uint256 stakingPoolBalance = brr.balanceOf(address(staking));
+        uint256 callerBalance = brr.balanceOf(users.permissionedNode);
         vm.expectEmit({ emitter: address(staking) });
         emit Unstaked({ node: users.permissionedNode, amount: callerStake });
         vm.prank(users.permissionedNode);
         staking.unstake(callerStake);
         assertEq(staking.stakes(users.permissionedNode), 0);
-        assertEq(cnct.balanceOf(address(staking)), stakingPoolBalance - callerStake);
-        assertEq(cnct.balanceOf(users.permissionedNode), callerBalance + callerStake);
+        assertEq(brr.balanceOf(address(staking)), stakingPoolBalance - callerStake);
+        assertEq(brr.balanceOf(users.permissionedNode), callerBalance + callerStake);
     }
 }

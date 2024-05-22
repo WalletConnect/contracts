@@ -3,18 +3,18 @@ pragma solidity >=0.8.19 <0.9.0;
 
 import { console2 } from "forge-std/src/console2.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
-import { CNCT } from "src/CNCT.sol";
+import { BRR } from "src/BRR.sol";
 
 import { Base_Test } from "../../../Base.t.sol";
 
-contract Mint_CNCT_Unit_Fuzz_Test is Base_Test {
-    CNCTHarness internal cnctHarness;
+contract Mint_BRR_Unit_Fuzz_Test is Base_Test {
+    BRRHarness internal brrHarness;
 
     function setUp() public override {
         super.setUp();
-        cnctHarness = new CNCTHarness(users.admin);
+        brrHarness = new BRRHarness(users.admin);
         // Label the contract
-        vm.label({ account: address(cnctHarness), newLabel: "CNCTHarness" });
+        vm.label({ account: address(brrHarness), newLabel: "BRRHarness" });
     }
 
     function testFuzz_RevertWhen_CallerNotOwner(address attacker) external {
@@ -26,7 +26,7 @@ contract Mint_CNCT_Unit_Fuzz_Test is Base_Test {
 
         // Run the test
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, attacker));
-        cnctHarness.mint(attacker, 1);
+        brrHarness.mint(attacker, 1);
     }
 
     modifier whenCallerOwner() {
@@ -36,26 +36,26 @@ contract Mint_CNCT_Unit_Fuzz_Test is Base_Test {
 
     function testFuzz_Mint(address to, uint256 amount) external whenCallerOwner {
         vm.assume(to != address(0));
-        amount = bound(amount, 1, cnctHarness.maxSupply() - cnctHarness.totalSupply() - 1);
+        amount = bound(amount, 1, brrHarness.maxSupply() - brrHarness.totalSupply() - 1);
         console2.logUint(amount);
         // Get the total supply before minting
-        uint256 totalSupply = cnctHarness.totalSupply();
+        uint256 totalSupply = brrHarness.totalSupply();
         // Expect the relevant event to be emitted.
-        vm.expectEmit({ emitter: address(cnctHarness) });
+        vm.expectEmit({ emitter: address(brrHarness) });
         emit Transfer(address(0), to, amount);
 
         // Mint {amount} token
-        cnctHarness.mint(to, amount);
+        brrHarness.mint(to, amount);
 
         // Assert the token was minted
-        assertEq(cnctHarness.balanceOf(to), amount);
+        assertEq(brrHarness.balanceOf(to), amount);
         // Assert the total supply was updated
-        assertEq(cnctHarness.totalSupply(), totalSupply + amount);
+        assertEq(brrHarness.totalSupply(), totalSupply + amount);
     }
 }
 
-contract CNCTHarness is CNCT {
-    constructor(address owner) CNCT(owner) { }
+contract BRRHarness is BRR {
+    constructor(address owner) BRR(owner) { }
 
     function maxSupply() external view returns (uint256) {
         return _maxSupply();

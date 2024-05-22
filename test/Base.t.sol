@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.19 <0.9.0;
 
-import { CNCT } from "src/CNCT.sol";
+import { BRR } from "src/BRR.sol";
 import { Pauser } from "src/Pauser.sol";
 import { PermissionedNodeRegistry } from "src/PermissionedNodeRegistry.sol";
 import { WalletConnectConfig } from "src/WalletConnectConfig.sol";
@@ -28,7 +28,7 @@ abstract contract Base_Test is Test, Events, Constants {
     //////////////////////////////////////////////////////////////////////////*/
 
     Defaults internal defaults;
-    CNCT internal cnct;
+    BRR internal brr;
     Pauser internal pauser;
     PermissionedNodeRegistry internal permissionedNodeRegistry;
     WalletConnectConfig internal walletConnectConfig;
@@ -70,7 +70,7 @@ abstract contract Base_Test is Test, Events, Constants {
         vm.startPrank(users.admin);
         // Deploy the contracts.
         walletConnectConfig = new WalletConnectConfig(users.admin);
-        cnct = new CNCT(users.admin);
+        brr = new BRR(users.admin);
         pauser = new Pauser(Pauser.Init({ admin: users.admin, pauser: users.admin, unpauser: users.admin }));
         permissionedNodeRegistry =
             new PermissionedNodeRegistry({ initialOwner: users.admin, maxNodes_: defaults.MAX_REGISTRY_NODES() });
@@ -86,7 +86,7 @@ abstract contract Base_Test is Test, Events, Constants {
         });
 
         // Update the WalletConnectConfig with the necessary contracts.
-        walletConnectConfig.updateCnct(address(cnct));
+        walletConnectConfig.updateBrr(address(brr));
         walletConnectConfig.updatePermissionedNodeRegistry(address(permissionedNodeRegistry));
         walletConnectConfig.updateRewardManager(address(rewardManager));
         walletConnectConfig.updatePauser(address(pauser));
@@ -97,7 +97,7 @@ abstract contract Base_Test is Test, Events, Constants {
 
         // Label the contracts.
         vm.label({ account: address(walletConnectConfig), newLabel: "WalletConnectConfig" });
-        vm.label({ account: address(cnct), newLabel: "CNCT" });
+        vm.label({ account: address(brr), newLabel: "BRR" });
         vm.label({ account: address(pauser), newLabel: "Pauser" });
         vm.label({ account: address(permissionedNodeRegistry), newLabel: "PermissionedNodeRegistry" });
         vm.label({ account: address(rewardManager), newLabel: "RewardManager" });
@@ -105,11 +105,11 @@ abstract contract Base_Test is Test, Events, Constants {
     }
 
     function fundRewardsVaultAndApprove() internal {
-        // Fund the RewardManager with CNCT.
-        cnct.mint(address(users.treasury), defaults.REWARD_BUDGET());
+        // Fund the RewardManager with BRR.
+        brr.mint(address(users.treasury), defaults.REWARD_BUDGET());
         vm.startPrank({ msgSender: users.treasury });
-        // Approve the Staking contract to spend CNCT.
-        cnct.approve(address(staking), defaults.REWARD_BUDGET());
+        // Approve the Staking contract to spend BRR.
+        brr.approve(address(staking), defaults.REWARD_BUDGET());
         vm.stopPrank();
     }
 }

@@ -2,7 +2,7 @@
 pragma solidity >=0.8.25 <0.9.0;
 
 import { Script } from "forge-std/src/Script.sol";
-import { CNCT } from "src/CNCT.sol";
+import { BRR } from "src/BRR.sol";
 import { Pauser } from "src/Pauser.sol";
 import { PermissionedNodeRegistry } from "src/PermissionedNodeRegistry.sol";
 import { RewardManager } from "src/RewardManager.sol";
@@ -10,7 +10,7 @@ import { Staking } from "src/Staking.sol";
 import { WalletConnectConfig } from "src/WalletConnectConfig.sol";
 
 struct Deployments {
-    CNCT cnct;
+    BRR brr;
     Pauser pauser;
     PermissionedNodeRegistry registry;
     RewardManager rewardManager;
@@ -69,7 +69,7 @@ abstract contract BaseScript is Script {
 
     function safeReadDeployments() public returns (Deployments memory) {
         Deployments memory depls = _readDeployments();
-        require(address(depls.cnct).code.length > 0, "contracts are not deployed yet");
+        require(address(depls.brr).code.length > 0, "contracts are not deployed yet");
         return depls;
     }
 
@@ -80,7 +80,7 @@ abstract contract BaseScript is Script {
     function _readDeployments() private returns (Deployments memory) {
         if (vm.exists(_deploymentsFile()) == false) {
             return Deployments({
-                cnct: CNCT(address(0)),
+                brr: BRR(address(0)),
                 pauser: Pauser(address(0)),
                 registry: PermissionedNodeRegistry(address(0)),
                 rewardManager: RewardManager(address(0)),

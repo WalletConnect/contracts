@@ -70,7 +70,7 @@ contract Staking is Ownable {
     /*//////////////////////////////////////////////////////////////////////////
                                     FUNCTIONS
     //////////////////////////////////////////////////////////////////////////*/
-    /// @notice Interface for nodes to stake their CNCT with the protocol. Note: when allowlist is enabled, only nodes
+    /// @notice Interface for nodes to stake their BRR with the protocol. Note: when allowlist is enabled, only nodes
     /// with the allowlist can stake.
     function stake(uint256 amount) external {
         if (Pauser(walletConnectConfig.getPauser()).isStakingPaused()) {
@@ -95,10 +95,10 @@ contract Staking is Ownable {
 
         stakes[msg.sender] += amount;
 
-        IERC20(walletConnectConfig.getCnct()).transferFrom(msg.sender, address(this), amount);
+        IERC20(walletConnectConfig.getBrr()).transferFrom(msg.sender, address(this), amount);
     }
 
-    /// @notice Interface for users to unstake their CNCT from the protocol.
+    /// @notice Interface for users to unstake their BRR from the protocol.
     function unstake(uint256 amount) external {
         if (Pauser(walletConnectConfig.getPauser()).isStakingPaused()) {
             revert Paused();
@@ -124,7 +124,7 @@ contract Staking is Ownable {
 
         emit Unstaked(msg.sender, amount);
 
-        IERC20(walletConnectConfig.getCnct()).transfer(msg.sender, amount);
+        IERC20(walletConnectConfig.getBrr()).transfer(msg.sender, amount);
     }
 
     /// @notice Sets the staking allowlist flag.
@@ -171,7 +171,7 @@ contract Staking is Ownable {
         emit RewardsClaimed(msg.sender, reward);
 
         // Transfer the rewards
-        IERC20(walletConnectConfig.getCnct()).safeTransferFrom(
+        IERC20(walletConnectConfig.getBrr()).safeTransferFrom(
             walletConnectConfig.getWalletConnectRewardsVault(), msg.sender, reward
         );
     }
