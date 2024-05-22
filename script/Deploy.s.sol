@@ -73,11 +73,11 @@ contract Deploy is BaseScript {
 
     function _logDeployments(Deployments memory deps) internal pure {
         console2.log("BRR:", address(deps.brr));
+        console2.log("Config:", address(deps.config));
         console2.log("Pauser:", address(deps.pauser));
         console2.log("Registry:", address(deps.registry));
         console2.log("RewardManager:", address(deps.rewardManager));
         console2.log("Staking:", address(deps.staking));
-        console2.log("Config:", address(deps.config));
     }
 
     function mintTreasuryBalance() public {
