@@ -8,6 +8,9 @@ whitelistNode.t.sol
         ├── given the node is the zero address
         │   └── it should revert
         └── given the node is not the zero address
-            ├── it should whitelist the node
-            ├── it should emit a NodeWhitelisted event
-            └── it should increment the whitelist nodes count
+            ├── given the whitelist count eq max whitelist nodes
+            │   └── it should revert
+            └── given the whitelist count lt max whitelist nodes
+                ├── it should whitelist the node
+                ├── it should emit a NodeWhitelisted event
+                └── it should increment the whitelist nodes count

@@ -20,6 +20,7 @@ abstract contract Events {
     //////////////////////////////////////////////////////////////////////////*/
     event NodeWhitelisted(address indexed node);
     event NodeRemovedFromWhitelist(address indexed node);
+    event MaxNodesSet(uint8 maxNodes);
 
     /*//////////////////////////////////////////////////////////////////////////
                                 BAKERSSYNDICATE-STAKING

@@ -24,7 +24,30 @@ contract WhitelistNode_PermissionedNodeRegistry_Unit_Concrete_Test is Permission
         permissionedNodeRegistry.whitelistNode(users.admin);
     }
 
-    function test_GivenTheNodeIsNotWhitelisted() external whenCallerOwner {
+    modifier givenNodeIsNotWhitelisted() {
+        assertFalse(permissionedNodeRegistry.isNodeWhitelisted(users.nonPermissionedNode));
+        _;
+    }
+
+    function test_RevertGiven_WhitelistCountEqMaxNodes() external whenCallerOwner givenNodeIsNotWhitelisted {
+        for (uint8 i = 0; i < permissionedNodeRegistry.maxNodes(); i++) {
+            permissionedNodeRegistry.whitelistNode(address(uint160(i)));
+        }
+        vm.expectRevert(abi.encodeWithSelector(PermissionedNodeRegistry.WhitelistFull.selector));
+        permissionedNodeRegistry.whitelistNode(users.nonPermissionedNode);
+    }
+
+    modifier givenWhitelistCountLTMaxNodes() {
+        assertTrue(permissionedNodeRegistry.getWhitelistedNodesCount() < permissionedNodeRegistry.maxNodes());
+        _;
+    }
+
+    function test_GivenWhitelistCountLTMaxNodes()
+        external
+        whenCallerOwner
+        givenNodeIsNotWhitelisted
+        givenWhitelistCountLTMaxNodes
+    {
         uint256 initialLength = permissionedNodeRegistry.getWhitelistedNodesCount();
         vm.expectEmit({ emitter: address(permissionedNodeRegistry) });
         emit NodeWhitelisted({ node: users.admin });
