@@ -83,6 +83,7 @@ contract Deploy is BaseScript {
     function mintTreasuryBalance() public {
         DeploymentParams memory params = _readDeploymentParamsFromEnv();
         Deployments memory deps = readDeployments();
+        vm.broadcast();
         deps.brr.mint(params.treasury, params.initialTreasuryBalance);
     }
 }
