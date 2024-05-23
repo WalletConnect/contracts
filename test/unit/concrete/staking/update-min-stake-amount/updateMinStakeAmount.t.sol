@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 
 import { Staking } from "src/Staking.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";

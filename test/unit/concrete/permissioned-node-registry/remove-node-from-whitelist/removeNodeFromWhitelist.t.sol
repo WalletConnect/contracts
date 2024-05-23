@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 import { PermissionedNodeRegistry_Unit_Concrete_Test } from "../PermissionedNodeRegistry.t.sol";
 import { PermissionedNodeRegistry } from "src/PermissionedNodeRegistry.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";

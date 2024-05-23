@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 
 import { Staking_Integration_Shared_Test } from "test/integration/shared/Staking.t.sol";
 
