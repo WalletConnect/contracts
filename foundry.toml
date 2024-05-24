@@ -25,6 +25,7 @@
   verbosity = 4
 
 [etherscan]
+  sepolia = { key = "${API_KEY_ETHERSCAN}" }
   optimism = { key = "${API_KEY_OPTIMISTIC_ETHERSCAN}" }
 
 [fmt]
