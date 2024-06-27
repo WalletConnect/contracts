@@ -6,7 +6,7 @@ echo "Done."
 
 anvil >/dev/null 2>&1 &
 
-echo "Compiling the Solidity contracts..."
+echo "Deploying the Solidity contracts..."
 forge script script/Deploy.s.sol:Deploy --broadcast --rpc-url=http://localhost:8545 --legacy -s "deploy()" --force >/dev/null 2>&1
 echo "Done."
 
