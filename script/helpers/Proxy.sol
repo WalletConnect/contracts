@@ -19,6 +19,8 @@ import { BakersSyndicateConfig } from "src/BakersSyndicateConfig.sol";
 import { DeploymentParams } from "../Deploy.s.sol";
 import { Deployments } from "../Base.s.sol";
 
+import { console2 } from "forge-std/console2.sol";
+
 /// @notice Deploys all proxy and implementation contract, initializes them and returns a struct containing all the
 /// addresses.
 /// @dev All upgradeable contracts are deployed using the transparent proxy pattern, with the proxy admin being a
@@ -26,6 +28,7 @@ import { Deployments } from "../Base.s.sol";
 /// @param params the configuration to use for the deployment.
 function deployAll(DeploymentParams memory params) returns (Deployments memory) {
     // Deploy proxies
+    console2.log("Deploying proxies");
     BakersSyndicateConfig config = BakersSyndicateConfig(
         Upgrades.deployTransparentProxy(
             "BakersSyndicateConfig.sol:BakersSyndicateConfig",
@@ -71,17 +74,27 @@ function deployAll(DeploymentParams memory params) returns (Deployments memory) 
     );
 
     // Deploy non-proxy contracts
+
+    console2.log("Deploying non-proxy contracts");
+
     BRR brr = new BRR({ initialOwner: params.manager });
     PermissionedNodeRegistry registry =
         new PermissionedNodeRegistry({ initialOwner: params.manager, maxNodes_: params.maxNodes });
 
     // Update the addresses in the config
+
+    console2.log("Updating config addresses");
+
     config.updateBrr(address(brr));
     config.updatePauser(address(pauser));
     config.updatePermissionedNodeRegistry(address(registry));
     config.updateRewardManager(address(rewardManager));
     config.updateStaking(address(staking));
     config.updateBakersSyndicateRewardsVault(params.treasury);
+
+    // Return the addresses
+
+    console2.log("Returning addresses");
 
     Deployments memory deploys = Deployments({
         brr: brr,
