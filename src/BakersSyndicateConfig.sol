@@ -6,7 +6,7 @@ import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/I
 
 /// @title BakersSyndicateConfig
 /// @notice Configuration contract for the BakersSyndicate system
-/// @author Coinbase
+/// @author BakersSyndicate
 contract BakersSyndicateConfig is Initializable, AccessControlUpgradeable {
     /// @notice Error thrown when attempting to set an identical value
     error IdenticalValue();
