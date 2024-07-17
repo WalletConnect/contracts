@@ -86,7 +86,7 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
             UnsafeUpgrades.deployTransparentProxy(
                 address(new Pauser()),
                 users.admin,
-                abi.encodeCall(Pauser.initialize, Pauser.Init({ owner: users.admin }))
+                abi.encodeCall(Pauser.initialize, Pauser.Init({ admin: users.admin }))
             )
         );
 
@@ -135,6 +135,10 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
         bakersSyndicateConfig.updateStaking(address(staking));
         bakersSyndicateConfig.updateBakersSyndicateRewardsVault(users.treasury);
 
+        // Add roles
+        vm.startPrank(users.admin);
+        pauser.grantRole(pauser.PAUSER_ROLE(), users.admin);
+        pauser.grantRole(pauser.UNPAUSER_ROLE(), users.admin);
         vm.stopPrank();
 
         // Label the contracts.

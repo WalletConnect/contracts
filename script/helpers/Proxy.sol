@@ -40,7 +40,7 @@ function deployAll(DeploymentParams memory params) returns (Deployments memory) 
         Upgrades.deployTransparentProxy(
             "Pauser.sol:Pauser",
             params.manager,
-            abi.encodeCall(Pauser.initialize, Pauser.Init({ owner: params.manager }))
+            abi.encodeCall(Pauser.initialize, Pauser.Init({ admin: params.manager }))
         )
     );
     RewardManager rewardManager = RewardManager(
