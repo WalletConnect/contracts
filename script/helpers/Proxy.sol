@@ -33,7 +33,7 @@ function deployAll(DeploymentParams memory params) returns (Deployments memory) 
         Upgrades.deployTransparentProxy(
             "BakersSyndicateConfig.sol:BakersSyndicateConfig",
             params.manager,
-            abi.encodeCall(BakersSyndicateConfig.initialize, BakersSyndicateConfig.Init({ owner: params.manager }))
+            abi.encodeCall(BakersSyndicateConfig.initialize, BakersSyndicateConfig.Init({ admin: params.manager }))
         )
     );
     Pauser pauser = Pauser(

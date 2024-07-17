@@ -21,7 +21,7 @@ library UtilLib {
         internal
         view
     {
-        if (!bakersSyndicateConfig.onlyBakersSyndicateContract(addr, contractName)) {
+        if (!bakersSyndicateConfig.isBakersSyndicateContract(addr, contractName)) {
             revert CallerNotBakersSyndicateContract();
         }
     }

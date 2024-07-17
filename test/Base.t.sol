@@ -78,7 +78,7 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
             UnsafeUpgrades.deployTransparentProxy(
                 address(new BakersSyndicateConfig()),
                 users.admin,
-                abi.encodeCall(BakersSyndicateConfig.initialize, BakersSyndicateConfig.Init({ owner: users.admin }))
+                abi.encodeCall(BakersSyndicateConfig.initialize, BakersSyndicateConfig.Init({ admin: users.admin }))
             )
         );
 
