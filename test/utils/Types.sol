@@ -12,4 +12,8 @@ struct Users {
     address payable permissionedNode;
     // Non-Permissioned Node
     address payable nonPermissionedNode;
+    // Bob: User
+    address payable bob;
+    // Alice: User
+    address payable alice;
 }

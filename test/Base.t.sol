@@ -16,9 +16,10 @@ import { Users } from "./utils/Types.sol";
 import { Events } from "./utils/Events.sol";
 import { Defaults } from "./utils/Defaults.sol";
 import { Constants } from "./utils/Constants.sol";
+import { Utils } from "./utils/Utils.sol";
 
 /// @notice Base test contract with common logic needed by all tests.
-abstract contract Base_Test is Test, Events, Constants {
+abstract contract Base_Test is Test, Events, Constants, Utils {
     /*//////////////////////////////////////////////////////////////////////////
                                      VARIABLES
     //////////////////////////////////////////////////////////////////////////*/
@@ -48,7 +49,9 @@ abstract contract Base_Test is Test, Events, Constants {
             attacker: createUser("Attacker"),
             treasury: createUser("Treasury"),
             permissionedNode: createUser("PermissionedNode"),
-            nonPermissionedNode: createUser("NonPermissionedNode")
+            nonPermissionedNode: createUser("NonPermissionedNode"),
+            bob: createUser("Bob"),
+            alice: createUser("Alice")
         });
 
         defaults = new Defaults();

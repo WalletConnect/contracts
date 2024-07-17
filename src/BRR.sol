@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: MIT
-// Compatible with OpenZeppelin Contracts ^5.0.0
 pragma solidity ^0.8.25;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -8,14 +7,19 @@ import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
+/// @title BRR Token
+/// @notice This contract implements the L1 BRR token with burn, permit, and voting functionality
 contract BRR is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes, Ownable {
-    /**
-     * @dev Constructor
-     */
+    /// @notice Constructs the BRR token
+    /// @param initialOwner The address that will own the contract and have minting rights
     constructor(address initialOwner) ERC20("Brownie", "BRR") ERC20Permit("Brownie") Ownable(initialOwner) { }
 
-    function mint(address _account, uint256 _amount) public onlyOwner {
-        _mint(_account, _amount);
+    /// @notice Mints new tokens
+    /// @param account The address that will receive the minted tokens
+    /// @param amount The amount of tokens to mint
+    /// @dev Only the owner (MintManager) can call this function
+    function mint(address account, uint256 amount) external onlyOwner {
+        _mint(account, amount);
     }
 
     // The following functions are overrides required by Solidity.
