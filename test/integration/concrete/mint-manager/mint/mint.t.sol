@@ -48,7 +48,7 @@ contract Mint_MintManager_Integration_Concrete_Test is Integration_Test {
     }
 
     function test_RevertWhen_AmountExceedsMaxSupply() external whenCallerIsOwner givenMintPermittedAfterIsZero {
-        uint256 maxSupplyForERC20Votes = type(uint208).max;
+        uint256 maxSupplyForERC20Votes = BRR_MAX_SUPPLY;
         uint256 mintAmount = maxSupplyForERC20Votes + 1;
         vm.expectRevert(
             abi.encodeWithSelector(ERC20Votes.ERC20ExceededSafeSupply.selector, mintAmount, maxSupplyForERC20Votes)
@@ -57,7 +57,7 @@ contract Mint_MintManager_Integration_Concrete_Test is Integration_Test {
     }
 
     function test_Mint_WhenAmountIsLTEMaxSupply() external whenCallerIsOwner givenMintPermittedAfterIsZero {
-        uint256 maxSupplyForERC20Votes = type(uint208).max;
+        uint256 maxSupplyForERC20Votes = BRR_MAX_SUPPLY;
         uint256 mintAmount = maxSupplyForERC20Votes;
         uint256 initialSupply = brr.totalSupply();
 

@@ -19,9 +19,9 @@ contract Mint_MintManager_Integration_Fuzz_Test is Integration_Test {
     }
 
     function testFuzz_MintWithRandomAmounts(uint256 amount, uint256 timeElapsed) public {
-        vm.assume(amount > 0 && amount <= type(uint208).max);
+        vm.assume(amount > 0 && amount <= BRR_MAX_SUPPLY);
         // Prevent overflow for warp
-        vm.assume(timeElapsed <= type(uint208).max);
+        vm.assume(timeElapsed <= BRR_MAX_SUPPLY);
 
         uint256 initialSupply = brr.totalSupply();
         uint256 maxMintAmount = (initialSupply * mintManager.MINT_CAP()) / mintManager.DENOMINATOR();
