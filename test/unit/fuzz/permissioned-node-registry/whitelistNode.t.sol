@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 import { Base_Test } from "../../../Base.t.sol";
 import { PermissionedNodeRegistry } from "src/PermissionedNodeRegistry.sol";
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.sol";
 
 pragma solidity >=0.8.25 <0.9.0;
 
@@ -19,7 +19,13 @@ contract WhitelistNode_PermissionedNodeRegistry_Unit_Fuzz_Test is Base_Test {
         vm.startPrank(attacker);
 
         // Run the test
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, attacker));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                attacker,
+                permissionedNodeRegistry.ADMIN_ROLE()
+            )
+        );
         permissionedNodeRegistry.whitelistNode(attacker);
     }
 

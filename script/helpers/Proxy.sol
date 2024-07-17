@@ -79,7 +79,7 @@ function deployAll(DeploymentParams memory params) returns (Deployments memory) 
 
     BRR brr = new BRR({ initialOwner: params.manager });
     PermissionedNodeRegistry registry =
-        new PermissionedNodeRegistry({ initialOwner: params.manager, maxNodes_: params.maxNodes });
+        new PermissionedNodeRegistry({ initialAdmin: params.manager, maxNodes_: params.maxNodes });
 
     // Update the addresses in the config
 

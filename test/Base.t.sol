@@ -125,7 +125,7 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
         brr = new BRR(users.admin);
 
         permissionedNodeRegistry =
-            new PermissionedNodeRegistry({ initialOwner: users.admin, maxNodes_: defaults.MAX_REGISTRY_NODES() });
+            new PermissionedNodeRegistry({ initialAdmin: users.admin, maxNodes_: defaults.MAX_REGISTRY_NODES() });
 
         // Update the BakersSyndicateConfig with the necessary contracts.
         bakersSyndicateConfig.updateBrr(address(brr));

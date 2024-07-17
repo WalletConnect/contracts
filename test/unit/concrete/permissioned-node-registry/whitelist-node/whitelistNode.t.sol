@@ -2,14 +2,20 @@
 
 import { PermissionedNodeRegistry_Unit_Concrete_Test } from "../PermissionedNodeRegistry.t.sol";
 import { PermissionedNodeRegistry } from "src/PermissionedNodeRegistry.sol";
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.sol";
 
 pragma solidity >=0.8.25 <0.9.0;
 
 contract WhitelistNode_PermissionedNodeRegistry_Unit_Concrete_Test is PermissionedNodeRegistry_Unit_Concrete_Test {
     function test_RevertWhen_CallerNotOwner() external {
         vm.startPrank(users.attacker);
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, users.attacker));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                users.attacker,
+                permissionedNodeRegistry.ADMIN_ROLE()
+            )
+        );
         permissionedNodeRegistry.whitelistNode(users.attacker);
     }
 
