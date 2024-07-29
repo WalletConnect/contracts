@@ -120,9 +120,13 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
             )
         );
 
-        // Deploy the non-proxy contracts
+        brr = BRR(
+            UnsafeUpgrades.deployTransparentProxy(
+                address(new BRR()), users.admin, abi.encodeCall(BRR.initialize, BRR.Init({ initialOwner: users.admin }))
+            )
+        );
 
-        brr = new BRR(users.admin);
+        // Deploy the non-proxy contracts
 
         permissionedNodeRegistry =
             new PermissionedNodeRegistry({ initialAdmin: users.admin, maxNodes_: defaults.MAX_REGISTRY_NODES() });

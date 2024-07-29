@@ -12,7 +12,8 @@ contract Mint_BRR_Unit_Fuzz_Test is Base_Test {
 
     function setUp() public override {
         super.setUp();
-        brrHarness = new BRRHarness(users.admin);
+        brrHarness = new BRRHarness();
+        brrHarness.initialize(users.admin);
         // Label the contract
         vm.label({ account: address(brrHarness), newLabel: "BRRHarness" });
     }
@@ -55,7 +56,10 @@ contract Mint_BRR_Unit_Fuzz_Test is Base_Test {
 }
 
 contract BRRHarness is BRR {
-    constructor(address owner) BRR(owner) { }
+    function initialize(address initialOwner) public {
+        BRR.Init memory init = BRR.Init({ initialOwner: initialOwner });
+        super.initialize(init);
+    }
 
     function maxSupply() external view returns (uint256) {
         return _maxSupply();

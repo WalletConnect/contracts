@@ -72,12 +72,16 @@ function deployAll(DeploymentParams memory params) returns (Deployments memory) 
             )
         )
     );
+    BRR brr = BRR(
+        Upgrades.deployTransparentProxy(
+            "BRR.sol:BRR", params.manager, abi.encodeCall(BRR.initialize, BRR.Init({ initialOwner: params.manager }))
+        )
+    );
 
     // Deploy non-proxy contracts
 
     console2.log("Deploying non-proxy contracts");
 
-    BRR brr = new BRR({ initialOwner: params.manager });
     PermissionedNodeRegistry registry =
         new PermissionedNodeRegistry({ initialAdmin: params.manager, maxNodes_: params.maxNodes });
 
