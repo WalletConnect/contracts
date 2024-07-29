@@ -6,7 +6,7 @@
     "name": "Paul Razvan Berg",
     "url": "https://github.com/PaulRBerg"
   },
-  "dependencies": {},
+  "dependencies": { "@openzeppelin/contracts": "5.0.2", "@openzeppelin/contracts-upgradeable": "5.0.2" },
   "devDependencies": {
     "prettier": "^3.0.0",
     "solhint": "^3.6.2"
