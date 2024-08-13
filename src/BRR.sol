@@ -33,7 +33,6 @@ contract BRR is ERC20VotesUpgradeable, ERC20PermitUpgradeable, ERC20BurnableUpgr
     /// @notice Mints new tokens
     /// @param account The address that will receive the minted tokens
     /// @param amount The amount of tokens to mint
-    /// @dev Only the owner (MintManager) can call this function
     function mint(address account, uint256 amount) external onlyOwner {
         _mint({ account: account, value: amount });
     }
