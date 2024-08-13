@@ -25,7 +25,7 @@ contract DisableTransferRestrictions_L2BRR_Unit_Concrete_Test is Base_Test {
     function test_RevertGiven_RestrictionsDisabled() external whenCallerOwner {
         l2brr.disableTransferRestrictions();
 
-        vm.expectRevert("L2BRR.disableTransferRestrictions: transfer restrictions are already disabled");
+        vm.expectRevert(L2BRR.TransferRestrictionsAlreadyDisabled.selector);
         l2brr.disableTransferRestrictions();
     }
 

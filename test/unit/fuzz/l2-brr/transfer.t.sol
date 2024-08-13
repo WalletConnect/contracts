@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 
 import { Base_Test } from "test/Base.t.sol";
+import { L2BRR } from "src/L2BRR.sol";
 
 pragma solidity >=0.8.25 <0.9.0;
 
@@ -34,7 +35,7 @@ contract Transfer_L2BRR_Unit_Fuzz_Test is Base_Test {
         l2brr.mint(from, 1000);
 
         vm.prank(from);
-        vm.expectRevert("L2BRR._update: from or to must be whitelisted");
+        vm.expectRevert(L2BRR.TransferRestricted.selector);
         l2brr.transfer(to, 500);
     }
 
@@ -47,7 +48,7 @@ contract Transfer_L2BRR_Unit_Fuzz_Test is Base_Test {
         l2brr.mint(from, 1000);
 
         vm.prank(from);
-        vm.expectRevert("L2BRR._update: from or to must be whitelisted");
+        vm.expectRevert(L2BRR.TransferRestricted.selector);
         l2brr.transfer(to, 500);
 
         assertEq(l2brr.transferRestrictionsDisabledAfter(), type(uint256).max, "invalid test setup");

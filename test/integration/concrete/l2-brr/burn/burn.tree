@@ -1,6 +1,6 @@
 burn.t.sol
 ├── when burn caller is not bridge
-│   └── it should revert with "L2BRR: only bridge can mint and burn"
+│   └── it should revert with OnlyBridge
 └── when burn caller is bridge
     ├── when transferability is off
     │   ├── when bridge caller is fromWhitelisted
@@ -14,7 +14,7 @@ burn.t.sol
     │   │   ├── it should emit a {Transfer} event
     │   │   └── it should emit a {Burn} event
     │   └── when bridgeCaller is not fromWhitelisted and address(0) is not toWhitelisted
-    │       └── it should revert with "L2BRR._update: from or to must be whitelisted"
+    │       └── it should revert with TransferRestricted
     └── when transferability is on
         ├── it should burn tokens from the specified address
         ├── it should decrease the total supply

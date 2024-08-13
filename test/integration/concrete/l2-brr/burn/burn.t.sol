@@ -16,7 +16,7 @@ contract Burn_L2BRR_Integration_Concrete_Test is Integration_Test {
     }
 
     function test_RevertWhen_CallerNotBridge() external {
-        vm.expectRevert("L2BRR: only bridge can mint and burn");
+        vm.expectRevert(L2BRR.OnlyBridge.selector);
         vm.prank(users.alice);
         l2brr.burn(users.alice, AMOUNT);
     }
@@ -30,7 +30,7 @@ contract Burn_L2BRR_Integration_Concrete_Test is Integration_Test {
     }
 
     function test_RevertWhen_FromNotWhitelisted() external whenCallerBridge whenTransferabilityOff {
-        vm.expectRevert("L2BRR._update: from or to must be whitelisted");
+        vm.expectRevert(L2BRR.TransferRestricted.selector);
         vm.startPrank(users.alice);
         mockBridge.bridgeERC20({
             localToken: address(brr),
@@ -103,7 +103,7 @@ contract Burn_L2BRR_Integration_Concrete_Test is Integration_Test {
     }
 
     function test_RevertWhen_FromNotWhitelistedAndToNotWhitelisted() external whenCallerBridge whenTransferabilityOff {
-        vm.expectRevert("L2BRR._update: from or to must be whitelisted");
+        vm.expectRevert(L2BRR.TransferRestricted.selector);
         vm.prank(address(mockBridge));
         l2brr.burn(users.alice, AMOUNT);
     }

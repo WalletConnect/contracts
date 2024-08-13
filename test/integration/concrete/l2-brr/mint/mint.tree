@@ -1,6 +1,6 @@
 mint.t.sol
 ├── when caller is not bridge
-│   └── it should revert with "L2BRR: only bridge can mint and burn"
+│   └── it should revert with OnlyBridge
 └── when caller is bridge
     ├── when supply would not exceed type(uint208).max
     │   ├── it should mint tokens to the specified address

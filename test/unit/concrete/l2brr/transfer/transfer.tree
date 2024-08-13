@@ -2,7 +2,7 @@ transfer.t.sol
 ├── given transfer restrictions are enabled
 │   ├── when sender is not in allowedFrom list
 │   │   ├── when recipient is not in allowedTo list
-│   │   │   └── it should revert with "L2BRR._update: from or to must be whitelisted"
+│   │   │   └── it should revert with TransferRestricted
 │   │   └── when recipient is in allowedTo list
 │   │       ├── it should transfer tokens successfully
 │   │       └── it should emit a {Transfer} event

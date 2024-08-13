@@ -59,7 +59,7 @@ contract Transfer_L2BRR_Unit_Concrete_Test is Base_Test {
         whenRecipientNotInAllowedToList
     {
         vm.prank(users.alice);
-        vm.expectRevert("L2BRR._update: from or to must be whitelisted");
+        vm.expectRevert(L2BRR.TransferRestricted.selector);
         l2brr.transfer(users.bob, 100);
     }
 
