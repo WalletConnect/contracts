@@ -13,17 +13,18 @@ import { ERC20BurnableUpgradeable } from
 
 /// @title BRR Token
 /// @notice This contract implements the L1 BRR token with burn, permit, and voting functionality
+/// @author BakersSyndicate
 contract BRR is ERC20VotesUpgradeable, ERC20PermitUpgradeable, ERC20BurnableUpgradeable, OwnableUpgradeable {
     /// @notice Initialization data for the contract
-    /// @param initialOwner The address that will be the initial owner of the contract
     struct Init {
+        /// @dev The address that will be the initial owner of the contract
         address initialOwner;
     }
 
     /// @notice Initializes the BRR token
     /// @param init The initialization data for the contract
-    function initialize(Init memory init) public initializer {
-        __ERC20_init("Brownie", "BRR");
+    function initialize(Init calldata init) public initializer {
+        __ERC20_init({ name_: "Brownie", symbol_: "BRR" });
         __ERC20Permit_init("Brownie");
         __ERC20Votes_init();
         __Ownable_init({ initialOwner: init.initialOwner });
@@ -34,13 +35,17 @@ contract BRR is ERC20VotesUpgradeable, ERC20PermitUpgradeable, ERC20BurnableUpgr
     /// @param amount The amount of tokens to mint
     /// @dev Only the owner (MintManager) can call this function
     function mint(address account, uint256 amount) external onlyOwner {
-        _mint(account, amount);
+        _mint({ account: account, value: amount });
     }
 
+    /// @notice Returns the current timestamp as a uint48
+    /// @return The current block timestamp
     function clock() public view override returns (uint48) {
         return uint48(block.timestamp);
     }
 
+    /// @notice Returns the clock mode
+    /// @return A string indicating the clock mode
     // solhint-disable-next-line func-name-mixedcase
     function CLOCK_MODE() public pure override returns (string memory) {
         return "mode=timestamp";
