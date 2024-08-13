@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.20;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.25;
 
 import { Timelock } from "src/Timelock.sol";
 import { Base_Test } from "test/Base.t.sol";
