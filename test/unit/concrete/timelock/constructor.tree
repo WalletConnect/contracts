@@ -1,0 +1,14 @@
+constructor.t.sol
+├── when delay is less than 3 days
+│   └── it should revert with "InvalidDelay"
+├── when canceller is address zero
+│   └── it should revert with "InvalidCanceller"
+├── when proposers array is empty
+│   └── it should revert with "InvalidProposer"
+├── when executors array is empty
+│   └── it should revert with "InvalidExecutor"
+└── when all parameters are valid
+    ├── it should set TIMELOCK_DELAY to the provided delay
+    ├── it should grant CANCELLER_ROLE to the provided canceller
+    ├── it should grant PROPOSER_ROLE to all provided proposers
+    └── it should grant EXECUTOR_ROLE to all provided executors
