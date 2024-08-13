@@ -47,34 +47,34 @@ contract MintManager is Ownable {
         governanceToken = BRR(_governanceToken);
     }
     /// @notice Only the token owner is allowed to mint a certain amount of BRR per year.
-    /// @param _account Address to mint new tokens to.
-    /// @param _amount Amount of tokens to be minted.
+    /// @param account Address to mint new tokens to.
+    /// @param amount Amount of tokens to be minted.
 
-    function mint(address _account, uint256 _amount) public onlyOwner {
+    function mint(address account, uint256 amount) public onlyOwner {
         if (mintPermittedAfter > 0) {
             if (mintPermittedAfter > block.timestamp) {
                 revert MintingNotPermittedYet(block.timestamp, mintPermittedAfter);
             }
 
             uint256 maxMintAmount = (governanceToken.totalSupply() * MINT_CAP) / DENOMINATOR;
-            if (_amount > maxMintAmount) {
-                revert MintAmountExceedsCap(_amount, maxMintAmount);
+            if (amount > maxMintAmount) {
+                revert MintAmountExceedsCap(amount, maxMintAmount);
             }
         }
 
         mintPermittedAfter = block.timestamp + MINT_PERIOD;
 
-        governanceToken.mint(_account, _amount);
-        emit TokensMinted(_account, _amount);
+        emit TokensMinted(account, amount);
+        governanceToken.mint(account, amount);
     }
 
     /// @notice Upgrade the owner of the governance token to a new MintManager.
-    /// @param _newMintManager The MintManager to upgrade to
-    function upgrade(address _newMintManager) public onlyOwner {
-        if (_newMintManager == address(0)) {
+    /// @param newMintManager The MintManager to upgrade to
+    function upgrade(address newMintManager) public onlyOwner {
+        if (newMintManager == address(0)) {
             revert MintManagerCannotBeEmpty();
         }
 
-        governanceToken.transferOwnership(_newMintManager);
+        governanceToken.transferOwnership(newMintManager);
     }
 }

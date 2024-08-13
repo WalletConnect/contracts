@@ -3,9 +3,9 @@ pragma solidity 0.8.25;
 
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import { BakersSyndicateConfig } from "./BakersSyndicateConfig.sol";
-import { UtilLib } from "./library/UtilLib.sol";
-import { Staking } from "./Staking.sol";
+import { BakersSyndicateConfig } from "src/BakersSyndicateConfig.sol";
+import { UtilLib } from "src/library/UtilLib.sol";
+import { Staking } from "src/Staking.sol";
 
 contract RewardManager is Initializable, OwnableUpgradeable {
     event PerformanceUpdated(uint256 reportingEpoch, uint256 rewardsPerEpoch);
@@ -14,7 +14,6 @@ contract RewardManager is Initializable, OwnableUpgradeable {
     error MismatchedDataLengths();
     error TotalPerformanceZero();
 
-    uint256 constant PERFORMANCE_SCALE = 1e18;
     BakersSyndicateConfig public bakersSyndicateConfig;
     uint256 public maxRewardsPerEpoch; // tokens to be distributed per epoch
     uint256 public lastUpdatedEpoch; // Last epoch for which rewards were updated
@@ -68,6 +67,11 @@ contract RewardManager is Initializable, OwnableUpgradeable {
             revert TotalPerformanceZero();
         }
 
+        // Update the last updated epoch
+        lastUpdatedEpoch = data.reportingEpoch;
+
+        emit PerformanceUpdated(data.reportingEpoch, maxRewardsPerEpoch);
+
         Staking staking = Staking(bakersSyndicateConfig.getStaking());
         // Distribute rewards based on performance
         for (uint256 i = 0; i < data.nodes.length; i++) {
@@ -81,10 +85,5 @@ contract RewardManager is Initializable, OwnableUpgradeable {
                 staking.updateRewards(node, nodeReward, data.reportingEpoch);
             }
         }
-
-        // Update the last updated epoch
-        lastUpdatedEpoch = data.reportingEpoch;
-
-        emit PerformanceUpdated(data.reportingEpoch, maxRewardsPerEpoch);
     }
 }
