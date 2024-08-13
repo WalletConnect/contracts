@@ -59,7 +59,12 @@ contract BRR is ERC20VotesUpgradeable, ERC20PermitUpgradeable, ERC20BurnableUpgr
         super._update(from, to, value);
     }
 
-    function nonces(address owner) public view override(ERC20PermitUpgradeable, NoncesUpgradeable) returns (uint256) {
-        return super.nonces(owner);
+    function nonces(address nonceOwner)
+        public
+        view
+        override(ERC20PermitUpgradeable, NoncesUpgradeable)
+        returns (uint256)
+    {
+        return super.nonces(nonceOwner);
     }
 }

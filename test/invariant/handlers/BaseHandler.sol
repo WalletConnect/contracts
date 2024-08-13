@@ -2,6 +2,7 @@
 pragma solidity >=0.8.25 <0.9.0;
 
 import { BRR } from "src/BRR.sol";
+import { L2BRR } from "src/L2BRR.sol";
 import { StdCheats } from "forge-std/StdCheats.sol";
 
 import { StdUtils } from "forge-std/StdUtils.sol";
@@ -25,15 +26,16 @@ abstract contract BaseHandler is Constants, StdCheats, StdUtils, CommonBase, Uti
                                    TEST CONTRACTS
     //////////////////////////////////////////////////////////////////////////*/
 
-    /// @dev Default ERC-20 asset used for testing.
     BRR public brr;
+    L2BRR public l2brr;
 
     /*//////////////////////////////////////////////////////////////////////////
                                     CONSTRUCTOR
     //////////////////////////////////////////////////////////////////////////*/
 
-    constructor(BRR brr_) {
+    constructor(BRR brr_, L2BRR l2brr_) {
         brr = brr_;
+        l2brr = l2brr_;
     }
 
     /*//////////////////////////////////////////////////////////////////////////

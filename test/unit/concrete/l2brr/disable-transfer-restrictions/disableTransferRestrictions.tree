@@ -1,0 +1,9 @@
+disableTransferRestrictions.t.sol
+├── when caller is not owner
+│   └── it should revert with "OwnableUnauthorizedAccount"
+└── when caller is owner
+    ├── given transfer restrictions are disabled
+    │   └── it should revert with "L2BRR.disableTransferRestrictions: transfer restrictions are already disabled"
+    └── given transfer restrictions enabled
+        ├── it should set the transferRestrictionsDisabledAfter to one year in the future
+        └── it should emit a {TransferRestrictionsDisabledOneYearInFuture} event

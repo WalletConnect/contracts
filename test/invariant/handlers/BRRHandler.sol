@@ -3,6 +3,7 @@ pragma solidity >=0.8.25 <0.9.0;
 
 import { BaseHandler } from "./BaseHandler.sol";
 import { BRR } from "src/BRR.sol";
+import { L2BRR } from "src/L2BRR.sol";
 import { MintManager } from "src/MintManager.sol";
 import { BRRStore } from "../stores/BRRStore.sol";
 
@@ -10,7 +11,7 @@ contract BRRHandler is BaseHandler {
     MintManager public mintManager;
     BRRStore public store;
 
-    constructor(BRR _brr, MintManager _mintManager, BRRStore _store) BaseHandler(_brr) {
+    constructor(BRR _brr, L2BRR _l2brr, MintManager _mintManager, BRRStore _store) BaseHandler(_brr, _l2brr) {
         mintManager = _mintManager;
         store = _store;
     }

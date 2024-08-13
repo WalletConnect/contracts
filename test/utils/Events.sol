@@ -8,6 +8,8 @@ abstract contract Events {
     //////////////////////////////////////////////////////////////////////////*/
 
     event Transfer(address indexed from, address indexed to, uint256 value);
+    event Mint(address indexed to, uint256 value);
+    event Burn(address indexed from, uint256 value);
 
     /*//////////////////////////////////////////////////////////////////////////
                             BAKERSSYNDICATE-REWARD-MANAGER
@@ -35,6 +37,39 @@ abstract contract Events {
                                 BAKERSSYNDICATE-MINT-MANAGER
     //////////////////////////////////////////////////////////////////////////*/
     event TokensMinted(address indexed account, uint256 amount);
+
+    /*//////////////////////////////////////////////////////////////////////////
+                                L2BRR
+    //////////////////////////////////////////////////////////////////////////*/
+    event SetAllowedFrom(address indexed account, bool allowed);
+    event SetAllowedTo(address indexed account, bool allowed);
+    event TransferRestrictionsDisabled();
+
+    /*//////////////////////////////////////////////////////////////////////////
+                                BAKERSSYNDICATE-TIMELOCK
+    //////////////////////////////////////////////////////////////////////////*/
+    event MinDelayChange(uint256 oldMinDelay, uint256 newMinDelay);
+
+    /*//////////////////////////////////////////////////////////////////////////
+                                MOCK-BRIDGE
+    //////////////////////////////////////////////////////////////////////////*/
+    event ERC20BridgeInitiated(
+        address indexed localToken,
+        address indexed remoteToken,
+        address indexed from,
+        address to,
+        uint256 amount,
+        bytes extraData
+    );
+
+    event ERC20BridgeFinalized(
+        address indexed localToken,
+        address indexed remoteToken,
+        address indexed from,
+        address to,
+        uint256 amount,
+        bytes extraData
+    );
 
     /*//////////////////////////////////////////////////////////////////////////
                                       GENERICS

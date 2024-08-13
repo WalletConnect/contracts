@@ -38,6 +38,7 @@ contract BakersSyndicateConfig is Initializable, AccessControlUpgradeable {
 
     bytes32 public constant BAKERSSYNDICATE_REWARDS_VAULT = keccak256("BAKERSSYNDICATE_REWARDS_VAULT");
     bytes32 public constant BRR_TOKEN = keccak256("BRR_TOKEN");
+    bytes32 public constant L2BRR_TOKEN = keccak256("L2BRR_TOKEN");
     bytes32 public constant PERMISSIONED_NODE_REGISTRY = keccak256("PERMISSIONED_NODE_REGISTRY");
     bytes32 public constant REWARD_MANAGER = keccak256("REWARD_MANAGER");
     bytes32 public constant STAKING = keccak256("STAKING");
@@ -55,6 +56,12 @@ contract BakersSyndicateConfig is Initializable, AccessControlUpgradeable {
     /// @return The address of the BRR token contract
     function getBrr() external view returns (address) {
         return _contractsMap[BRR_TOKEN];
+    }
+
+    /// @notice Gets the L2BRR token address
+    /// @return The address of the L2BRR token contract
+    function getL2brr() external view returns (address) {
+        return _contractsMap[L2BRR_TOKEN];
     }
 
     /// @notice Gets the Pauser address
@@ -91,6 +98,12 @@ contract BakersSyndicateConfig is Initializable, AccessControlUpgradeable {
     /// @param brr The new BRR token address
     function updateBrr(address brr) external onlyRole(ADMIN_ROLE) {
         _setContract({ key: BRR_TOKEN, val: brr });
+    }
+
+    /// @notice Updates the L2BRR token address
+    /// @param l2brr The new L2BRR token address
+    function updateL2brr(address l2brr) external onlyRole(ADMIN_ROLE) {
+        _setContract({ key: L2BRR_TOKEN, val: l2brr });
     }
 
     /// @notice Updates the Pauser address

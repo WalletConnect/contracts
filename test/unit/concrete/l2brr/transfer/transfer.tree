@@ -1,0 +1,18 @@
+transfer.t.sol
+├── given transfer restrictions are enabled
+│   ├── when sender is not in allowedFrom list
+│   │   ├── when recipient is not in allowedTo list
+│   │   │   └── it should revert with "L2BRR._update: from or to must be whitelisted"
+│   │   └── when recipient is in allowedTo list
+│   │       ├── it should transfer tokens successfully
+│   │       └── it should emit a {Transfer} event
+│   └── when sender is in allowedFrom list
+│       ├── it should transfer tokens successfully
+│       ├── it should emit a {Transfer} event
+│       └── it should revert with "ERC20: transfer amount exceeds balance"
+└── given transfer restrictions are disabled
+    ├── given sender has sufficient balance
+    │   ├── it should transfer tokens successfully
+    │   └── it should emit a {Transfer} event
+    └── given sender has insufficient balance
+        └── it should revert with "ERC20: transfer amount exceeds balance"

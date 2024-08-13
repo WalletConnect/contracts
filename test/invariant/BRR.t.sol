@@ -18,7 +18,7 @@ contract BRR_Invariant_Test is Invariant_Test {
 
         mintManager = new MintManager(users.admin, address(brr));
         store = new BRRStore();
-        handler = new BRRHandler(brr, mintManager, store);
+        handler = new BRRHandler(brr, l2brr, mintManager, store);
 
         vm.startPrank(users.admin);
         brr.transferOwnership(address(mintManager));

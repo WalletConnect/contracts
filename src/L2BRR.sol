@@ -6,11 +6,13 @@ import { ERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/ERC2
 import { ERC20Votes } from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
 import { Nonces } from "@openzeppelin/contracts/utils/Nonces.sol";
 import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
-import { IOptimismMintableERC20 } from "./IOptimismMintableERC20.sol";
+import { IOptimismMintableERC20, ILegacyMintableERC20 } from "src/interfaces/IOptimismMintableERC20.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import { ISemver } from "src/interfaces/ISemver.sol";
+import { UtilLib } from "src/library/UtilLib.sol";
 
-contract L2BRR is IOptimismMintableERC20, ERC20Permit, ERC20Votes, Ownable {
+contract L2BRR is IOptimismMintableERC20, ILegacyMintableERC20, ERC20Permit, ERC20Votes, Ownable, ISemver {
     /// @notice the timestamp after which transfer restrictions are disabled
     uint256 public transferRestrictionsDisabledAfter;
     /// @notice mapping of addresses that are allowed to transfer tokens to any address
@@ -22,8 +24,8 @@ contract L2BRR is IOptimismMintableERC20, ERC20Permit, ERC20Votes, Ownable {
     event SetAllowedFrom(address indexed from, bool isAllowedFrom);
     /// @notice event emitted when the allowedTo status of an address is set
     event SetAllowedTo(address indexed to, bool isAllowedTo);
-    /// @notice event emitted when the transfer restrictions are set to be disabled after one year in the future
-    event TransferRestrictionsDisabledOneYearInFuture();
+    /// @notice event emitted when the transfer restrictions are disabled
+    event TransferRestrictionsDisabled();
 
     /// @notice Address of the corresponding version of this token on the remote chain.
     address public immutable REMOTE_TOKEN;
@@ -47,26 +49,40 @@ contract L2BRR is IOptimismMintableERC20, ERC20Permit, ERC20Votes, Ownable {
         _;
     }
 
+    /// @notice Semantic version.
+    /// @custom:semver 1.0.0
+    string public constant version = "1.0.0";
+
     /// @param initialOwner Address of the initial owner of the contract.
     /// @param _bridge      Address of the L2 standard bridge.
     /// @param _remoteToken Address of the corresponding L1 token.
-    /// @param _name        ERC20 name.
-    /// @param _symbol      ERC20 symbol.
     constructor(
         address initialOwner,
         address _bridge,
-        address _remoteToken,
-        string memory _name,
-        string memory _symbol
+        address _remoteToken
     )
-        ERC20(_name, _symbol)
-        ERC20Permit(_name)
+        ERC20("Brownie", "BRR")
+        ERC20Permit("Brownie")
         Ownable(initialOwner)
     {
+        UtilLib.checkNonZeroAddress(_remoteToken);
+        UtilLib.checkNonZeroAddress(_bridge);
         REMOTE_TOKEN = _remoteToken;
         BRIDGE = _bridge;
         // set transfer restrictions to be disabled at type(uint256).max to be set down later
         transferRestrictionsDisabledAfter = type(uint256).max;
+    }
+
+    /// @custom:legacy
+    /// @notice Legacy getter for the remote token. Use REMOTE_TOKEN going forward.
+    function l1Token() public view returns (address) {
+        return REMOTE_TOKEN;
+    }
+
+    /// @custom:legacy
+    /// @notice Legacy getter for the bridge. Use BRIDGE going forward.
+    function l2Bridge() public view returns (address) {
+        return BRIDGE;
     }
 
     /// @custom:legacy
@@ -82,19 +98,27 @@ contract L2BRR is IOptimismMintableERC20, ERC20Permit, ERC20Votes, Ownable {
     }
 
     /// @notice ERC165 interface check function.
-    /// @param _interfaceId Interface ID to check.
+    /// @param interfaceId Interface ID to check.
     /// @return Whether or not the interface is supported by this contract.
-    function supportsInterface(bytes4 _interfaceId) external pure virtual returns (bool) {
+    function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
         bytes4 iface1 = type(IERC165).interfaceId;
-        // Interface corresponding to the updated OptimismMintableERC20 (this contract).
-        bytes4 iface2 = type(IOptimismMintableERC20).interfaceId;
-        return _interfaceId == iface1 || _interfaceId == iface2;
+        bytes4 iface2 = type(ILegacyMintableERC20).interfaceId;
+        bytes4 iface3 = type(IOptimismMintableERC20).interfaceId;
+        return interfaceId == iface1 || interfaceId == iface2 || interfaceId == iface3;
     }
 
     /// @notice Allows the StandardBridge on this network to mint tokens.
     /// @param _to     Address to mint tokens to.
     /// @param _amount Amount of tokens to mint.
-    function mint(address _to, uint256 _amount) external virtual override(IOptimismMintableERC20) onlyBridge {
+    function mint(
+        address _to,
+        uint256 _amount
+    )
+        external
+        virtual
+        override(IOptimismMintableERC20, ILegacyMintableERC20)
+        onlyBridge
+    {
         _mint(_to, _amount);
         emit Mint(_to, _amount);
     }
@@ -102,7 +126,15 @@ contract L2BRR is IOptimismMintableERC20, ERC20Permit, ERC20Votes, Ownable {
     /// @notice Allows the StandardBridge on this network to burn tokens.
     /// @param _from   Address to burn tokens from.
     /// @param _amount Amount of tokens to burn.
-    function burn(address _from, uint256 _amount) external virtual override(IOptimismMintableERC20) onlyBridge {
+    function burn(
+        address _from,
+        uint256 _amount
+    )
+        external
+        virtual
+        override(IOptimismMintableERC20, ILegacyMintableERC20)
+        onlyBridge
+    {
         _burn(_from, _amount);
         emit Burn(_from, _amount);
     }
@@ -127,16 +159,15 @@ contract L2BRR is IOptimismMintableERC20, ERC20Permit, ERC20Votes, Ownable {
     }
 
     /**
-     * @notice This function allows the owner to set the transfer restrictions to be disabled after one year in the
-     * future
+     * @notice Allows the owner to disable transfer restrictions
      */
-    function setTransferRestrictionsDisabledAfterToOneYearInFuture() external onlyOwner {
+    function disableTransferRestrictions() external onlyOwner {
         require(
             transferRestrictionsDisabledAfter == type(uint256).max,
-            "L2BRR.setTransferRestrictionsDisabledAfterToOneYearInFuture: transfer restrictions are already disabled"
+            "L2BRR.disableTransferRestrictions: transfer restrictions are already disabled"
         );
-        transferRestrictionsDisabledAfter = block.timestamp + 365 days;
-        emit TransferRestrictionsDisabledOneYearInFuture();
+        transferRestrictionsDisabledAfter = 0;
+        emit TransferRestrictionsDisabled();
     }
 
     /// VIEW FUNCTIONS
@@ -191,7 +222,7 @@ contract L2BRR is IOptimismMintableERC20, ERC20Permit, ERC20Votes, Ownable {
 
     // The following functions are overrides required by Solidity.
 
-    function nonces(address owner) public view override(ERC20Permit, Nonces) returns (uint256) {
-        return super.nonces(owner);
+    function nonces(address nonceOwner) public view override(ERC20Permit, Nonces) returns (uint256) {
+        return super.nonces(nonceOwner);
     }
 }

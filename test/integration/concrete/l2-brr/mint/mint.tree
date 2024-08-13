@@ -1,0 +1,11 @@
+mint.t.sol
+├── when caller is not bridge
+│   └── it should revert with "L2BRR: only bridge can mint and burn"
+└── when caller is bridge
+    ├── when supply would not exceed type(uint208).max
+    │   ├── it should mint tokens to the specified address
+    │   ├── it should increase the total supply
+    │   ├── it should emit a {Transfer} event
+    │   └── it should emit a {Mint} event
+    └── when supply would exceed type(uint208).max
+        └── it should revert with "ERC20ExceededSafeSupply"

@@ -2,13 +2,14 @@
 pragma solidity >=0.8.25 <0.9.0;
 
 import { UnsafeUpgrades } from "openzeppelin-foundry-upgrades/Upgrades.sol";
-
 import { BRR } from "src/BRR.sol";
+import { L2BRR } from "src/L2BRR.sol";
 import { Pauser } from "src/Pauser.sol";
 import { PermissionedNodeRegistry } from "src/PermissionedNodeRegistry.sol";
 import { BakersSyndicateConfig } from "src/BakersSyndicateConfig.sol";
 import { RewardManager } from "src/RewardManager.sol";
 import { Staking } from "src/Staking.sol";
+import { MockBridge } from "./mocks/MockBridge.sol";
 
 import { Test } from "forge-std/Test.sol";
 
@@ -32,11 +33,18 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
 
     Defaults internal defaults;
     BRR internal brr;
+    L2BRR internal l2brr;
     Pauser internal pauser;
     PermissionedNodeRegistry internal permissionedNodeRegistry;
     BakersSyndicateConfig internal bakersSyndicateConfig;
     RewardManager internal rewardManager;
     Staking internal staking;
+
+    /*//////////////////////////////////////////////////////////////////////////
+                                   MOCKS
+    //////////////////////////////////////////////////////////////////////////*/
+
+    MockBridge internal mockBridge;
 
     /*//////////////////////////////////////////////////////////////////////////
                                   SET-UP FUNCTION
@@ -51,7 +59,8 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
             permissionedNode: createUser("PermissionedNode"),
             nonPermissionedNode: createUser("NonPermissionedNode"),
             bob: createUser("Bob"),
-            alice: createUser("Alice")
+            alice: createUser("Alice"),
+            timelockCanceller: createUser("TimelockCanceller")
         });
 
         defaults = new Defaults();
@@ -131,8 +140,13 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
         permissionedNodeRegistry =
             new PermissionedNodeRegistry({ initialAdmin: users.admin, maxNodes_: defaults.MAX_REGISTRY_NODES() });
 
+        deployMockBridge();
+
+        l2brr = new L2BRR(users.admin, address(mockBridge), address(brr));
+
         // Update the BakersSyndicateConfig with the necessary contracts.
         bakersSyndicateConfig.updateBrr(address(brr));
+        bakersSyndicateConfig.updateL2brr(address(l2brr));
         bakersSyndicateConfig.updatePermissionedNodeRegistry(address(permissionedNodeRegistry));
         bakersSyndicateConfig.updateRewardManager(address(rewardManager));
         bakersSyndicateConfig.updatePauser(address(pauser));
@@ -148,10 +162,12 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
         // Label the contracts.
         vm.label({ account: address(bakersSyndicateConfig), newLabel: "BakersSyndicateConfig" });
         vm.label({ account: address(brr), newLabel: "BRR" });
+        vm.label({ account: address(l2brr), newLabel: "L2BRR" });
         vm.label({ account: address(pauser), newLabel: "Pauser" });
         vm.label({ account: address(permissionedNodeRegistry), newLabel: "PermissionedNodeRegistry" });
         vm.label({ account: address(rewardManager), newLabel: "RewardManager" });
         vm.label({ account: address(staking), newLabel: "Staking" });
+        vm.label({ account: address(mockBridge), newLabel: "MockBridge" });
     }
 
     function fundRewardsVaultAndApprove() internal {
@@ -161,5 +177,10 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
         // Approve the Staking contract to spend BRR.
         brr.approve(address(staking), defaults.REWARD_BUDGET());
         vm.stopPrank();
+    }
+
+    function deployMockBridge() internal {
+        deployCodeTo("MockBridge.sol", abi.encode(address(bakersSyndicateConfig)), BRIDGE_ADDRESS);
+        mockBridge = MockBridge(BRIDGE_ADDRESS);
     }
 }
