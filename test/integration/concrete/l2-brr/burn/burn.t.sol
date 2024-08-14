@@ -35,7 +35,7 @@ contract Burn_L2BRR_Integration_Concrete_Test is Integration_Test {
         mockBridge.bridgeERC20({
             localToken: address(brr),
             remoteToken: address(l2brr),
-            amount: 100,
+            amount: AMOUNT,
             minGasLimit: 100,
             extraData: ""
         });

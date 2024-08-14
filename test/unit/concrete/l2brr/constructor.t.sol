@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import { L2BRR } from "src/L2BRR.sol";
-import { BakersSyndicateConfig } from "src/BakersSyndicateConfig.sol";
-import { MockBridge } from "test/mocks/MockBridge.sol";
 import { BRR } from "src/BRR.sol";
 import { UnsafeUpgrades } from "openzeppelin-foundry-upgrades/Upgrades.sol";
+import { L2BRR } from "src/L2BRR.sol";
+import { MockBridge } from "test/mocks/MockBridge.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { Base_Test } from "test/Base.t.sol";
 
 contract Constructor_L2BRR_Unit_Concrete_Test is Base_Test {
@@ -19,23 +19,15 @@ contract Constructor_L2BRR_Unit_Concrete_Test is Base_Test {
 
         // New Config
         vm.startPrank(users.admin);
-        bakersSyndicateConfig = BakersSyndicateConfig(
-            UnsafeUpgrades.deployTransparentProxy(
-                address(new BakersSyndicateConfig()),
-                users.admin,
-                abi.encodeCall(BakersSyndicateConfig.initialize, (BakersSyndicateConfig.Init({ admin: users.admin })))
-            )
-        );
-        mockBridge = new MockBridge(bakersSyndicateConfig);
+
         // Deploy BRR as a proxy
         BRR.Init memory brrInit = BRR.Init({ initialOwner: users.admin });
+
         brr = BRR(
             UnsafeUpgrades.deployTransparentProxy(
                 address(new BRR()), users.admin, abi.encodeCall(BRR.initialize, (brrInit))
             )
         );
-        // Update config
-        bakersSyndicateConfig.updateBrr(address(brr));
 
         // New L2BRR
         initialOwner = users.admin;
@@ -43,10 +35,26 @@ contract Constructor_L2BRR_Unit_Concrete_Test is Base_Test {
         name = "Brownie";
         symbol = "BRR";
 
-        l2brr = new L2BRR(initialOwner, address(mockBridge), remoteToken);
+        l2brr = new L2BRR(initialOwner, BRIDGE_ADDRESS, remoteToken);
 
-        bakersSyndicateConfig.updateL2brr(address(l2brr));
+        deployMockBridge();
+
         vm.stopPrank();
+    }
+
+    function test_revertWhen_RemoteTokenIsZero() public {
+        vm.expectRevert(L2BRR.InvalidAddress.selector);
+        new L2BRR(initialOwner, address(mockBridge), address(0));
+    }
+
+    function test_revertWhen_BridgeIsZero() public {
+        vm.expectRevert(L2BRR.InvalidAddress.selector);
+        new L2BRR(initialOwner, address(0), remoteToken);
+    }
+
+    function test_revertWhen_InitialOwnerIsZero() public {
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableInvalidOwner.selector, address(0)));
+        new L2BRR(address(0), address(mockBridge), remoteToken);
     }
 
     function test_constructor() public view {

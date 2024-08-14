@@ -17,6 +17,9 @@ contract BRR_Invariant_Test is Invariant_Test {
         store = new BRRStore();
         handler = new BRRHandler(brr, l2brr, store);
 
+        vm.label(address(handler), "BRRHandler");
+        vm.label(address(store), "BRRStore");
+
         targetContract(address(handler));
 
         bytes4[] memory selectors = new bytes4[](5);
@@ -34,9 +37,18 @@ contract BRR_Invariant_Test is Invariant_Test {
     }
 
     function invariant_balancesSumUpToTotalSupply() public view {
-        uint256 totalSupplyFromBalances =
-            brr.balanceOf(users.bob) + brr.balanceOf(users.alice) + brr.balanceOf(users.admin);
-        assertEq(totalSupplyFromBalances, brr.totalSupply(), "Sum of balances should equal total supply");
+        uint256 totalSupply = brr.totalSupply();
+        uint256 sumOfBalances = 0;
+        address[] memory addresses = store.getAddressesWithBalance();
+        for (uint256 i = 0; i < addresses.length; i++) {
+            sumOfBalances += brr.balanceOf(addresses[i]);
+        }
+        assertEq(totalSupply, sumOfBalances, "Total supply should equal sum of balances");
+    }
+
+    function invariant_mintsMinusBurnsSumUpToTotalSupply() public view {
+        uint256 currentSupply = store.totalMinted() - store.totalBurned();
+        assertEq(currentSupply, brr.totalSupply(), "Current supply should equal total supply");
     }
 
     function invariant_callSummary() public view {
@@ -48,5 +60,7 @@ contract BRR_Invariant_Test is Invariant_Test {
         console2.log("Burn calls:", handler.calls("burn"));
         console2.log("Total minted:", store.totalMinted());
         console2.log("Total burned:", store.totalBurned());
+        console2.log("Total transfers:", store.userTransfers(address(0)));
+        console2.log("Total receives:", store.userReceives(address(0)));
     }
 }

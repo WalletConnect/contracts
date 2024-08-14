@@ -54,13 +54,14 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
         // Create users for testing.
         users = Users({
             admin: createUser("Admin"),
+            manager: createUser("Manager"),
+            timelockCanceller: createUser("TimelockCanceller"),
             attacker: createUser("Attacker"),
             treasury: createUser("Treasury"),
             permissionedNode: createUser("PermissionedNode"),
             nonPermissionedNode: createUser("NonPermissionedNode"),
             bob: createUser("Bob"),
-            alice: createUser("Alice"),
-            timelockCanceller: createUser("TimelockCanceller")
+            alice: createUser("Alice")
         });
 
         defaults = new Defaults();
@@ -140,9 +141,9 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
         permissionedNodeRegistry =
             new PermissionedNodeRegistry({ initialAdmin: users.admin, maxNodes_: defaults.MAX_REGISTRY_NODES() });
 
-        deployMockBridge();
+        l2brr = new L2BRR(users.admin, BRIDGE_ADDRESS, address(brr));
 
-        l2brr = new L2BRR(users.admin, address(mockBridge), address(brr));
+        deployMockBridge();
 
         // Update the BakersSyndicateConfig with the necessary contracts.
         bakersSyndicateConfig.updateBrr(address(brr));
@@ -180,7 +181,7 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
     }
 
     function deployMockBridge() internal {
-        deployCodeTo("MockBridge.sol", abi.encode(address(bakersSyndicateConfig)), BRIDGE_ADDRESS);
+        deployCodeTo("MockBridge.sol:MockBridge", "", BRIDGE_ADDRESS);
         mockBridge = MockBridge(BRIDGE_ADDRESS);
     }
 }
