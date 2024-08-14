@@ -4,8 +4,10 @@ coverage
 node_modules
 out
 
+# All env files except the common.example.env
+*.common.env
+
 # files
-*.env
 *.log
 .DS_Store
 .pnp.*

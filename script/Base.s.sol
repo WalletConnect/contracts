@@ -1,21 +1,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.25 <0.9.0;
 
+import { console2 } from "forge-std/console2.sol";
 import { Script } from "forge-std/Script.sol";
 import { BRR } from "src/BRR.sol";
-import { Pauser } from "src/Pauser.sol";
-import { PermissionedNodeRegistry } from "src/PermissionedNodeRegistry.sol";
-import { RewardManager } from "src/RewardManager.sol";
-import { Staking } from "src/Staking.sol";
-import { BakersSyndicateConfig } from "src/BakersSyndicateConfig.sol";
+import { L2BRR } from "src/L2BRR.sol";
+import { Timelock } from "src/Timelock.sol";
 
-struct Deployments {
+struct EthereumDeployments {
     BRR brr;
-    Pauser pauser;
-    PermissionedNodeRegistry registry;
-    RewardManager rewardManager;
-    Staking staking;
-    BakersSyndicateConfig config;
+}
+
+struct OptimismDeployments {
+    L2BRR l2brr;
+    Timelock adminTimelock;
+    Timelock managerTimelock;
 }
 
 abstract contract BaseScript is Script {
@@ -31,9 +30,6 @@ abstract contract BaseScript is Script {
     /// @dev Used to derive the broadcaster's address if $ETH_FROM is not defined.
     string internal mnemonic;
 
-    /// @dev Used to prevent using reserved protocol addresses for other purposes.
-    uint32 lastReservedMnemonicIndex = 1;
-
     /// @dev Initializes the transaction broadcaster like this:
     ///
     /// - If $ETH_FROM is defined, use it.
@@ -41,15 +37,23 @@ abstract contract BaseScript is Script {
     /// - If $MNEMONIC is not defined, default to a test mnemonic.
     ///
     /// The use case for $ETH_FROM is to specify the broadcaster key and its address via the command line.
+    ///
+    /// Note: Using a mnemonic will revert in non-testnet chains
     constructor() {
-        require(vm.envUint("CHAIN_ID") == block.chainid, "wrong chain id");
-        address from = vm.envOr({ name: "ETH_FROM", defaultValue: address(0) });
-        if (from != address(0)) {
-            broadcaster = from;
-        } else {
-            mnemonic = vm.envOr({ name: "MNEMONIC", defaultValue: TEST_MNEMONIC });
-            (broadcaster,) = deriveRememberKey({ mnemonic: mnemonic, index: 0 });
+        // Validate the chain ID
+        require(vm.envUint("CHAIN_ID") == block.chainid, "Chain ID mismatch");
+        // Get the specified sender
+        address specifiedSender = vm.envOr({ name: "ETH_FROM", defaultValue: address(0) });
+        bool isMainnetOrOptimism =
+            block.chainid == getChain("mainnet").chainId || block.chainid == getChain("optimism").chainId;
+
+        // We exit early if the chain is mainnet or optimism and no sender is specified
+        if (isMainnetOrOptimism && specifiedSender == address(0)) {
+            revert("You must specify a sender for a production deployment");
         }
+
+        // Select the broadcaster, either the specified sender or the first derived address from the mnemonic
+        broadcaster = (specifiedSender != address(0)) ? specifiedSender : deriveBroadcasterFromMnemonic();
     }
 
     modifier broadcast() {
@@ -58,38 +62,53 @@ abstract contract BaseScript is Script {
         vm.stopBroadcast();
     }
 
-    function _deploymentsFile() internal view returns (string memory) {
-        string memory root = vm.projectRoot();
-        return string.concat(root, "/deployments/", vm.toString(block.chainid));
+    function readEthereumDeployments(uint256 chainId) public returns (EthereumDeployments memory) {
+        bytes memory data = _readDeployments(chainId);
+        if (data.length == 0) {
+            return EthereumDeployments({ brr: BRR(address(0)) });
+        }
+        return abi.decode(data, (EthereumDeployments));
     }
 
-    function writeDeployments(Deployments memory deps) public {
-        vm.writeFileBinary(_deploymentsFile(), abi.encode(deps));
-    }
-
-    function safeReadDeployments() public returns (Deployments memory) {
-        Deployments memory depls = _readDeployments();
-        require(address(depls.brr).code.length > 0, "contracts are not deployed yet");
-        return depls;
-    }
-
-    function readDeployments() public returns (Deployments memory) {
-        return _readDeployments();
-    }
-
-    function _readDeployments() private returns (Deployments memory) {
-        if (vm.exists(_deploymentsFile()) == false) {
-            return Deployments({
-                brr: BRR(address(0)),
-                pauser: Pauser(address(0)),
-                registry: PermissionedNodeRegistry(address(0)),
-                rewardManager: RewardManager(address(0)),
-                staking: Staking(address(0)),
-                config: BakersSyndicateConfig(address(0))
+    function readOptimismDeployments(uint256 chainId) public returns (OptimismDeployments memory) {
+        bytes memory data = _readDeployments(chainId);
+        if (data.length == 0) {
+            return OptimismDeployments({
+                l2brr: L2BRR(address(0)),
+                adminTimelock: Timelock(payable(address(0))),
+                managerTimelock: Timelock(payable(address(0)))
             });
         }
-        bytes memory data = vm.readFileBinary(_deploymentsFile());
-        Deployments memory depls = abi.decode(data, (Deployments));
-        return depls;
+        return abi.decode(data, (OptimismDeployments));
+    }
+
+    function deriveBroadcasterFromMnemonic() private returns (address) {
+        mnemonic = vm.envOr({ name: "MNEMONIC", defaultValue: TEST_MNEMONIC });
+        (address derived,) = deriveRememberKey({ mnemonic: mnemonic, index: 0 });
+        return derived;
+    }
+
+    function _deploymentsFile(uint256 chainId) internal view returns (string memory) {
+        string memory root = vm.projectRoot();
+        return string.concat(root, "/deployments/", vm.toString(chainId));
+    }
+
+    function _readDeployments(uint256 chainId) private returns (bytes memory) {
+        console2.log("Reading deployments for chain %s", vm.toString(chainId));
+        string memory deploymentsFile = _deploymentsFile(chainId);
+        if (!vm.exists(deploymentsFile)) {
+            return "";
+        }
+        return vm.readFileBinary(deploymentsFile);
+    }
+
+    function _writeDeployments(bytes memory encodedDeployments) internal {
+        vm.writeFileBinary(_deploymentsFile(block.chainid), encodedDeployments);
+    }
+
+    function _singleAddressArray(address addr) internal pure returns (address[] memory) {
+        address[] memory arr = new address[](1);
+        arr[0] = addr;
+        return arr;
     }
 }

@@ -24,9 +24,6 @@
   fuzz = { runs = 10_000 }
   verbosity = 4
 
-[etherscan]
-  sepolia = { key = "${API_KEY_ETHERSCAN}" }
-  optimism = { key = "${API_KEY_OPTIMISTIC_ETHERSCAN}" }
 
 [fmt]
   bracket_spacing = true
@@ -37,7 +34,16 @@
   quote_style = "double"
   tab_width = 4
   wrap_comments = true
+  
+[etherscan]
+  sepolia = { key = "${API_KEY_ETHERSCAN}" }
+  mainnet = { key = "${API_KEY_ETHERSCAN}" }
+  optimism = { key = "${API_KEY_OPTIMISTIC_ETHERSCAN}" }
+  optimism_sepolia = { key = "${API_KEY_OPTIMISTIC_ETHERSCAN}" }
 
 [rpc_endpoints]
   localhost = "http://localhost:8545"
+  mainnet = "https://mainnet.infura.io/v3/${API_KEY_INFURA}"
+  sepolia = "https://sepolia.infura.io/v3/${API_KEY_INFURA}"
+  optimism = "https://optimism-mainnet.infura.io/v3/${API_KEY_INFURA}"
   optimism_sepolia = "https://optimism-sepolia.infura.io/v3/${API_KEY_INFURA}"
