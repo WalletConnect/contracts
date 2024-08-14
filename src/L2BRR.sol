@@ -10,7 +10,6 @@ import { IOptimismMintableERC20, ILegacyMintableERC20 } from "src/interfaces/IOp
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { ISemver } from "src/interfaces/ISemver.sol";
-import { UtilLib } from "src/library/UtilLib.sol";
 
 contract L2BRR is IOptimismMintableERC20, ILegacyMintableERC20, ERC20Permit, ERC20Votes, Ownable, ISemver {
     /// @notice The timestamp after which transfer restrictions are disabled
@@ -47,6 +46,7 @@ contract L2BRR is IOptimismMintableERC20, ILegacyMintableERC20, ERC20Permit, ERC
     error OnlyBridge();
     error TransferRestrictionsAlreadyDisabled();
     error TransferRestricted();
+    error InvalidAddress();
 
     /// @notice A modifier that only allows the bridge to call
     modifier onlyBridge() {
@@ -70,8 +70,8 @@ contract L2BRR is IOptimismMintableERC20, ILegacyMintableERC20, ERC20Permit, ERC
         ERC20Permit("Brownie")
         Ownable(initialOwner)
     {
-        UtilLib.checkNonZeroAddress(_remoteToken);
-        UtilLib.checkNonZeroAddress(_bridge);
+        if (_remoteToken == address(0)) revert InvalidAddress();
+        if (_bridge == address(0)) revert InvalidAddress();
         REMOTE_TOKEN = _remoteToken;
         BRIDGE = _bridge;
         // Set transfer restrictions to be disabled at type(uint256).max to be set down later
