@@ -4,6 +4,8 @@ pragma solidity >=0.8.25;
 struct Users {
     // Admin
     address payable admin;
+    // Manager
+    address payable manager;
     // Timelock canceller
     address payable timelockCanceller;
     // Treasury

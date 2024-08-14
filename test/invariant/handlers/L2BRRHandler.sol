@@ -26,6 +26,7 @@ contract L2BRRHandler is BaseHandler {
             store.incrementUserTransfers(from, amount);
             store.incrementUserReceives(to, amount);
             store.addAddressWithBalance(to);
+            store.addReceivedBy(to, from);
             if (l2brr.balanceOf(from) == 0) {
                 store.removeAddressWithBalance(from);
             }
@@ -65,6 +66,7 @@ contract L2BRRHandler is BaseHandler {
             store.incrementUserTransfers(from, amount);
             store.incrementUserReceives(to, amount);
             store.addAddressWithBalance(to);
+            store.addReceivedBy(to, from);
             if (l2brr.balanceOf(from) == 0) {
                 store.removeAddressWithBalance(from);
             }

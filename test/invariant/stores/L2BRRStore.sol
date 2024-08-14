@@ -20,6 +20,7 @@ contract L2BRRStore {
     mapping(address => bool) public hasBalance;
     mapping(address => bool) public wasAllowedFrom;
     mapping(address => bool) public wasAllowedTo;
+    mapping(address => address[]) public receivedBy;
 
     function incrementUserTransfers(address user, uint256 amount) public {
         userTransfers[user] += amount;
@@ -94,5 +95,13 @@ contract L2BRRStore {
     function getRandomAddressWithBalance() public view returns (address) {
         return addressesWithBalance[uint256(keccak256(abi.encodePacked(block.timestamp, block.prevrandao, msg.sender)))
             % addressesWithBalance.length];
+    }
+
+    function addReceivedBy(address recipient, address sender) public {
+        receivedBy[recipient].push(sender);
+    }
+
+    function getReceivedBy(address recipient) public view returns (address[] memory) {
+        return receivedBy[recipient];
     }
 }

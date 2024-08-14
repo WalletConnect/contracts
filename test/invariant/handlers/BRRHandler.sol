@@ -13,20 +13,37 @@ contract BRRHandler is BaseHandler {
         store = _store;
     }
 
-    function transfer(address from, address to, uint256 amount) public useNewSender(from) instrument("transfer") {
+    function transfer(address to, uint256 amount) public instrument("transfer") {
+        address from = store.getRandomAddressWithBalance();
+        vm.startPrank(from);
         amount = bound(amount, 0, brr.balanceOf(from));
         brr.transfer(to, amount);
         store.addAction("transfer", from, to, amount);
+        store.incrementUserTransfers(from, amount);
+        store.incrementUserReceives(to, amount);
+        store.addAddressWithBalance(to);
+        if (brr.balanceOf(from) == 0) {
+            store.removeAddressWithBalance(from);
+        }
+        vm.stopPrank();
     }
 
-    function approve(address owner, address spender, uint256 amount) public useNewSender(owner) instrument("approve") {
+    function approve(
+        address tokenOwner,
+        address spender,
+        uint256 amount
+    )
+        public
+        useNewSender(tokenOwner)
+        instrument("approve")
+    {
         brr.approve(spender, amount);
-        store.addAction("approve", owner, spender, amount);
+        store.addAction("approve", tokenOwner, spender, amount);
+        store.setStoredAllowance(tokenOwner, spender, amount);
     }
 
     function transferFrom(
         address executor,
-        address from,
         address to,
         uint256 amount
     )
@@ -34,20 +51,34 @@ contract BRRHandler is BaseHandler {
         useNewSender(executor)
         instrument("transferFrom")
     {
+        address from = store.getRandomAddressWithBalance();
         amount = bound(amount, 0, brr.allowance(from, executor));
         brr.transferFrom(from, to, amount);
         store.addAction("transferFrom", from, to, amount);
+        store.incrementUserTransfers(from, amount);
+        store.incrementUserReceives(to, amount);
+        store.addAddressWithBalance(to);
+        if (brr.balanceOf(from) == 0) {
+            store.removeAddressWithBalance(from);
+        }
     }
 
     function mint(address to, uint256 amount) public useNewSender(address(brr.owner())) instrument("mint") {
         amount = bound(amount, 0, BRR_MAX_SUPPLY - brr.totalSupply());
         brr.mint(to, amount);
         store.addAction("mint", address(0), to, amount);
+        store.addAddressWithBalance(to);
     }
 
-    function burn(address from, uint256 amount) public useNewSender(from) instrument("burn") {
+    function burn(uint256 amount) public instrument("burn") {
+        address from = store.getRandomAddressWithBalance();
+        vm.startPrank(from);
         amount = bound(amount, 0, brr.balanceOf(from));
         brr.burn(amount);
         store.addAction("burn", from, address(0), amount);
+        if (brr.balanceOf(from) == 0) {
+            store.removeAddressWithBalance(from);
+        }
+        vm.stopPrank();
     }
 }

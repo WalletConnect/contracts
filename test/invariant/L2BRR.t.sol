@@ -65,7 +65,11 @@ contract L2BRR_Invariant_Test is Invariant_Test {
                     assertEq(store.userTransfers(user), 0, "User not allowed from should have no transfers");
                 }
                 if (!store.wasAllowedTo(user)) {
-                    assertEq(store.userReceives(user), 0, "User not allowed to should have no receives");
+                    address[] memory receivedBy = store.getReceivedBy(user);
+                    for (uint256 j = 0; j < receivedBy.length; j++) {
+                        address sender = receivedBy[j];
+                        assertTrue(store.wasAllowedFrom(sender), "Sender should be allowed from");
+                    }
                 }
             }
         }
