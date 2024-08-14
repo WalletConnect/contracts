@@ -83,5 +83,9 @@ contract Constructor_Timelock_Unit_Concrete_Test is Base_Test {
                 "EXECUTOR_ROLE should be granted to all provided executors"
             );
         }
+
+        assertFalse(
+            timelock.hasRole(timelock.PROPOSER_ROLE(), msg.sender), "PROPOSER_ROLE should not be granted to the caller"
+        );
     }
 }

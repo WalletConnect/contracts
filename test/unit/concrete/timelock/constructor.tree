@@ -11,4 +11,5 @@ constructor.t.sol
     ├── it should set TIMELOCK_DELAY to the provided delay
     ├── it should grant CANCELLER_ROLE to the provided canceller
     ├── it should grant PROPOSER_ROLE to all provided proposers
-    └── it should grant EXECUTOR_ROLE to all provided executors
+    ├── it should grant EXECUTOR_ROLE to all provided executors
+    └── it should not grant PROPOSER_ROLE to the caller
