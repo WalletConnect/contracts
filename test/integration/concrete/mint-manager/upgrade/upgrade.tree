@@ -1,9 +1,0 @@
-upgrade.t.sol
-├── when the caller is not the owner
-│   └── it should revert
-└── when the caller is the owner
-    ├── when the new mint manager address is zero
-    │   └── it should revert
-    └── when the new mint manager address is not zero
-        ├── it should transfer ownership of the governance token to the new mint manager
-        └── it should emit an OwnershipTransferred event for the governance token

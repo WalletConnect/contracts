@@ -3,26 +3,19 @@ pragma solidity >=0.8.25 <0.9.0;
 
 import { Invariant_Test } from "./Invariant.t.sol";
 import { BRR } from "src/BRR.sol";
-import { MintManager } from "src/MintManager.sol";
 import { BRRHandler } from "./handlers/BRRHandler.sol";
 import { BRRStore } from "./stores/BRRStore.sol";
 import { console2 } from "forge-std/console2.sol";
 
 contract BRR_Invariant_Test is Invariant_Test {
-    MintManager public mintManager;
     BRRHandler public handler;
     BRRStore public store;
 
     function setUp() public override {
         super.setUp();
 
-        mintManager = new MintManager(users.admin, address(brr));
         store = new BRRStore();
-        handler = new BRRHandler(brr, l2brr, mintManager, store);
-
-        vm.startPrank(users.admin);
-        brr.transferOwnership(address(mintManager));
-        vm.stopPrank();
+        handler = new BRRHandler(brr, l2brr, store);
 
         targetContract(address(handler));
 
@@ -44,17 +37,6 @@ contract BRR_Invariant_Test is Invariant_Test {
         uint256 totalSupplyFromBalances =
             brr.balanceOf(users.bob) + brr.balanceOf(users.alice) + brr.balanceOf(users.admin);
         assertEq(totalSupplyFromBalances, brr.totalSupply(), "Sum of balances should equal total supply");
-    }
-
-    function invariant_ownershipNeverChanges() public view {
-        assertEq(brr.owner(), address(mintManager), "BRR ownership should always be MintManager");
-    }
-
-    function invariant_mintManagerPeriodAlwaysInFuture() public view {
-        uint256 mintPermittedAfter = mintManager.mintPermittedAfter();
-        if (mintPermittedAfter != 0) {
-            assertGe(mintPermittedAfter, block.timestamp, "Mint permitted time should always be in the future");
-        }
     }
 
     function invariant_callSummary() public view {

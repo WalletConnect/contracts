@@ -4,15 +4,12 @@ pragma solidity >=0.8.25 <0.9.0;
 import { BaseHandler } from "./BaseHandler.sol";
 import { BRR } from "src/BRR.sol";
 import { L2BRR } from "src/L2BRR.sol";
-import { MintManager } from "src/MintManager.sol";
 import { BRRStore } from "../stores/BRRStore.sol";
 
 contract BRRHandler is BaseHandler {
-    MintManager public mintManager;
     BRRStore public store;
 
-    constructor(BRR _brr, L2BRR _l2brr, MintManager _mintManager, BRRStore _store) BaseHandler(_brr, _l2brr) {
-        mintManager = _mintManager;
+    constructor(BRR _brr, L2BRR _l2brr, BRRStore _store) BaseHandler(_brr, _l2brr) {
         store = _store;
     }
 
@@ -42,9 +39,9 @@ contract BRRHandler is BaseHandler {
         store.addAction("transferFrom", from, to, amount);
     }
 
-    function mint(address to, uint256 amount) public useNewSender(address(mintManager)) instrument("mint") {
+    function mint(address to, uint256 amount) public useNewSender(address(brr.owner())) instrument("mint") {
         amount = bound(amount, 0, BRR_MAX_SUPPLY - brr.totalSupply());
-        mintManager.mint(to, amount);
+        brr.mint(to, amount);
         store.addAction("mint", address(0), to, amount);
     }
 
