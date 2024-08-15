@@ -46,4 +46,4 @@ with the decentralization of the storage layer.
 - Follows Solidity best practices
 - Implements Branching Tree Technique (BTT) for thorough testing
 
-For more detailed information, please refer to the full architecture document.
+For more detailed information, please refer to the full [architecture document](./docs/system-architecture.md).

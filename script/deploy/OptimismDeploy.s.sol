@@ -23,6 +23,7 @@ contract OptimismDeploy is BaseScript {
         OptimismDeployments memory deps = _deployAll(_readDeploymentParamsFromEnv());
 
         _writeOptimismDeployments(deps);
+
         logDeployments();
     }
 
