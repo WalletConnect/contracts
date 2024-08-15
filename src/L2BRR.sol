@@ -7,11 +7,11 @@ import { ERC20Votes } from "@openzeppelin/contracts/token/ERC20/extensions/ERC20
 import { Nonces } from "@openzeppelin/contracts/utils/Nonces.sol";
 import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import { IOptimismMintableERC20, ILegacyMintableERC20 } from "src/interfaces/IOptimismMintableERC20.sol";
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { AccessControl } from "@openzeppelin/contracts/access/AccessControl.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { ISemver } from "src/interfaces/ISemver.sol";
 
-contract L2BRR is IOptimismMintableERC20, ILegacyMintableERC20, ERC20Permit, ERC20Votes, Ownable, ISemver {
+contract L2BRR is IOptimismMintableERC20, ILegacyMintableERC20, ERC20Permit, ERC20Votes, AccessControl, ISemver {
     /// @notice The timestamp after which transfer restrictions are disabled
     uint256 public transferRestrictionsDisabledAfter;
     /// @notice Mapping of addresses that are allowed to transfer tokens to any address
@@ -58,24 +58,33 @@ contract L2BRR is IOptimismMintableERC20, ILegacyMintableERC20, ERC20Permit, ERC
     /// @custom:semver 1.0.0
     string public constant version = "1.0.0";
 
-    /// @param initialOwner Address of the initial owner of the contract
+    /// @notice Role for managing allowed addresses
+    bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
+
+    /// @param initialAdmin Address of the initial admin of the contract
+    /// @param initialManager Address of the initial manager of the contract
     /// @param _bridge Address of the L2 standard bridge
     /// @param _remoteToken Address of the corresponding L1 token
     constructor(
-        address initialOwner,
+        address initialAdmin,
+        address initialManager,
         address _bridge,
         address _remoteToken
     )
         ERC20("Brownie", "BRR")
         ERC20Permit("Brownie")
-        Ownable(initialOwner)
     {
         if (_remoteToken == address(0)) revert InvalidAddress();
         if (_bridge == address(0)) revert InvalidAddress();
+        if (initialAdmin == address(0)) revert InvalidAddress();
+        if (initialManager == address(0)) revert InvalidAddress();
         REMOTE_TOKEN = _remoteToken;
         BRIDGE = _bridge;
         // Set transfer restrictions to be disabled at type(uint256).max to be set down later
         transferRestrictionsDisabledAfter = type(uint256).max;
+
+        _grantRole(DEFAULT_ADMIN_ROLE, initialAdmin);
+        _grantRole(MANAGER_ROLE, initialManager);
     }
 
     /// @custom:legacy
@@ -105,11 +114,9 @@ contract L2BRR is IOptimismMintableERC20, ILegacyMintableERC20, ERC20Permit, ERC
     /// @notice ERC165 interface check function
     /// @param interfaceId Interface ID to check
     /// @return Whether or not the interface is supported by this contract
-    function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
-        bytes4 iface1 = type(IERC165).interfaceId;
-        bytes4 iface2 = type(ILegacyMintableERC20).interfaceId;
-        bytes4 iface3 = type(IOptimismMintableERC20).interfaceId;
-        return interfaceId == iface1 || interfaceId == iface2 || interfaceId == iface3;
+    function supportsInterface(bytes4 interfaceId) public view override(AccessControl, IERC165) returns (bool) {
+        return interfaceId == type(ILegacyMintableERC20).interfaceId
+            || interfaceId == type(IOptimismMintableERC20).interfaceId || super.supportsInterface(interfaceId);
     }
 
     /// @notice Allows the StandardBridge on this network to mint tokens
@@ -144,22 +151,22 @@ contract L2BRR is IOptimismMintableERC20, ILegacyMintableERC20, ERC20Permit, ERC
         emit Burn(_from, _amount);
     }
 
-    /// @notice This function allows the owner to set the allowedFrom status of an address
+    /// @notice This function allows the manager to set the allowedFrom status of an address
     /// @param from The address whose allowedFrom status is being set
     /// @param isAllowedFrom The new allowedFrom status
-    function setAllowedFrom(address from, bool isAllowedFrom) external onlyOwner {
+    function setAllowedFrom(address from, bool isAllowedFrom) external onlyRole(MANAGER_ROLE) {
         _setAllowedFrom(from, isAllowedFrom);
     }
 
-    /// @notice This function allows the owner to set the allowedTo status of an address
+    /// @notice This function allows the manager to set the allowedTo status of an address
     /// @param to The address whose allowedTo status is being set
     /// @param isAllowedTo The new allowedTo status
-    function setAllowedTo(address to, bool isAllowedTo) external onlyOwner {
+    function setAllowedTo(address to, bool isAllowedTo) external onlyRole(MANAGER_ROLE) {
         _setAllowedTo(to, isAllowedTo);
     }
 
-    /// @notice Allows the owner to disable transfer restrictions
-    function disableTransferRestrictions() external onlyOwner {
+    /// @notice Allows the admin to disable transfer restrictions
+    function disableTransferRestrictions() external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (transferRestrictionsDisabledAfter != type(uint256).max) {
             revert TransferRestrictionsAlreadyDisabled();
         }

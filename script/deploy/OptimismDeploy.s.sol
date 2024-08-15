@@ -38,7 +38,7 @@ contract OptimismDeploy is BaseScript {
             block.chainid == getChain("optimism").chainId ? getChain("mainnet").chainId : getChain("sepolia").chainId;
         address remoteToken = address(readEthereumDeployments(parentChainId).brr);
 
-        L2BRR l2brr = new L2BRR(params.admin, address(params.opBridge), remoteToken);
+        L2BRR l2brr = new L2BRR(params.admin, params.manager, address(params.opBridge), remoteToken);
 
         Timelock adminTimelock = new Timelock(
             1 weeks, _singleAddressArray(params.admin), _singleAddressArray(params.admin), params.timelockCanceller

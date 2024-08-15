@@ -75,5 +75,8 @@ abstract contract Events {
                                       GENERICS
     //////////////////////////////////////////////////////////////////////////*/
 
+    event RoleRevoked(bytes32 indexed role, address indexed account, address indexed sender);
+    event RoleGranted(bytes32 indexed role, address indexed account, address indexed sender);
+
     event TransferAdmin(address indexed oldAdmin, address indexed newAdmin);
 }

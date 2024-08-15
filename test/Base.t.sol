@@ -137,13 +137,12 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
         );
 
         // Deploy the non-proxy contracts
+        deployMockBridge();
 
         permissionedNodeRegistry =
             new PermissionedNodeRegistry({ initialAdmin: users.admin, maxNodes_: defaults.MAX_REGISTRY_NODES() });
 
-        l2brr = new L2BRR(users.admin, BRIDGE_ADDRESS, address(brr));
-
-        deployMockBridge();
+        l2brr = new L2BRR(users.admin, users.manager, address(mockBridge), address(brr));
 
         // Update the BakersSyndicateConfig with the necessary contracts.
         bakersSyndicateConfig.updateBrr(address(brr));

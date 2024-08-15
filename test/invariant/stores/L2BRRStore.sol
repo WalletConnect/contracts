@@ -21,6 +21,7 @@ contract L2BRRStore {
     mapping(address => bool) public wasAllowedFrom;
     mapping(address => bool) public wasAllowedTo;
     mapping(address => address[]) public receivedBy;
+    mapping(address => address[]) public sentTo;
 
     function incrementUserTransfers(address user, uint256 amount) public {
         userTransfers[user] += amount;
@@ -103,5 +104,13 @@ contract L2BRRStore {
 
     function getReceivedBy(address recipient) public view returns (address[] memory) {
         return receivedBy[recipient];
+    }
+
+    function addSentTo(address sender, address recipient) public {
+        sentTo[sender].push(recipient);
+    }
+
+    function getSentTo(address sender) public view returns (address[] memory) {
+        return sentTo[sender];
     }
 }

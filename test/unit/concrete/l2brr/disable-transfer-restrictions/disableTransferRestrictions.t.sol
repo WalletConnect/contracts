@@ -3,7 +3,7 @@ pragma solidity >=0.8.25 <0.9.0;
 
 import { L2BRR } from "src/L2BRR.sol";
 import { Base_Test } from "../../../../Base.t.sol";
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.sol";
 
 contract DisableTransferRestrictions_L2BRR_Unit_Concrete_Test is Base_Test {
     function setUp() public override {
@@ -11,18 +11,22 @@ contract DisableTransferRestrictions_L2BRR_Unit_Concrete_Test is Base_Test {
         deployCoreConditionally();
     }
 
-    function test_RevertWhen_CallerNotOwner() external {
-        vm.prank(users.alice);
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, users.alice));
+    function test_RevertWhen_CallerNotAdmin() external {
+        vm.startPrank(users.alice);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector, users.alice, l2brr.DEFAULT_ADMIN_ROLE()
+            )
+        );
         l2brr.disableTransferRestrictions();
     }
 
-    modifier whenCallerOwner() {
+    modifier whenCallerAdmin() {
         vm.startPrank(users.admin);
         _;
     }
 
-    function test_RevertGiven_RestrictionsDisabled() external whenCallerOwner {
+    function test_RevertGiven_RestrictionsDisabled() external whenCallerAdmin {
         l2brr.disableTransferRestrictions();
 
         vm.expectRevert(L2BRR.TransferRestrictionsAlreadyDisabled.selector);
@@ -33,7 +37,7 @@ contract DisableTransferRestrictions_L2BRR_Unit_Concrete_Test is Base_Test {
         _;
     }
 
-    function test_SetTransferRestrictionsDisabled() external whenCallerOwner givenRestrictionsEnabled {
+    function test_SetTransferRestrictionsDisabled() external whenCallerAdmin givenRestrictionsEnabled {
         vm.expectEmit(true, true, true, true);
         emit TransferRestrictionsDisabled();
 

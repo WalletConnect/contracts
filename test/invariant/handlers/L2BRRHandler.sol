@@ -9,12 +9,21 @@ import { L2BRRStore } from "../stores/L2BRRStore.sol";
 contract L2BRRHandler is BaseHandler {
     L2BRRStore public store;
     address public bridge;
-    address public owner;
+    address public admin;
+    address public manager;
 
-    constructor(L2BRR _l2brr, L2BRRStore _store) BaseHandler(BRR(address(0)), _l2brr) {
+    constructor(
+        L2BRR _l2brr,
+        L2BRRStore _store,
+        address _admin,
+        address _manager
+    )
+        BaseHandler(BRR(address(0)), _l2brr)
+    {
         store = _store;
         bridge = l2brr.BRIDGE();
-        owner = l2brr.owner();
+        admin = _admin;
+        manager = _manager;
     }
 
     function transfer(address to, uint256 amount) public instrument("transfer") {
@@ -27,6 +36,7 @@ contract L2BRRHandler is BaseHandler {
             store.incrementUserReceives(to, amount);
             store.addAddressWithBalance(to);
             store.addReceivedBy(to, from);
+            store.addSentTo(from, to);
             if (l2brr.balanceOf(from) == 0) {
                 store.removeAddressWithBalance(from);
             }
@@ -93,17 +103,24 @@ contract L2BRRHandler is BaseHandler {
         }
     }
 
-    function setAllowedFrom(address account, bool isAllowed) public useNewSender(owner) instrument("setAllowedFrom") {
+    function setAllowedFrom(
+        address account,
+        bool isAllowed
+    )
+        public
+        useNewSender(manager)
+        instrument("setAllowedFrom")
+    {
         l2brr.setAllowedFrom(account, isAllowed);
         store.setAllowedFrom(account, isAllowed);
     }
 
-    function setAllowedTo(address account, bool isAllowed) public useNewSender(owner) instrument("setAllowedTo") {
+    function setAllowedTo(address account, bool isAllowed) public useNewSender(manager) instrument("setAllowedTo") {
         l2brr.setAllowedTo(account, isAllowed);
         store.setAllowedTo(account, isAllowed);
     }
 
-    function disableTransferRestrictions() public useNewSender(owner) instrument("disableTransferRestrictions") {
+    function disableTransferRestrictions() public useNewSender(admin) instrument("disableTransferRestrictions") {
         l2brr.disableTransferRestrictions();
         store.setTransferRestrictionsDisabled(true);
     }

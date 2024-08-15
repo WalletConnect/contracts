@@ -29,7 +29,7 @@ contract Transfer_L2BRR_Unit_Concrete_Test is Base_Test {
     }
 
     modifier whenSenderInAllowedFromList() {
-        vm.prank(users.admin);
+        vm.prank(users.manager);
         l2brr.setAllowedFrom(users.alice, true);
         _;
     }
@@ -39,7 +39,7 @@ contract Transfer_L2BRR_Unit_Concrete_Test is Base_Test {
     }
 
     modifier whenRecipientInAllowedToList() {
-        vm.prank(users.admin);
+        vm.prank(users.manager);
         l2brr.setAllowedTo(users.bob, true);
         _;
     }

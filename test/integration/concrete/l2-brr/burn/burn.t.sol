@@ -42,13 +42,13 @@ contract Burn_L2BRR_Integration_Concrete_Test is Integration_Test {
     }
 
     modifier whenFromWhitelisted() {
-        vm.prank(users.admin);
+        vm.prank(users.manager);
         l2brr.setAllowedFrom(users.alice, true);
         _;
     }
 
     modifier whenToWhitelisted() {
-        vm.prank(users.admin);
+        vm.prank(users.manager);
         l2brr.setAllowedTo(address(0), true);
         _;
     }

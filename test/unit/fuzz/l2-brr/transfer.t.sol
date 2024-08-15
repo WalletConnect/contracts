@@ -14,7 +14,7 @@ contract Transfer_L2BRR_Unit_Fuzz_Test is Base_Test {
     function testFuzz_AllowedFromCanSendAnywhere(address to) public {
         vm.assume(to != address(0) && to != users.alice && to != address(mockBridge));
 
-        vm.prank(users.admin);
+        vm.prank(users.manager);
         l2brr.setAllowedFrom(users.alice, true);
 
         vm.prank(address(mockBridge));

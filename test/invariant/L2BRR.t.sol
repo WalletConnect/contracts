@@ -16,7 +16,7 @@ contract L2BRR_Invariant_Test is Invariant_Test {
 
         // Deploy L2BRR contract
         store = new L2BRRStore();
-        handler = new L2BRRHandler(l2brr, store);
+        handler = new L2BRRHandler(l2brr, store, users.admin, users.manager);
 
         vm.label(address(handler), "L2BRRHandler");
         vm.label(address(store), "L2BRRStore");
@@ -62,7 +62,11 @@ contract L2BRR_Invariant_Test is Invariant_Test {
                 address user = usersWithBalance[i];
 
                 if (!store.wasAllowedFrom(user)) {
-                    assertEq(store.userTransfers(user), 0, "User not allowed from should have no transfers");
+                    address[] memory sentTo = store.getSentTo(user);
+                    for (uint256 j = 0; j < sentTo.length; j++) {
+                        address receiver = sentTo[j];
+                        assertTrue(store.wasAllowedTo(receiver), "Receiver should be allowed to");
+                    }
                 }
                 if (!store.wasAllowedTo(user)) {
                     address[] memory receivedBy = store.getReceivedBy(user);

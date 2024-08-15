@@ -9,7 +9,6 @@ import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { Base_Test } from "test/Base.t.sol";
 
 contract Constructor_L2BRR_Unit_Concrete_Test is Base_Test {
-    address public initialOwner;
     address public remoteToken;
     string public name;
     string public symbol;
@@ -30,35 +29,40 @@ contract Constructor_L2BRR_Unit_Concrete_Test is Base_Test {
         );
 
         // New L2BRR
-        initialOwner = users.admin;
         remoteToken = address(brr);
         name = "Brownie";
         symbol = "BRR";
 
-        l2brr = new L2BRR(initialOwner, BRIDGE_ADDRESS, remoteToken);
-
         deployMockBridge();
+
+        l2brr = new L2BRR(users.admin, users.manager, address(mockBridge), remoteToken);
 
         vm.stopPrank();
     }
 
     function test_revertWhen_RemoteTokenIsZero() public {
         vm.expectRevert(L2BRR.InvalidAddress.selector);
-        new L2BRR(initialOwner, address(mockBridge), address(0));
+        new L2BRR(users.admin, users.manager, address(mockBridge), address(0));
     }
 
     function test_revertWhen_BridgeIsZero() public {
         vm.expectRevert(L2BRR.InvalidAddress.selector);
-        new L2BRR(initialOwner, address(0), remoteToken);
+        new L2BRR(users.admin, users.manager, address(0), remoteToken);
     }
 
-    function test_revertWhen_InitialOwnerIsZero() public {
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableInvalidOwner.selector, address(0)));
-        new L2BRR(address(0), address(mockBridge), remoteToken);
+    function test_revertWhen_InitialAdminIsZero() public {
+        vm.expectRevert(L2BRR.InvalidAddress.selector);
+        new L2BRR(address(0), users.manager, address(mockBridge), remoteToken);
+    }
+
+    function test_revertWhen_InitialManagerIsZero() public {
+        vm.expectRevert(L2BRR.InvalidAddress.selector);
+        new L2BRR(users.admin, address(0), address(mockBridge), remoteToken);
     }
 
     function test_constructor() public view {
-        assertEq(l2brr.owner(), initialOwner);
+        assertTrue(l2brr.hasRole(l2brr.DEFAULT_ADMIN_ROLE(), users.admin));
+        assertTrue(l2brr.hasRole(l2brr.MANAGER_ROLE(), users.manager));
         assertEq(l2brr.BRIDGE(), address(mockBridge));
         assertEq(l2brr.REMOTE_TOKEN(), remoteToken);
         assertEq(l2brr.name(), name);
