@@ -1,17 +1,16 @@
 # RewardManager
-[Git Source](https://github.com/WalletConnect/contracts/blob/67de895b15d7488b46908a69f0cb045943c5c770/src/RewardManager.sol)
 
-**Inherits:**
-Initializable, OwnableUpgradeable
+[Git Source](https://github.com/dwacfn/contracts/blob/67de895b15d7488b46908a69f0cb045943c5c770/src/RewardManager.sol)
 
+**Inherits:** Initializable, OwnableUpgradeable
 
 ## State Variables
+
 ### bakersSyndicateConfig
 
 ```solidity
 BakersSyndicateConfig public bakersSyndicateConfig;
 ```
-
 
 ### maxRewardsPerEpoch
 
@@ -19,13 +18,11 @@ BakersSyndicateConfig public bakersSyndicateConfig;
 uint256 public maxRewardsPerEpoch;
 ```
 
-
 ### lastUpdatedEpoch
 
 ```solidity
 uint256 public lastUpdatedEpoch;
 ```
-
 
 ### performance
 
@@ -33,14 +30,13 @@ uint256 public lastUpdatedEpoch;
 mapping(address => uint256) public performance;
 ```
 
-
 ## Functions
+
 ### initialize
 
 Initializes the contract.
 
-*MUST be called during the contract upgrade to set up the proxies state.*
-
+_MUST be called during the contract upgrade to set up the proxies state._
 
 ```solidity
 function initialize(Init memory init) external initializer;
@@ -48,12 +44,12 @@ function initialize(Init memory init) external initializer;
 
 ### postPerformanceRecords
 
-
 ```solidity
 function postPerformanceRecords(PerformanceData calldata data) external onlyOwner;
 ```
 
 ## Events
+
 ### PerformanceUpdated
 
 ```solidity
@@ -61,6 +57,7 @@ event PerformanceUpdated(uint256 reportingEpoch, uint256 rewardsPerEpoch);
 ```
 
 ## Errors
+
 ### PerformanceDataAlreadyUpdated
 
 ```solidity
@@ -80,6 +77,7 @@ error TotalPerformanceZero();
 ```
 
 ## Structs
+
 ### PerformanceData
 
 ```solidity
@@ -91,8 +89,8 @@ struct PerformanceData {
 ```
 
 ### Init
-Configuration for contract initialization.
 
+Configuration for contract initialization.
 
 ```solidity
 struct Init {
@@ -101,4 +99,3 @@ struct Init {
     BakersSyndicateConfig bakersSyndicateConfig;
 }
 ```
-

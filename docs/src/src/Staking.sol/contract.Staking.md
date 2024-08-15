@@ -1,46 +1,42 @@
 # Staking
-[Git Source](https://github.com/WalletConnect/contracts/blob/67de895b15d7488b46908a69f0cb045943c5c770/src/Staking.sol)
 
-**Inherits:**
-Initializable, OwnableUpgradeable
+[Git Source](https://github.com/dwacfn/contracts/blob/67de895b15d7488b46908a69f0cb045943c5c770/src/Staking.sol)
 
+**Inherits:** Initializable, OwnableUpgradeable
 
 ## State Variables
-### isStakingAllowlist
-The staking allowlist flag which, when enabled, allows staking only for addresses in allowlist.
 
+### isStakingAllowlist
+
+The staking allowlist flag which, when enabled, allows staking only for addresses in allowlist.
 
 ```solidity
 bool public isStakingAllowlist;
 ```
 
-
 ### minStakeAmount
-The minimum staking amount for each node.
 
+The minimum staking amount for each node.
 
 ```solidity
 uint256 public minStakeAmount;
 ```
 
-
 ### pendingRewards
-The accrued rewards for each node.
 
+The accrued rewards for each node.
 
 ```solidity
 mapping(address staker => uint256 pendingRewards) public pendingRewards;
 ```
 
-
 ### stakes
-Stake amount for each node.
 
+Stake amount for each node.
 
 ```solidity
 mapping(address staker => uint256 amount) public stakes;
 ```
-
 
 ### bakersSyndicateConfig
 
@@ -48,14 +44,13 @@ mapping(address staker => uint256 amount) public stakes;
 BakersSyndicateConfig public bakersSyndicateConfig;
 ```
 
-
 ## Functions
+
 ### initialize
 
 Initializes the contract.
 
-*MUST be called during the contract upgrade to set up the proxies state.*
-
+_MUST be called during the contract upgrade to set up the proxies state._
 
 ```solidity
 function initialize(Init memory init) external initializer;
@@ -63,9 +58,8 @@ function initialize(Init memory init) external initializer;
 
 ### stake
 
-Interface for nodes to stake their BRR with the protocol. Note: when allowlist is enabled, only nodes
-with the allowlist can stake.
-
+Interface for nodes to stake their BRR with the protocol. Note: when allowlist is enabled, only nodes with the allowlist
+can stake.
 
 ```solidity
 function stake(uint256 amount) external;
@@ -75,7 +69,6 @@ function stake(uint256 amount) external;
 
 Interface for users to unstake their BRR from the protocol.
 
-
 ```solidity
 function unstake(uint256 amount) external;
 ```
@@ -83,7 +76,6 @@ function unstake(uint256 amount) external;
 ### setStakingAllowlist
 
 Sets the staking allowlist flag.
-
 
 ```solidity
 function setStakingAllowlist(bool isStakingAllowlist_) external onlyOwner;
@@ -93,7 +85,6 @@ function setStakingAllowlist(bool isStakingAllowlist_) external onlyOwner;
 
 Updates the minimum staking amount.
 
-
 ```solidity
 function updateMinStakeAmount(uint256 minStakeAmount_) external onlyOwner;
 ```
@@ -102,19 +93,18 @@ function updateMinStakeAmount(uint256 minStakeAmount_) external onlyOwner;
 
 Function for the reward manager to add rewards to a node's pending rewards balance.
 
-
 ```solidity
 function updateRewards(address node, uint256 amount, uint256 reportingEpoch) external;
 ```
 
 ### claimRewards
 
-
 ```solidity
 function claimRewards() external;
 ```
 
 ## Events
+
 ### Staked
 
 ```solidity
@@ -152,6 +142,7 @@ event MinStakeAmountUpdated(uint256 oldMinStakeAmount, uint256 newMinStakeAmount
 ```
 
 ## Errors
+
 ### Paused
 
 ```solidity
@@ -201,9 +192,10 @@ error NoRewards(address node);
 ```
 
 ## Structs
-### Init
-Configuration for contract initialization.
 
+### Init
+
+Configuration for contract initialization.
 
 ```solidity
 struct Init {
@@ -213,4 +205,3 @@ struct Init {
     BakersSyndicateConfig bakersSyndicateConfig;
 }
 ```
-
