@@ -23,10 +23,11 @@ contract OptimismDeploy is BaseScript {
         OptimismDeployments memory deps = _deployAll(_readDeploymentParamsFromEnv());
 
         _writeOptimismDeployments(deps);
-        logDeployments(deps);
+        logDeployments();
     }
 
-    function logDeployments(OptimismDeployments memory deps) internal pure {
+    function logDeployments() public {
+        OptimismDeployments memory deps = readOptimismDeployments(block.chainid);
         console2.log("L2BRR:", address(deps.l2brr));
         console2.log("Admin Timelock:", address(deps.adminTimelock));
         console2.log("Manager Timelock:", address(deps.managerTimelock));

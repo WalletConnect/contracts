@@ -31,10 +31,11 @@ contract EthereumDeploy is BaseScript {
         // Send ownership to admin
         deps.brr.transferOwnership(params.admin);
 
-        logDeployments(deps);
+        logDeployments();
     }
 
-    function logDeployments(EthereumDeployments memory deps) internal pure {
+    function logDeployments() public {
+        EthereumDeployments memory deps = readEthereumDeployments(block.chainid);
         console2.log("BRR:", address(deps.brr));
     }
 

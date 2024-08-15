@@ -15,7 +15,7 @@ else
 endif
 
 # Network-specific targets
-.PHONY: deploy-mainnet deploy-sepolia deploy-optimism deploy-optimism-sepolia
+.PHONY: deploy-mainnet deploy-sepolia deploy-optimism deploy-optimism-sepolia log-mainnet log-sepolia log-optimism log-optimism-sepolia
 
 deploy-mainnet:
 	@echo "Deploying to Ethereum Mainnet"
@@ -33,17 +33,43 @@ deploy-optimism-sepolia:
 	@echo "Deploying to Optimism Sepolia testnet"
 	@$(MAKE) _deploy ENV_FILE=.optimism-sepolia.env SCRIPT=$(OPTIMISM_DEPLOY)
 
+log-mainnet:
+	@echo "Logging deployments for Ethereum Mainnet"
+	@$(MAKE) _log_deployments ENV_FILE=.mainnet.env SCRIPT=$(ETHEREUM_DEPLOY)
+
+log-sepolia:
+	@echo "Logging deployments for Sepolia testnet"
+	@$(MAKE) _log_deployments ENV_FILE=.sepolia.env SCRIPT=$(ETHEREUM_DEPLOY)
+
+log-optimism:
+	@echo "Logging deployments for Optimism Mainnet"
+	@$(MAKE) _log_deployments ENV_FILE=.optimism.env SCRIPT=$(OPTIMISM_DEPLOY)
+
+log-optimism-sepolia:
+	@echo "Logging deployments for Optimism Sepolia testnet"
+	@$(MAKE) _log_deployments ENV_FILE=.optimism-sepolia.env SCRIPT=$(OPTIMISM_DEPLOY)
+
 # Internal deploy function
 _deploy:
 	$(eval include .common.env)
 	$(eval include $(ENV_FILE))
 	$(FORGE_CMD) $(SCRIPT) \
-		-vvvv \
-		--rpc-url https://${CHAIN_NAME}.infura.io/v3/${API_KEY_INFURA} \
-		--sender ${ETH_FROM} \
-		--account ${KEYSTORE_ACCOUNT} \
-		--force \
-		$(BROADCAST_FLAGS)
+    -vvvv \
+    --rpc-url https://${CHAIN_NAME}.infura.io/v3/${API_KEY_INFURA} \
+    --sender ${ETH_FROM} \
+    --account ${KEYSTORE_ACCOUNT} \
+    --force \
+    $(BROADCAST_FLAGS)
+
+# New function for logging deployments
+_log_deployments:
+	$(eval include .common.env)
+	$(eval include $(ENV_FILE))
+	$(FORGE_CMD) $(SCRIPT) \
+    -vvvv \
+    -s "logDeployments()" \
+    --rpc-url https://${CHAIN_NAME}.infura.io/v3/${API_KEY_INFURA} \
+    --sender ${ETH_FROM}
 
 # Help target
 .PHONY: help
@@ -53,6 +79,10 @@ help:
 	@echo "  deploy-sepolia            - Deploy to Sepolia testnet"
 	@echo "  deploy-optimism           - Deploy to Optimism Mainnet"
 	@echo "  deploy-optimism-sepolia   - Deploy to Optimism Sepolia testnet"
+	@echo "  log-mainnet               - Log deployments for Ethereum Mainnet"
+	@echo "  log-sepolia               - Log deployments for Sepolia testnet"
+	@echo "  log-optimism              - Log deployments for Optimism Mainnet"
+	@echo "  log-optimism-sepolia      - Log deployments for Optimism Sepolia testnet"
 	@echo "  help                      - Show this help message"
 	@echo ""
 	@echo "Flags:"
