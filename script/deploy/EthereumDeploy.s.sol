@@ -3,11 +3,13 @@ pragma solidity >=0.8.25 <0.9.0;
 
 import { console2 } from "forge-std/console2.sol";
 import { BRR } from "src/BRR.sol";
+import { Timelock } from "src/Timelock.sol";
 import { Upgrades } from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import { EthereumDeployments, BaseScript } from "script/Base.s.sol";
 
 struct EthereumDeploymentParams {
     address admin;
+    address timelockCanceller;
 }
 
 contract EthereumDeploy is BaseScript {
@@ -45,11 +47,15 @@ contract EthereumDeploy is BaseScript {
                 // We deploy with broadcaster as owner to mint initial supply and bridge it
                 "BRR.sol:BRR",
                 broadcaster,
-                abi.encodeCall(BRR.initialize, BRR.Init({ initialOwner: params.admin }))
+                abi.encodeCall(BRR.initialize, BRR.Init({ initialOwner: broadcaster }))
             )
         );
 
-        return EthereumDeployments({ brr: brr });
+        Timelock timelock = new Timelock(
+            1 weeks, _singleAddressArray(params.admin), _singleAddressArray(params.admin), params.timelockCanceller
+        );
+
+        return EthereumDeployments({ brr: brr, timelock: timelock });
     }
 
     function _writeEthereumDeployments(EthereumDeployments memory deps) internal {
@@ -57,6 +63,9 @@ contract EthereumDeploy is BaseScript {
     }
 
     function _readDeploymentParamsFromEnv() internal view returns (EthereumDeploymentParams memory) {
-        return EthereumDeploymentParams({ admin: vm.envAddress("ADMIN_ADDRESS") });
+        return EthereumDeploymentParams({
+            admin: vm.envAddress("ADMIN_ADDRESS"),
+            timelockCanceller: vm.envAddress("TIMELOCK_CANCELLER_ADDRESS")
+        });
     }
 }

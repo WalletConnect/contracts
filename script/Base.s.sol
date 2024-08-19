@@ -9,6 +9,7 @@ import { Timelock } from "src/Timelock.sol";
 
 struct EthereumDeployments {
     BRR brr;
+    Timelock timelock;
 }
 
 struct OptimismDeployments {
@@ -65,7 +66,7 @@ abstract contract BaseScript is Script {
     function readEthereumDeployments(uint256 chainId) public returns (EthereumDeployments memory) {
         bytes memory data = _readDeployments(chainId);
         if (data.length == 0) {
-            return EthereumDeployments({ brr: BRR(address(0)) });
+            return EthereumDeployments({ brr: BRR(address(0)), timelock: Timelock(payable(address(0))) });
         }
         return abi.decode(data, (EthereumDeployments));
     }
