@@ -22,7 +22,9 @@ contract OptimismDeploy is BaseScript {
         console2.log("Deploying %s contracts", getChain(block.chainid).name);
         OptimismDeployments memory deps = _deployAll(_readDeploymentParamsFromEnv());
 
-        _writeOptimismDeployments(deps);
+        if (vm.envOr("BROADCAST", false)) {
+            _writeOptimismDeployments(deps);
+        }
 
         logDeployments();
     }
