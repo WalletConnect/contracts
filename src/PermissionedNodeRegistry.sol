@@ -6,7 +6,7 @@ import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableS
 
 /// @title PermissionedNodeRegistry
 /// @notice Contract for managing a whitelist of permissioned nodes
-/// @author BakersSyndicate
+/// @author WalletConnect
 contract PermissionedNodeRegistry is AccessControl {
     using EnumerableSet for EnumerableSet.AddressSet;
 

@@ -2,7 +2,7 @@
 pragma solidity >=0.8.25 <0.9.0;
 
 import { console2 } from "forge-std/console2.sol";
-import { BRR } from "src/BRR.sol";
+import { CNKT } from "src/CNKT.sol";
 import { Timelock } from "src/Timelock.sol";
 import { Upgrades } from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import { EthereumDeployments, BaseScript } from "script/Base.s.sol";
@@ -15,7 +15,7 @@ struct EthereumDeploymentParams {
 contract EthereumDeploy is BaseScript {
     function run() public broadcast {
         console2.log("Deploying %s contracts", getChain(block.chainid).name);
-        if (address(readEthereumDeployments(block.chainid).brr) != address(0)) {
+        if (address(readEthereumDeployments(block.chainid).cnkt) != address(0)) {
             console2.log("%s contracts already deployed", getChain(block.chainid).name);
             return;
         }
@@ -28,26 +28,26 @@ contract EthereumDeploy is BaseScript {
             _writeEthereumDeployments(deps);
         }
 
-        // Mint initial supply to admin (1 billion BRR)
-        deps.brr.mint(broadcaster, 1_000_000_000 * 1e18);
+        // Mint initial supply to admin (1 billion CNKT)
+        deps.cnkt.mint(broadcaster, 1_000_000_000 * 1e18);
         // Send ownership to admin
-        deps.brr.transferOwnership(params.admin);
+        deps.cnkt.transferOwnership(params.admin);
 
         logDeployments();
     }
 
     function logDeployments() public {
         EthereumDeployments memory deps = readEthereumDeployments(block.chainid);
-        console2.log("BRR:", address(deps.brr));
+        console2.log("CNKT:", address(deps.cnkt));
     }
 
     function _deployAll(EthereumDeploymentParams memory params) private returns (EthereumDeployments memory) {
-        BRR brr = BRR(
+        CNKT cnkt = CNKT(
             Upgrades.deployTransparentProxy(
                 // We deploy with broadcaster as owner to mint initial supply and bridge it
-                "BRR.sol:BRR",
+                "CNKT.sol:CNKT",
                 broadcaster,
-                abi.encodeCall(BRR.initialize, BRR.Init({ initialOwner: broadcaster }))
+                abi.encodeCall(CNKT.initialize, CNKT.Init({ initialOwner: broadcaster }))
             )
         );
 
@@ -55,7 +55,7 @@ contract EthereumDeploy is BaseScript {
             1 weeks, _singleAddressArray(params.admin), _singleAddressArray(params.admin), params.timelockCanceller
         );
 
-        return EthereumDeployments({ brr: brr, timelock: timelock });
+        return EthereumDeployments({ cnkt: cnkt, timelock: timelock });
     }
 
     function _writeEthereumDeployments(EthereumDeployments memory deps) internal {

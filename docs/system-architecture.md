@@ -246,14 +246,14 @@ System invariants are properties that should always hold true for your smart con
 particularly those in the `invariant` folder, we can identify the following invariants:
 
 1. Total supply never exceeds max supply:
-   - For both BRR and L2BRR tokens, the total supply should never exceed the maximum supply limit.
+   - For both CNKT and L2CNKT tokens, the total supply should never exceed the maximum supply limit.
 2. Balances sum up to total supply:
    - The sum of all account balances should always equal the total supply of tokens.
 3. Mints minus burns equal total supply:
    - The difference between total minted tokens and total burned tokens should always equal the current total supply.
-4. Transfer restrictions enforced (for L2BRR):
+4. Transfer restrictions enforced (for L2CNKT):
    - When transfer restrictions are enabled, only allowed addresses should be able to send or receive tokens.
-5. Allowed from and to consistency (for L2BRR):
+5. Allowed from and to consistency (for L2CNKT):
    - The `allowedFrom` and `allowedTo` status of addresses should be consistent with the contract's state.
 
 ## 7. Testing Approach
@@ -267,7 +267,7 @@ possible execution paths.
 We use concrete unit tests to verify individual function behaviors. These tests are organized using the BTT approach, as
 evidenced by the `.tree` files in our test structure. For example:
 
-- `unit/concrete/l2brr/transfer/transfer.tree`
+- `unit/concrete/l2cnkt/transfer/transfer.tree`
 - `unit/concrete/staking/update-min-stake-amount/updateMinStakeAmount.tree`
 
 These `.tree` files outline all possible execution paths, considering different contract states and function parameters.
@@ -285,7 +285,7 @@ Integration tests verify the interaction between different components of our sys
 Fuzz tests are implemented to discover edge cases and unexpected behaviors by providing random inputs to functions.
 These tests are located in the `unit/fuzz` directory. Examples include:
 
-- `unit/fuzz/l2-brr/transfer.t.sol`
+- `unit/fuzz/l2-cnkt/transfer.t.sol`
 - `unit/fuzz/reward-manager/postPerformanceRecords.t.sol`
 
 ### 7.4 Invariant Testing
@@ -293,8 +293,8 @@ These tests are located in the `unit/fuzz` directory. Examples include:
 Invariant tests ensure that the system's core properties hold true under various conditions. These tests are located in
 the `invariant` directory and use handlers and stores to manage state:
 
-- `invariant/BRR.t.sol`
-- `invariant/L2BRR.t.sol`
+- `invariant/CNKT.t.sol`
+- `invariant/L2CNKT.t.sol`
 
 ### 7.5 Branching Tree Technique (BTT)
 

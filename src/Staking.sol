@@ -7,7 +7,7 @@ import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/O
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { UtilLib } from "./library/UtilLib.sol";
-import { BakersSyndicateConfig } from "./BakersSyndicateConfig.sol";
+import { WalletConnectConfig } from "./WalletConnectConfig.sol";
 import { PermissionedNodeRegistry } from "./PermissionedNodeRegistry.sol";
 import { Pauser } from "./Pauser.sol";
 
@@ -52,14 +52,14 @@ contract Staking is Initializable, OwnableUpgradeable {
     /// @notice Stake amount for each node.
     mapping(address staker => uint256 amount) public stakes;
 
-    BakersSyndicateConfig public bakersSyndicateConfig;
+    WalletConnectConfig public bakersSyndicateConfig;
 
     /// @notice Configuration for contract initialization.
     struct Init {
         address owner;
         uint256 minStakeAmount;
         bool isStakingAllowlist;
-        BakersSyndicateConfig bakersSyndicateConfig;
+        WalletConnectConfig bakersSyndicateConfig;
     }
 
     /// @notice Initializes the contract.
@@ -76,7 +76,7 @@ contract Staking is Initializable, OwnableUpgradeable {
     /*//////////////////////////////////////////////////////////////////////////
                                     FUNCTIONS
     //////////////////////////////////////////////////////////////////////////*/
-    /// @notice Interface for nodes to stake their BRR with the protocol. Note: when allowlist is enabled, only nodes
+    /// @notice Interface for nodes to stake their CNKT with the protocol. Note: when allowlist is enabled, only nodes
     /// with the allowlist can stake.
     function stake(uint256 amount) external {
         if (Pauser(bakersSyndicateConfig.getPauser()).isStakingPaused()) {
@@ -101,10 +101,10 @@ contract Staking is Initializable, OwnableUpgradeable {
 
         stakes[msg.sender] += amount;
 
-        IERC20(bakersSyndicateConfig.getBrr()).transferFrom(msg.sender, address(this), amount);
+        IERC20(bakersSyndicateConfig.getCNKT()).transferFrom(msg.sender, address(this), amount);
     }
 
-    /// @notice Interface for users to unstake their BRR from the protocol.
+    /// @notice Interface for users to unstake their CNKT from the protocol.
     function unstake(uint256 amount) external {
         if (Pauser(bakersSyndicateConfig.getPauser()).isStakingPaused()) {
             revert Paused();
@@ -130,7 +130,7 @@ contract Staking is Initializable, OwnableUpgradeable {
 
         emit Unstaked(msg.sender, amount);
 
-        IERC20(bakersSyndicateConfig.getBrr()).transfer(msg.sender, amount);
+        IERC20(bakersSyndicateConfig.getCNKT()).transfer(msg.sender, amount);
     }
 
     /// @notice Sets the staking allowlist flag.
@@ -153,7 +153,7 @@ contract Staking is Initializable, OwnableUpgradeable {
 
     /// @notice Function for the reward manager to add rewards to a node's pending rewards balance.
     function updateRewards(address node, uint256 amount, uint256 reportingEpoch) external {
-        UtilLib.onlyBakersSyndicateContract(msg.sender, bakersSyndicateConfig, bakersSyndicateConfig.REWARD_MANAGER());
+        UtilLib.onlyWalletConnectContract(msg.sender, bakersSyndicateConfig, bakersSyndicateConfig.REWARD_MANAGER());
         if (Pauser(bakersSyndicateConfig.getPauser()).isStakingPaused()) {
             revert Paused();
         }
@@ -177,8 +177,8 @@ contract Staking is Initializable, OwnableUpgradeable {
         emit RewardsClaimed(msg.sender, reward);
 
         // Transfer the rewards
-        IERC20(bakersSyndicateConfig.getBrr()).safeTransferFrom(
-            bakersSyndicateConfig.getBakersSyndicateRewardsVault(), msg.sender, reward
+        IERC20(bakersSyndicateConfig.getCNKT()).safeTransferFrom(
+            bakersSyndicateConfig.getWalletConnectRewardsVault(), msg.sender, reward
         );
     }
 }

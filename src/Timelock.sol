@@ -5,7 +5,7 @@ import { TimelockController } from "@openzeppelin/contracts/governance/TimelockC
 
 /// @title Timelock
 /// @notice A timelock contract with an immutable min delay
-/// @author BakersSyndicate
+/// @author WalletConnect
 contract Timelock is TimelockController {
     /// @notice Thrown when an invalid delay is provided in the constructor
     error InvalidDelay();

@@ -3,7 +3,7 @@ pragma solidity >=0.8.25 <0.9.0;
 
 import { console2 } from "forge-std/console2.sol";
 import { Timelock } from "src/Timelock.sol";
-import { L2BRR } from "src/L2BRR.sol";
+import { L2CNKT } from "src/L2CNKT.sol";
 import { OptimismDeployments, BaseScript } from "script/Base.s.sol";
 
 struct OptimismDeploymentParams {
@@ -15,7 +15,7 @@ struct OptimismDeploymentParams {
 
 contract OptimismDeploy is BaseScript {
     function run() public broadcast {
-        if (address(readOptimismDeployments(block.chainid).l2brr) != address(0)) {
+        if (address(readOptimismDeployments(block.chainid).l2cnkt) != address(0)) {
             return console2.log("%s contracts already deployed", getChain(block.chainid).name);
         }
 
@@ -31,7 +31,7 @@ contract OptimismDeploy is BaseScript {
 
     function logDeployments() public {
         OptimismDeployments memory deps = readOptimismDeployments(block.chainid);
-        console2.log("L2BRR:", address(deps.l2brr));
+        console2.log("L2CNKT:", address(deps.l2cnkt));
         console2.log("Admin Timelock:", address(deps.adminTimelock));
         console2.log("Manager Timelock:", address(deps.managerTimelock));
     }
@@ -39,9 +39,9 @@ contract OptimismDeploy is BaseScript {
     function _deployAll(OptimismDeploymentParams memory params) private returns (OptimismDeployments memory) {
         uint256 parentChainId =
             block.chainid == getChain("optimism").chainId ? getChain("mainnet").chainId : getChain("sepolia").chainId;
-        address remoteToken = address(readEthereumDeployments(parentChainId).brr);
+        address remoteToken = address(readEthereumDeployments(parentChainId).cnkt);
 
-        L2BRR l2brr = new L2BRR(params.admin, params.manager, address(params.opBridge), remoteToken);
+        L2CNKT l2cnkt = new L2CNKT(params.admin, params.manager, address(params.opBridge), remoteToken);
 
         Timelock adminTimelock = new Timelock(
             1 weeks, _singleAddressArray(params.admin), _singleAddressArray(params.admin), params.timelockCanceller
@@ -50,7 +50,7 @@ contract OptimismDeploy is BaseScript {
             3 days, _singleAddressArray(params.manager), _singleAddressArray(params.manager), params.timelockCanceller
         );
 
-        return OptimismDeployments({ l2brr: l2brr, adminTimelock: adminTimelock, managerTimelock: managerTimelock });
+        return OptimismDeployments({ l2cnkt: l2cnkt, adminTimelock: adminTimelock, managerTimelock: managerTimelock });
     }
 
     function _writeOptimismDeployments(OptimismDeployments memory deps) private {
