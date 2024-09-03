@@ -33,7 +33,7 @@ contract Timelock is TimelockController {
     )
         TimelockController(delay, proposers, executors, address(0))
     {
-        if (delay < 3 days) revert InvalidDelay();
+        if (delay < 3 days || delay > 7 days) revert InvalidDelay();
         if (canceller == address(0)) revert InvalidCanceller();
         if (proposers.length == 0) revert InvalidProposer();
         if (executors.length == 0) revert InvalidExecutor();

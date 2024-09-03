@@ -17,6 +17,18 @@ contract Constructor_Timelock_Unit_Concrete_Test is Base_Test {
         new Timelock(invalidDelay, proposers, executors, canceller);
     }
 
+    function test_RevertWhen_DelayIsGreaterThan7Days() external {
+        uint256 invalidDelay = 8 days;
+        address[] memory proposers = new address[](1);
+        proposers[0] = address(1);
+        address[] memory executors = new address[](1);
+        executors[0] = address(2);
+        address canceller = address(3);
+
+        vm.expectRevert(Timelock.InvalidDelay.selector);
+        new Timelock(invalidDelay, proposers, executors, canceller);
+    }
+
     function test_RevertWhen_CancellerIsAddressZero() external {
         uint256 delay = 3 days;
         address[] memory proposers = new address[](1);

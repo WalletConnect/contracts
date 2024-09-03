@@ -1,6 +1,8 @@
 constructor.t.sol
 ├── when delay is less than 3 days
 │   └── it should revert with "InvalidDelay"
+├── when delay is greater than 7 days
+│   └── it should revert with "InvalidDelay"
 ├── when canceller is address zero
 │   └── it should revert with "InvalidCanceller"
 ├── when proposers array is empty
