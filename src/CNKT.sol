@@ -21,6 +21,10 @@ contract CNKT is ERC20VotesUpgradeable, ERC20PermitUpgradeable, ERC20BurnableUpg
         address initialOwner;
     }
 
+    constructor() {
+        _disableInitializers();
+    }
+
     /// @notice Initializes the CNKT token
     /// @param init The initialization data for the contract
     function initialize(Init calldata init) public initializer {

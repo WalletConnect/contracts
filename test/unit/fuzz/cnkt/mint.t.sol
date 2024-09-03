@@ -4,7 +4,7 @@ pragma solidity >=0.8.25 <0.9.0;
 import { console2 } from "forge-std/console2.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { CNKT } from "src/CNKT.sol";
-
+import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { Base_Test } from "../../../Base.t.sol";
 
 contract Mint_CNKT_Unit_Fuzz_Test is Base_Test {
@@ -12,8 +12,17 @@ contract Mint_CNKT_Unit_Fuzz_Test is Base_Test {
 
     function setUp() public override {
         super.setUp();
-        cnktHarness = new CNKTHarness();
-        cnktHarness.initialize(CNKT.Init({ initialOwner: users.admin }));
+        // Deploy the implementation contract
+        CNKTHarness implementation = new CNKTHarness();
+
+        // Deploy the proxy contract
+        ERC1967Proxy proxy = new ERC1967Proxy(
+            address(implementation),
+            abi.encodeWithSelector(CNKT.initialize.selector, CNKT.Init({ initialOwner: users.admin }))
+        );
+
+        // Cast the proxy to CNKTHarness
+        cnktHarness = CNKTHarness(address(proxy));
         // Label the contract
         vm.label({ account: address(cnktHarness), newLabel: "CNKTHarness" });
     }
