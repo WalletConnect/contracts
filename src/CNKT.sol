@@ -31,6 +31,7 @@ contract CNKT is ERC20VotesUpgradeable, ERC20PermitUpgradeable, ERC20BurnableUpg
         __ERC20_init({ name_: "WalletConnect", symbol_: "CNKT" });
         __ERC20Permit_init("WalletConnect");
         __ERC20Votes_init();
+        __ERC20Burnable_init();
         __Ownable_init({ initialOwner: init.initialOwner });
     }
 
