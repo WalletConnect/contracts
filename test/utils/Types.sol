@@ -6,6 +6,8 @@ struct Users {
     address payable admin;
     // Manager
     address payable manager;
+    // Pauser
+    address payable pauser;
     // Timelock canceller
     address payable timelockCanceller;
     // Treasury
