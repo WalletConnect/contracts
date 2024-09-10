@@ -55,6 +55,7 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
         users = Users({
             admin: createUser("Admin"),
             manager: createUser("Manager"),
+            pauser: createUser("Pauser"),
             timelockCanceller: createUser("TimelockCanceller"),
             attacker: createUser("Attacker"),
             treasury: createUser("Treasury"),
