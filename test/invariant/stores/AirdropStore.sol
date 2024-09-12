@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.25 <0.9.0;
 
-import { ClaimWithProof } from "test/integration/shared/Airdrop.sol";
+import { ClaimWithProof } from "test/integration/shared/Airdrop.t.sol";
 
 contract AirdropStore {
     mapping(address => uint256) public claims;

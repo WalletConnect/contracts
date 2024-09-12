@@ -3,7 +3,7 @@ pragma solidity >=0.8.25 <0.9.0;
 
 import { Airdrop } from "src/Airdrop.sol";
 import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
-import { Airdrop_Test, ClaimWithProof } from "test/integration/shared/Airdrop.sol";
+import { Airdrop_Test, ClaimWithProof } from "test/integration/shared/Airdrop.t.sol";
 
 contract Claim_Airdrop_Integration_Concrete_Test is Airdrop_Test {
     ClaimWithProof internal defaultClaimWithProof;

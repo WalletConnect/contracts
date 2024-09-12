@@ -36,7 +36,7 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
     L2CNKT internal l2cnkt;
     Pauser internal pauser;
     PermissionedNodeRegistry internal permissionedNodeRegistry;
-    WalletConnectConfig internal bakersSyndicateConfig;
+    WalletConnectConfig internal walletConnectConfig;
     RewardManager internal rewardManager;
     Staking internal staking;
 
@@ -85,7 +85,7 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
         // Admin deploys/sets up the contracts.
         vm.startPrank(users.admin);
         // Deploy the proxy contracts
-        bakersSyndicateConfig = WalletConnectConfig(
+        walletConnectConfig = WalletConnectConfig(
             UnsafeUpgrades.deployTransparentProxy(
                 address(new WalletConnectConfig()),
                 users.admin,
@@ -110,7 +110,7 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
                     RewardManager.Init({
                         owner: users.admin,
                         maxRewardsPerEpoch: defaults.EPOCH_REWARD_EMISSION(),
-                        bakersSyndicateConfig: bakersSyndicateConfig
+                        bakersSyndicateConfig: walletConnectConfig
                     })
                 )
             )
@@ -122,10 +122,9 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
                 abi.encodeCall(
                     Staking.initialize,
                     Staking.Init({
-                        owner: users.admin,
-                        minStakeAmount: defaults.MIN_STAKE(),
-                        isStakingAllowlist: true,
-                        bakersSyndicateConfig: bakersSyndicateConfig
+                        admin: users.admin,
+                        config: walletConnectConfig,
+                        duration: defaults.STAKING_REWARD_DURATION()
                     })
                 )
             )
@@ -148,13 +147,13 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
         l2cnkt = new L2CNKT(users.admin, users.manager, address(mockBridge), address(cnkt));
 
         // Update the WalletConnectConfig with the necessary contracts.
-        bakersSyndicateConfig.updateCNKT(address(cnkt));
-        bakersSyndicateConfig.updateL2cnkt(address(l2cnkt));
-        bakersSyndicateConfig.updatePermissionedNodeRegistry(address(permissionedNodeRegistry));
-        bakersSyndicateConfig.updateRewardManager(address(rewardManager));
-        bakersSyndicateConfig.updatePauser(address(pauser));
-        bakersSyndicateConfig.updateStaking(address(staking));
-        bakersSyndicateConfig.updateWalletConnectRewardsVault(users.treasury);
+        walletConnectConfig.updateCNKT(address(cnkt));
+        walletConnectConfig.updateL2cnkt(address(l2cnkt));
+        walletConnectConfig.updatePermissionedNodeRegistry(address(permissionedNodeRegistry));
+        walletConnectConfig.updateRewardManager(address(rewardManager));
+        walletConnectConfig.updatePauser(address(pauser));
+        walletConnectConfig.updateStaking(address(staking));
+        walletConnectConfig.updateWalletConnectRewardsVault(users.treasury);
 
         // Add roles
         vm.startPrank(users.admin);
@@ -163,7 +162,7 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
         vm.stopPrank();
 
         // Label the contracts.
-        vm.label({ account: address(bakersSyndicateConfig), newLabel: "WalletConnectConfig" });
+        vm.label({ account: address(walletConnectConfig), newLabel: "WalletConnectConfig" });
         vm.label({ account: address(cnkt), newLabel: "CNKT" });
         vm.label({ account: address(l2cnkt), newLabel: "L2CNKT" });
         vm.label({ account: address(pauser), newLabel: "Pauser" });
