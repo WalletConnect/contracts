@@ -5,6 +5,7 @@ pragma solidity >=0.8.25;
 contract Defaults {
     uint256 public constant EPOCH_REWARD_EMISSION = 1000 ether;
     uint256 public constant REWARD_BUDGET = EPOCH_REWARD_EMISSION * 1000;
+    uint256 public constant STAKING_REWARD_DURATION = 2 * 365 days;
     uint256 public constant AIRDROP_BUDGET = 1_000_000 ether;
     uint256 public constant EPOCH_DURATION = 1 days;
     uint256 public constant FIRST_EPOCH = 1;

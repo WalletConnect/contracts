@@ -5,11 +5,12 @@ import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/I
 import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { L2CNKT } from "./L2CNKT.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { WalletConnectConfig } from "./WalletConnectConfig.sol";
 
 contract Staking is Initializable, OwnableUpgradeable {
     using SafeERC20 for L2CNKT;
 
-    L2CNKT public l2cnkt;
+    WalletConnectConfig public config;
 
     // Duration of rewards to be paid out (in seconds)
     uint256 public duration;
@@ -35,7 +36,7 @@ contract Staking is Initializable, OwnableUpgradeable {
                                     EVENTS
     //////////////////////////////////////////////////////////////////////////*/
 
-    event RewardAdded(uint256 reward);
+    event RewardRateUpdated(uint256 oldRewardRate, uint256 newRewardRate);
     event Staked(address indexed user, uint256 amount);
     event Withdrawn(address indexed user, uint256 amount);
     event RewardPaid(address indexed user, uint256 reward);
@@ -46,23 +47,23 @@ contract Staking is Initializable, OwnableUpgradeable {
     error InvalidInput();
     error InvalidRewardRate();
     error InsufficientRewardBalance();
-
+    error NoChange();
     /*//////////////////////////////////////////////////////////////////////////
                                     VARIABLES
     //////////////////////////////////////////////////////////////////////////*/
 
     /// @notice Configuration for contract initialization.
     struct Init {
-        address owner;
-        address l2cnkt;
+        address admin;
+        WalletConnectConfig config;
         uint256 duration;
     }
 
     /// @notice Initializes the contract.
     /// @dev MUST be called during the contract upgrade to set up the proxies state.
     function initialize(Init memory init) external initializer {
-        __Ownable_init(init.owner);
-        l2cnkt = L2CNKT(init.l2cnkt);
+        __Ownable_init(init.admin);
+        config = WalletConnectConfig(init.config);
         duration = init.duration;
     }
 
@@ -93,6 +94,7 @@ contract Staking is Initializable, OwnableUpgradeable {
 
     /// @notice Interface for nodes to stake their CNKT with the protocol.
     function stake(uint256 amount) external updateReward(msg.sender) {
+        L2CNKT l2cnkt = L2CNKT(config.getL2cnkt());
         if (amount == 0) revert InvalidInput();
         totalSupply += amount;
         balanceOf[msg.sender] += amount;
@@ -102,6 +104,7 @@ contract Staking is Initializable, OwnableUpgradeable {
 
     /// @notice Interface for users to unstake their CNKT from the protocol.
     function withdraw(uint256 amount) external updateReward(msg.sender) {
+        L2CNKT l2cnkt = L2CNKT(config.getL2cnkt());
         if (amount == 0) revert InvalidInput();
         totalSupply -= amount;
         balanceOf[msg.sender] -= amount;
@@ -115,6 +118,7 @@ contract Staking is Initializable, OwnableUpgradeable {
 
     // Function for users to claim rewards
     function getReward() external updateReward(msg.sender) {
+        L2CNKT l2cnkt = L2CNKT(config.getL2cnkt());
         uint256 reward = rewards[msg.sender];
         if (reward > 0) {
             rewards[msg.sender] = 0;
@@ -128,24 +132,27 @@ contract Staking is Initializable, OwnableUpgradeable {
         duration = _duration;
     }
 
-    function notifyRewardAmount(uint256 newRewardRate) external onlyOwner updateReward(address(0)) {
+    function updateRewardRate(uint256 newRewardRate) external onlyOwner updateReward(address(0)) {
+        L2CNKT l2cnkt = L2CNKT(config.getL2cnkt());
+        uint256 oldRewardRate = rewardRate;
         uint256 remainingRewards = 0;
+
         if (block.timestamp < finishAt) {
-            remainingRewards = (finishAt - block.timestamp) * rewardRate;
+            remainingRewards = (finishAt - block.timestamp) * oldRewardRate;
         }
 
-        rewardRate = newRewardRate;
+        if (newRewardRate == 0) revert InvalidRewardRate();
 
-        if (rewardRate == 0) revert InvalidRewardRate();
-
-        uint256 newRewardAmount = rewardRate * duration;
+        uint256 newRewardAmount = newRewardRate * duration;
         if (newRewardAmount + remainingRewards > l2cnkt.balanceOf(address(this))) {
             revert InsufficientRewardBalance();
         }
 
+        rewardRate = newRewardRate;
         finishAt = block.timestamp + duration;
         updatedAt = block.timestamp;
-        emit RewardAdded(newRewardAmount);
+
+        emit RewardRateUpdated(oldRewardRate, newRewardRate);
     }
 
     function _min(uint256 x, uint256 y) private pure returns (uint256) {
