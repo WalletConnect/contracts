@@ -8,7 +8,7 @@ the decentralization of the storage layer.
 
 ## Key Components
 
-- CNKT Token: Incentivizes node operators and wallets
+- WCT Token: Incentivizes node operators and wallets
 - Node Operator Network: Initially permissioned, transitioning to permissionless
 - Performance-based Rewards System
 - Oracle Network: Reports node performance
@@ -17,7 +17,7 @@ the decentralization of the storage layer.
 
 ### On-chain Components
 
-- Smart Contracts: CNKT Token, Staking, Node/Wallet Registries, Reward Managers, Oracle, Config Management
+- Smart Contracts: WCT Token, Staking, Node/Wallet Registries, Reward Managers, Oracle, Config Management
 - Utilizes upgradeable contracts and role-based access control
 
 ### Off-chain Components

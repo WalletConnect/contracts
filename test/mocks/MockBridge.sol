@@ -28,9 +28,9 @@ contract MockBridge {
         bytes extraData
     );
 
-    /// @dev Mock implementation of the bridgeERC20 function. When localToken is L2CNKT, it mints the amount of tokens
+    /// @dev Mock implementation of the bridgeERC20 function. When localToken is L2WCT, it mints the amount of tokens
     /// to
-    /// the to address. When remoteToken is L2CNKT, it burns the amount of tokens from the from address.
+    /// the to address. When remoteToken is L2WCT, it burns the amount of tokens from the from address.
     function bridgeERC20(
         address localToken,
         address remoteToken,

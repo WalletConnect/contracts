@@ -29,7 +29,7 @@ contract ClaimRewards_Staking_Integration_Concrete_Test is Staking_Integration_S
             abi.encodeWithSelector(
                 IERC20Errors.ERC20InsufficientAllowance.selector,
                 address(staking),
-                cnkt.allowance(address(staking), users.treasury),
+                wct.allowance(address(staking), users.treasury),
                 defaults.EPOCH_REWARD_EMISSION()
             )
         );
@@ -38,7 +38,7 @@ contract ClaimRewards_Staking_Integration_Concrete_Test is Staking_Integration_S
 
     modifier givenStakingHasAllowanceFromRewardsVault() {
         vm.startPrank(users.treasury);
-        cnkt.approve(address(staking), defaults.EPOCH_REWARD_EMISSION());
+        wct.approve(address(staking), defaults.EPOCH_REWARD_EMISSION());
         vm.stopPrank();
         _;
     }
@@ -53,7 +53,7 @@ contract ClaimRewards_Staking_Integration_Concrete_Test is Staking_Integration_S
             abi.encodeWithSelector(
                 IERC20Errors.ERC20InsufficientBalance.selector,
                 address(users.treasury),
-                cnkt.balanceOf(address(users.treasury)),
+                wct.balanceOf(address(users.treasury)),
                 defaults.EPOCH_REWARD_EMISSION()
             )
         );
@@ -66,16 +66,16 @@ contract ClaimRewards_Staking_Integration_Concrete_Test is Staking_Integration_S
         givenStakingHasAllowanceFromRewardsVault
     {
         vm.startPrank(users.admin);
-        cnkt.mint(address(users.treasury), defaults.EPOCH_REWARD_EMISSION());
+        wct.mint(address(users.treasury), defaults.EPOCH_REWARD_EMISSION());
         vm.stopPrank();
         uint256 initialPendingRewards = staking.pendingRewards(users.permissionedNode);
-        uint256 initialTreasuryBalance = cnkt.balanceOf(address(users.treasury));
+        uint256 initialTreasuryBalance = wct.balanceOf(address(users.treasury));
         vm.expectEmit({ emitter: address(staking) });
         emit RewardsClaimed(users.permissionedNode, initialPendingRewards);
         vm.prank(users.permissionedNode);
         staking.claimRewards();
         uint256 finalPendingRewards = staking.pendingRewards(users.permissionedNode);
-        uint256 finalTreasuryBalance = cnkt.balanceOf(address(users.treasury));
+        uint256 finalTreasuryBalance = wct.balanceOf(address(users.treasury));
         assertEq(finalPendingRewards, 0);
         assertEq(finalTreasuryBalance, initialTreasuryBalance - initialPendingRewards);
     }

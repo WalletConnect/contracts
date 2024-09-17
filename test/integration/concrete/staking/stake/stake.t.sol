@@ -65,7 +65,7 @@ contract Stake_Staking_Integration_Concrete_Test is Staking_Integration_Shared_T
             abi.encodeWithSelector(
                 IERC20Errors.ERC20InsufficientAllowance.selector,
                 address(staking),
-                cnkt.allowance(address(staking), users.permissionedNode),
+                wct.allowance(address(staking), users.permissionedNode),
                 amount
             )
         );
@@ -74,7 +74,7 @@ contract Stake_Staking_Integration_Concrete_Test is Staking_Integration_Shared_T
 
     modifier whenCallerHasApprovedStakingAmount(address caller) {
         vm.startPrank(caller);
-        cnkt.approve(address(staking), defaults.MIN_STAKE());
+        wct.approve(address(staking), defaults.MIN_STAKE());
         vm.stopPrank();
         _;
     }
@@ -92,7 +92,7 @@ contract Stake_Staking_Integration_Concrete_Test is Staking_Integration_Shared_T
             abi.encodeWithSelector(
                 IERC20Errors.ERC20InsufficientBalance.selector,
                 users.permissionedNode,
-                cnkt.balanceOf(users.permissionedNode),
+                wct.balanceOf(users.permissionedNode),
                 amount
             )
         );
@@ -109,11 +109,11 @@ contract Stake_Staking_Integration_Concrete_Test is Staking_Integration_Shared_T
         whenCallerHasApprovedStakingAmount(users.permissionedNode)
     {
         vm.startPrank({ msgSender: users.admin });
-        cnkt.mint(users.permissionedNode, defaults.MIN_STAKE());
+        wct.mint(users.permissionedNode, defaults.MIN_STAKE());
         vm.stopPrank();
         uint256 initialStake = staking.stakes(users.permissionedNode);
-        uint256 initialStakingBalance = cnkt.balanceOf(address(staking));
-        uint256 initialNodeBalance = cnkt.balanceOf(users.permissionedNode);
+        uint256 initialStakingBalance = wct.balanceOf(address(staking));
+        uint256 initialNodeBalance = wct.balanceOf(users.permissionedNode);
         vm.startPrank({ msgSender: users.permissionedNode });
         vm.expectEmit({ emitter: address(staking) });
         emit Staked(users.permissionedNode, defaults.MIN_STAKE());
@@ -121,9 +121,9 @@ contract Stake_Staking_Integration_Concrete_Test is Staking_Integration_Shared_T
         // it should increase the {stakes} for the caller
         vm.assertEq(staking.stakes(users.permissionedNode), initialStake + defaults.MIN_STAKE());
         // it should increase the balance of the staking contract by the amount of tokens staked
-        vm.assertEq(cnkt.balanceOf(address(staking)), initialStakingBalance + defaults.MIN_STAKE());
+        vm.assertEq(wct.balanceOf(address(staking)), initialStakingBalance + defaults.MIN_STAKE());
         // it should decrease the balance of the caller by the amount of tokens staked
-        vm.assertEq(cnkt.balanceOf(users.permissionedNode), initialNodeBalance - defaults.MIN_STAKE());
+        vm.assertEq(wct.balanceOf(users.permissionedNode), initialNodeBalance - defaults.MIN_STAKE());
     }
 
     modifier whenCallerIsNotAPermissionedNode() {
@@ -140,11 +140,11 @@ contract Stake_Staking_Integration_Concrete_Test is Staking_Integration_Shared_T
         vm.startPrank({ msgSender: users.admin });
         // set allowlist to false
         staking.setStakingAllowlist(false);
-        cnkt.mint(users.nonPermissionedNode, defaults.MIN_STAKE());
+        wct.mint(users.nonPermissionedNode, defaults.MIN_STAKE());
         vm.stopPrank();
         uint256 initialStake = staking.stakes(users.nonPermissionedNode);
-        uint256 initialStakingBalance = cnkt.balanceOf(address(staking));
-        uint256 initialNodeBalance = cnkt.balanceOf(users.nonPermissionedNode);
+        uint256 initialStakingBalance = wct.balanceOf(address(staking));
+        uint256 initialNodeBalance = wct.balanceOf(users.nonPermissionedNode);
         vm.startPrank({ msgSender: users.nonPermissionedNode });
         vm.expectEmit({ emitter: address(staking) });
         emit Staked(users.nonPermissionedNode, defaults.MIN_STAKE());
@@ -152,8 +152,8 @@ contract Stake_Staking_Integration_Concrete_Test is Staking_Integration_Shared_T
         // it should increase the {stakes} for the caller
         vm.assertEq(staking.stakes(users.nonPermissionedNode), initialStake + defaults.MIN_STAKE());
         // it should increase the balance of the staking contract by the amount of tokens staked
-        vm.assertEq(cnkt.balanceOf(address(staking)), initialStakingBalance + defaults.MIN_STAKE());
+        vm.assertEq(wct.balanceOf(address(staking)), initialStakingBalance + defaults.MIN_STAKE());
         // it should decrease the balance of the caller by the amount of tokens staked
-        vm.assertEq(cnkt.balanceOf(users.nonPermissionedNode), initialNodeBalance - defaults.MIN_STAKE());
+        vm.assertEq(wct.balanceOf(users.nonPermissionedNode), initialNodeBalance - defaults.MIN_STAKE());
     }
 }

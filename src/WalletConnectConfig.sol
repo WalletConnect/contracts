@@ -37,8 +37,8 @@ contract WalletConnectConfig is Initializable, AccessControlUpgradeable {
     mapping(bytes32 => address) private _contractsMap;
 
     bytes32 public constant BAKERSSYNDICATE_REWARDS_VAULT = keccak256("BAKERSSYNDICATE_REWARDS_VAULT");
-    bytes32 public constant CNKT_TOKEN = keccak256("CNKT_TOKEN");
-    bytes32 public constant L2CNKT_TOKEN = keccak256("L2CNKT_TOKEN");
+    bytes32 public constant WCT_TOKEN = keccak256("WCT_TOKEN");
+    bytes32 public constant L2WCT_TOKEN = keccak256("L2WCT_TOKEN");
     bytes32 public constant PERMISSIONED_NODE_REGISTRY = keccak256("PERMISSIONED_NODE_REGISTRY");
     bytes32 public constant REWARD_MANAGER = keccak256("REWARD_MANAGER");
     bytes32 public constant STAKING = keccak256("STAKING");
@@ -52,16 +52,16 @@ contract WalletConnectConfig is Initializable, AccessControlUpgradeable {
         _grantRole(ADMIN_ROLE, init.admin);
     }
 
-    /// @notice Gets the CNKT token address
-    /// @return The address of the CNKT token contract
-    function getCNKT() external view returns (address) {
-        return _contractsMap[CNKT_TOKEN];
+    /// @notice Gets the WCT token address
+    /// @return The address of the WCT token contract
+    function getWCT() external view returns (address) {
+        return _contractsMap[WCT_TOKEN];
     }
 
-    /// @notice Gets the L2CNKT token address
-    /// @return The address of the L2CNKT token contract
-    function getL2cnkt() external view returns (address) {
-        return _contractsMap[L2CNKT_TOKEN];
+    /// @notice Gets the L2WCT token address
+    /// @return The address of the L2WCT token contract
+    function getL2wct() external view returns (address) {
+        return _contractsMap[L2WCT_TOKEN];
     }
 
     /// @notice Gets the Pauser address
@@ -94,16 +94,16 @@ contract WalletConnectConfig is Initializable, AccessControlUpgradeable {
         return _accountsMap[BAKERSSYNDICATE_REWARDS_VAULT];
     }
 
-    /// @notice Updates the CNKT token address
-    /// @param cnkt The new CNKT token address
-    function updateCNKT(address cnkt) external onlyRole(ADMIN_ROLE) {
-        _setContract({ key: CNKT_TOKEN, val: cnkt });
+    /// @notice Updates the WCT token address
+    /// @param wct The new WCT token address
+    function updateWCT(address wct) external onlyRole(ADMIN_ROLE) {
+        _setContract({ key: WCT_TOKEN, val: wct });
     }
 
-    /// @notice Updates the L2CNKT token address
-    /// @param l2cnkt The new L2CNKT token address
-    function updateL2cnkt(address l2cnkt) external onlyRole(ADMIN_ROLE) {
-        _setContract({ key: L2CNKT_TOKEN, val: l2cnkt });
+    /// @notice Updates the L2WCT token address
+    /// @param l2wct The new L2WCT token address
+    function updateL2wct(address l2wct) external onlyRole(ADMIN_ROLE) {
+        _setContract({ key: L2WCT_TOKEN, val: l2wct });
     }
 
     /// @notice Updates the Pauser address

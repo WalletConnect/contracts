@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.25 <0.9.0;
 
-import { CNKT } from "src/CNKT.sol";
-import { L2CNKT } from "src/L2CNKT.sol";
+import { WCT } from "src/WCT.sol";
+import { L2WCT } from "src/L2WCT.sol";
 import { StdCheats } from "forge-std/StdCheats.sol";
 
 import { StdUtils } from "forge-std/StdUtils.sol";
@@ -26,16 +26,16 @@ abstract contract BaseHandler is Constants, StdCheats, StdUtils, CommonBase, Uti
                                    TEST CONTRACTS
     //////////////////////////////////////////////////////////////////////////*/
 
-    CNKT public cnkt;
-    L2CNKT public l2cnkt;
+    WCT public wct;
+    L2WCT public l2wct;
 
     /*//////////////////////////////////////////////////////////////////////////
                                     CONSTRUCTOR
     //////////////////////////////////////////////////////////////////////////*/
 
-    constructor(CNKT cnkt_, L2CNKT l2cnkt_) {
-        cnkt = cnkt_;
-        l2cnkt = l2cnkt_;
+    constructor(WCT wct_, L2WCT l2wct_) {
+        wct = wct_;
+        l2wct = l2wct_;
     }
 
     /*//////////////////////////////////////////////////////////////////////////

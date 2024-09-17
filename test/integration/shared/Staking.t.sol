@@ -16,11 +16,11 @@ contract Staking_Integration_Shared_Test is Integration_Test {
 
     function _stakeFrom(address staker, uint256 amount) private {
         vm.startPrank(users.admin);
-        cnkt.mint(staker, amount);
+        wct.mint(staker, amount);
         permissionedNodeRegistry.whitelistNode(staker);
         vm.stopPrank();
         vm.startPrank(staker);
-        cnkt.approve(address(staking), amount);
+        wct.approve(address(staking), amount);
         staking.stake(amount);
         vm.stopPrank();
     }

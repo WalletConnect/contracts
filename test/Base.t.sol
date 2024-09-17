@@ -2,8 +2,8 @@
 pragma solidity >=0.8.25 <0.9.0;
 
 import { UnsafeUpgrades } from "openzeppelin-foundry-upgrades/Upgrades.sol";
-import { CNKT } from "src/CNKT.sol";
-import { L2CNKT } from "src/L2CNKT.sol";
+import { WCT } from "src/WCT.sol";
+import { L2WCT } from "src/L2WCT.sol";
 import { Pauser } from "src/Pauser.sol";
 import { PermissionedNodeRegistry } from "src/PermissionedNodeRegistry.sol";
 import { WalletConnectConfig } from "src/WalletConnectConfig.sol";
@@ -32,8 +32,8 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
     //////////////////////////////////////////////////////////////////////////*/
 
     Defaults internal defaults;
-    CNKT internal cnkt;
-    L2CNKT internal l2cnkt;
+    WCT internal wct;
+    L2WCT internal l2wct;
     Pauser internal pauser;
     PermissionedNodeRegistry internal permissionedNodeRegistry;
     WalletConnectConfig internal bakersSyndicateConfig;
@@ -130,11 +130,9 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
             )
         );
 
-        cnkt = CNKT(
+        wct = WCT(
             UnsafeUpgrades.deployTransparentProxy(
-                address(new CNKT()),
-                users.admin,
-                abi.encodeCall(CNKT.initialize, CNKT.Init({ initialOwner: users.admin }))
+                address(new WCT()), users.admin, abi.encodeCall(WCT.initialize, WCT.Init({ initialOwner: users.admin }))
             )
         );
 
@@ -144,11 +142,11 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
         permissionedNodeRegistry =
             new PermissionedNodeRegistry({ initialAdmin: users.admin, maxNodes_: defaults.MAX_REGISTRY_NODES() });
 
-        l2cnkt = new L2CNKT(users.admin, users.manager, address(mockBridge), address(cnkt));
+        l2wct = new L2WCT(users.admin, users.manager, address(mockBridge), address(wct));
 
         // Update the WalletConnectConfig with the necessary contracts.
-        bakersSyndicateConfig.updateCNKT(address(cnkt));
-        bakersSyndicateConfig.updateL2cnkt(address(l2cnkt));
+        bakersSyndicateConfig.updateWCT(address(wct));
+        bakersSyndicateConfig.updateL2wct(address(l2wct));
         bakersSyndicateConfig.updatePermissionedNodeRegistry(address(permissionedNodeRegistry));
         bakersSyndicateConfig.updateRewardManager(address(rewardManager));
         bakersSyndicateConfig.updatePauser(address(pauser));
@@ -163,8 +161,8 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
 
         // Label the contracts.
         vm.label({ account: address(bakersSyndicateConfig), newLabel: "WalletConnectConfig" });
-        vm.label({ account: address(cnkt), newLabel: "CNKT" });
-        vm.label({ account: address(l2cnkt), newLabel: "L2CNKT" });
+        vm.label({ account: address(wct), newLabel: "WCT" });
+        vm.label({ account: address(l2wct), newLabel: "L2WCT" });
         vm.label({ account: address(pauser), newLabel: "Pauser" });
         vm.label({ account: address(permissionedNodeRegistry), newLabel: "PermissionedNodeRegistry" });
         vm.label({ account: address(rewardManager), newLabel: "RewardManager" });
@@ -173,11 +171,11 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
     }
 
     function fundRewardsVaultAndApprove() internal {
-        // Fund the RewardManager with CNKT.
-        cnkt.mint(address(users.treasury), defaults.REWARD_BUDGET());
+        // Fund the RewardManager with WCT.
+        wct.mint(address(users.treasury), defaults.REWARD_BUDGET());
         vm.startPrank({ msgSender: users.treasury });
-        // Approve the Staking contract to spend CNKT.
-        cnkt.approve(address(staking), defaults.REWARD_BUDGET());
+        // Approve the Staking contract to spend WCT.
+        wct.approve(address(staking), defaults.REWARD_BUDGET());
         vm.stopPrank();
     }
 

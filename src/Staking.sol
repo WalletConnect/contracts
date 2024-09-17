@@ -76,7 +76,7 @@ contract Staking is Initializable, OwnableUpgradeable {
     /*//////////////////////////////////////////////////////////////////////////
                                     FUNCTIONS
     //////////////////////////////////////////////////////////////////////////*/
-    /// @notice Interface for nodes to stake their CNKT with the protocol. Note: when allowlist is enabled, only nodes
+    /// @notice Interface for nodes to stake their WCT with the protocol. Note: when allowlist is enabled, only nodes
     /// with the allowlist can stake.
     function stake(uint256 amount) external {
         if (Pauser(bakersSyndicateConfig.getPauser()).isStakingPaused()) {
@@ -101,10 +101,10 @@ contract Staking is Initializable, OwnableUpgradeable {
 
         stakes[msg.sender] += amount;
 
-        IERC20(bakersSyndicateConfig.getCNKT()).transferFrom(msg.sender, address(this), amount);
+        IERC20(bakersSyndicateConfig.getWCT()).transferFrom(msg.sender, address(this), amount);
     }
 
-    /// @notice Interface for users to unstake their CNKT from the protocol.
+    /// @notice Interface for users to unstake their WCT from the protocol.
     function unstake(uint256 amount) external {
         if (Pauser(bakersSyndicateConfig.getPauser()).isStakingPaused()) {
             revert Paused();
@@ -130,7 +130,7 @@ contract Staking is Initializable, OwnableUpgradeable {
 
         emit Unstaked(msg.sender, amount);
 
-        IERC20(bakersSyndicateConfig.getCNKT()).transfer(msg.sender, amount);
+        IERC20(bakersSyndicateConfig.getWCT()).transfer(msg.sender, amount);
     }
 
     /// @notice Sets the staking allowlist flag.
@@ -177,7 +177,7 @@ contract Staking is Initializable, OwnableUpgradeable {
         emit RewardsClaimed(msg.sender, reward);
 
         // Transfer the rewards
-        IERC20(bakersSyndicateConfig.getCNKT()).safeTransferFrom(
+        IERC20(bakersSyndicateConfig.getWCT()).safeTransferFrom(
             bakersSyndicateConfig.getWalletConnectRewardsVault(), msg.sender, reward
         );
     }
