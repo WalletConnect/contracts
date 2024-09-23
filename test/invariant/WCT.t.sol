@@ -2,7 +2,6 @@
 pragma solidity >=0.8.25 <0.9.0;
 
 import { Invariant_Test } from "./Invariant.t.sol";
-import { WCT } from "src/WCT.sol";
 import { WCTHandler } from "./handlers/WCTHandler.sol";
 import { WCTStore } from "./stores/WCTStore.sol";
 import { console2 } from "forge-std/console2.sol";
