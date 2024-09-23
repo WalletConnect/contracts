@@ -25,7 +25,7 @@ contract UpdateRewards_Staking_Integration_Concrete_Test is Staking_Integration_
     function test_RevertWhen_CallerIsNotRewardManager() external {
         uint256 firstEpoch = defaults.FIRST_EPOCH();
         vm.prank(users.attacker);
-        vm.expectRevert(UtilLib.CallerNotBakersSyndicateContract.selector);
+        vm.expectRevert(UtilLib.CallerNotWalletConnectContract.selector);
         staking.updateRewards(users.attacker, UINT256_MAX, firstEpoch);
     }
 

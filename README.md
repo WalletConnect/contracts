@@ -1,14 +1,14 @@
-# BakersSyndicate Decentralization Architecture
+# WalletConnect Decentralization Architecture
 
 ## Overview
 
-BakersSyndicate is developing a decentralized infrastructure for permissionless, interoperable messaging between dApps
-and wallets. This project aims to gradually transition from a permissioned to a fully permissionless network, starting
-with the decentralization of the storage layer.
+WalletConnect is developing a decentralized infrastructure for permissionless, interoperable messaging between dApps and
+wallets. This project aims to gradually transition from a permissioned to a fully permissionless network, starting with
+the decentralization of the storage layer.
 
 ## Key Components
 
-- BRR Token: Incentivizes node operators and wallets
+- WCT Token: Incentivizes node operators and wallets
 - Node Operator Network: Initially permissioned, transitioning to permissionless
 - Performance-based Rewards System
 - Oracle Network: Reports node performance
@@ -17,14 +17,14 @@ with the decentralization of the storage layer.
 
 ### On-chain Components
 
-- Smart Contracts: BRR Token, Staking, Node/Wallet Registries, Reward Managers, Oracle, Config Management
+- Smart Contracts: WCT Token, Staking, Node/Wallet Registries, Reward Managers, Oracle, Config Management
 - Utilizes upgradeable contracts and role-based access control
 
 ### Off-chain Components
 
 - Node Operators: Run distributed database nodes
 - Oracle Network: Monitors and reports performance
-- BakersSyndicate Foundation: Initial governance and administration
+- WalletConnect Foundation: Initial governance and administration
 
 ## Security Measures
 

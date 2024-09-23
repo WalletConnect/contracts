@@ -3,17 +3,17 @@ pragma solidity >=0.8.25 <0.9.0;
 
 import { console2 } from "forge-std/console2.sol";
 import { Script } from "forge-std/Script.sol";
-import { BRR } from "src/BRR.sol";
-import { L2BRR } from "src/L2BRR.sol";
+import { WCT } from "src/WCT.sol";
+import { L2WCT } from "src/L2WCT.sol";
 import { Timelock } from "src/Timelock.sol";
 
 struct EthereumDeployments {
-    BRR brr;
+    WCT wct;
     Timelock timelock;
 }
 
 struct OptimismDeployments {
-    L2BRR l2brr;
+    L2WCT l2wct;
     Timelock adminTimelock;
     Timelock managerTimelock;
 }
@@ -66,7 +66,7 @@ abstract contract BaseScript is Script {
     function readEthereumDeployments(uint256 chainId) public returns (EthereumDeployments memory) {
         bytes memory data = _readDeployments(chainId);
         if (data.length == 0) {
-            return EthereumDeployments({ brr: BRR(address(0)), timelock: Timelock(payable(address(0))) });
+            return EthereumDeployments({ wct: WCT(address(0)), timelock: Timelock(payable(address(0))) });
         }
         return abi.decode(data, (EthereumDeployments));
     }
@@ -75,7 +75,7 @@ abstract contract BaseScript is Script {
         bytes memory data = _readDeployments(chainId);
         if (data.length == 0) {
             return OptimismDeployments({
-                l2brr: L2BRR(address(0)),
+                l2wct: L2WCT(address(0)),
                 adminTimelock: Timelock(payable(address(0))),
                 managerTimelock: Timelock(payable(address(0)))
             });

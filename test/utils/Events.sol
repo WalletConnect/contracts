@@ -39,7 +39,7 @@ abstract contract Events {
     event TokensMinted(address indexed account, uint256 amount);
 
     /*//////////////////////////////////////////////////////////////////////////
-                                L2BRR
+                                L2WCT
     //////////////////////////////////////////////////////////////////////////*/
     event SetAllowedFrom(address indexed account, bool allowed);
     event SetAllowedTo(address indexed account, bool allowed);

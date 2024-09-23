@@ -3,7 +3,7 @@ pragma solidity 0.8.25;
 
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import { BakersSyndicateConfig } from "src/BakersSyndicateConfig.sol";
+import { WalletConnectConfig } from "src/WalletConnectConfig.sol";
 import { UtilLib } from "src/library/UtilLib.sol";
 import { Staking } from "src/Staking.sol";
 
@@ -14,7 +14,7 @@ contract RewardManager is Initializable, OwnableUpgradeable {
     error MismatchedDataLengths();
     error TotalPerformanceZero();
 
-    BakersSyndicateConfig public bakersSyndicateConfig;
+    WalletConnectConfig public bakersSyndicateConfig;
     uint256 public maxRewardsPerEpoch; // tokens to be distributed per epoch
     uint256 public lastUpdatedEpoch; // Last epoch for which rewards were updated
 
@@ -30,7 +30,7 @@ contract RewardManager is Initializable, OwnableUpgradeable {
     struct Init {
         address owner;
         uint256 maxRewardsPerEpoch;
-        BakersSyndicateConfig bakersSyndicateConfig;
+        WalletConnectConfig bakersSyndicateConfig;
     }
 
     /// @notice Initializes the contract.

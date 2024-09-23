@@ -6,7 +6,7 @@ import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/I
 
 /// @title Pauser
 /// @notice Contract for managing pause states of various system functions
-/// @author BakerSyndicate
+/// @author WalletConnect
 contract Pauser is Initializable, AccessControlUpgradeable {
     /// @notice Emitted when a flag has been updated
     /// @param selector The selector of the flag that was updated

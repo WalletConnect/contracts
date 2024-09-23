@@ -8,7 +8,7 @@ off-chain components, with particular emphasis on the storage layer decentraliza
 
 Key components:
 
-- CNKT token for incentivizing node operators and wallets
+- WCT token for incentivizing node operators and wallets
 - Permissioned node operator network (transitioning to permissionless)
 - Performance-based rewards system
 - Oracle network for reporting node performance
@@ -21,15 +21,15 @@ implementation.
 
 ### 2.1 On-chain Components
 
-1. CNKT Token (L1 and L2)
+1. WCT Token (L1 and L2)
    - Common (both have it)
      - ERC20Votes
      - Ownable
      - ERC20Permit
-2. CNKT (L1)
+2. WCT (L1)
    - Upgradeable design using OpenZeppelin's upgradeable contracts (TransparentUpgradeableProxy)
    - Ownership controlled by a 5/7 multisig on Mainnet
-3. L2CNKT
+3. L2WCT
    - Extended functionality for L2 compatibility
    - Transfer restrictions (can be disabled by owner)
    - Minting and burning controlled by the L2 bridge
@@ -80,7 +80,7 @@ The following contracts will use the OpenZeppelin Upgradeable Contracts library 
 - RewardManagers
 - Oracle
 - WalletConnectConfig
-- CNKT Token
+- WCT Token
 
 Rationale: These core contracts may need updates or bug fixes in the future. Using proxies maintains contract addresses,
 ensuring continuity for users and integrations.
@@ -103,7 +103,7 @@ ensuring continuity for users and integrations.
   - Initial setup and governance
   - Contract upgrades
   - Token distribution
-  - Whitelisting of transfers for the L2CNKT token
+  - Whitelisting of transfers for the L2WCT token
   - Whitelisting of wallet addresses
 - WalletConnect Foundation Manager (3/5 MultiSig)
   - Update the Staking max times
@@ -125,20 +125,20 @@ ensuring continuity for users and integrations.
   - On-chain reporting of performance data
 - Node Operators
   - Running database nodes
-  - Staking CNKT tokens
+  - Staking WCT tokens
   - Maintaining node performance and availability
 - Wallets
   - Implementing WalletConnect standards
-  - Staking CNKT tokens
+  - Staking WCT tokens
   - Optionally running nodes
 - Rest of token holders
   - Participation in token distribution events
-  - Staking CNKT tokens
+  - Staking WCT tokens
 
 ## 3. Oracle Architecture (DRAFT)
 
-The CNKT Oracle system synchronizes on-chain and off-chain states, particularly for node operator performance. It's
-inspired by Lido's approach but tailored to CNKT's specific needs.
+The WCT Oracle system synchronizes on-chain and off-chain states, particularly for node operator performance. It's
+inspired by Lido's approach but tailored to WCT's specific needs.
 
 <aside>
 💡 Initial version is to go with a single oracle and skip HashConsensus. Currently, with latency as part of the performance formula, it could be hard to have distributed fallback oracles, though we'll include it in the docs anyways as an option.
@@ -173,7 +173,7 @@ Security Considerations:
 Oracle Operator Requirements:
 
 - Technical: Run an archive node, maintain high uptime and low latency
-- Stake: Minimum stake of CNKT tokens
+- Stake: Minimum stake of WCT tokens
 - Reputation: Known entity in the blockchain space, pass KYC
 - Hardware: Meet minimum requirements (CPU, RAM, storage, bandwidth)
 - Monitoring: Implement 24/7 monitoring and alerting systems
@@ -182,12 +182,12 @@ Oracle Operator Requirements:
 
 ### 4.1 Role-Based Access Control (RBAC)
 
-CNKT implements RBAC using OpenZeppelin's AccessControl and Ownable contracts. Key roles and their capabilities:
+WCT implements RBAC using OpenZeppelin's AccessControl and Ownable contracts. Key roles and their capabilities:
 
-1. CNKT Token (L1) - Ownable
+1. WCT Token (L1) - Ownable
    - Owner can mint new tokens
    - Mitigations: Ownership transferred to Admin Timelock
-2. CNKT Token (L2) - AccessControl
+2. WCT Token (L2) - AccessControl
    - MANAGER_ROLE
      - setAllowedFrom:
      - setAllowedTo
@@ -246,14 +246,14 @@ System invariants are properties that should always hold true for your smart con
 particularly those in the `invariant` folder, we can identify the following invariants:
 
 1. Total supply never exceeds max supply:
-   - For both BRR and L2BRR tokens, the total supply should never exceed the maximum supply limit.
+   - For both WCT and L2WCT tokens, the total supply should never exceed the maximum supply limit.
 2. Balances sum up to total supply:
    - The sum of all account balances should always equal the total supply of tokens.
 3. Mints minus burns equal total supply:
    - The difference between total minted tokens and total burned tokens should always equal the current total supply.
-4. Transfer restrictions enforced (for L2BRR):
+4. Transfer restrictions enforced (for L2WCT):
    - When transfer restrictions are enabled, only allowed addresses should be able to send or receive tokens.
-5. Allowed from and to consistency (for L2BRR):
+5. Allowed from and to consistency (for L2WCT):
    - The `allowedFrom` and `allowedTo` status of addresses should be consistent with the contract's state.
 
 ## 7. Testing Approach
@@ -267,7 +267,7 @@ possible execution paths.
 We use concrete unit tests to verify individual function behaviors. These tests are organized using the BTT approach, as
 evidenced by the `.tree` files in our test structure. For example:
 
-- `unit/concrete/l2brr/transfer/transfer.tree`
+- `unit/concrete/l2wct/transfer/transfer.tree`
 - `unit/concrete/staking/update-min-stake-amount/updateMinStakeAmount.tree`
 
 These `.tree` files outline all possible execution paths, considering different contract states and function parameters.
@@ -285,7 +285,7 @@ Integration tests verify the interaction between different components of our sys
 Fuzz tests are implemented to discover edge cases and unexpected behaviors by providing random inputs to functions.
 These tests are located in the `unit/fuzz` directory. Examples include:
 
-- `unit/fuzz/l2-brr/transfer.t.sol`
+- `unit/fuzz/l2-wct/transfer.t.sol`
 - `unit/fuzz/reward-manager/postPerformanceRecords.t.sol`
 
 ### 7.4 Invariant Testing
@@ -293,8 +293,8 @@ These tests are located in the `unit/fuzz` directory. Examples include:
 Invariant tests ensure that the system's core properties hold true under various conditions. These tests are located in
 the `invariant` directory and use handlers and stores to manage state:
 
-- `invariant/BRR.t.sol`
-- `invariant/L2BRR.t.sol`
+- `invariant/WCT.t.sol`
+- `invariant/L2WCT.t.sol`
 
 ### 7.5 Branching Tree Technique (BTT)
 

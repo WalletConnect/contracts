@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.25 <0.9.0;
 
-import { BRR } from "src/BRR.sol";
-import { L2BRR } from "src/L2BRR.sol";
+import { WCT } from "src/WCT.sol";
+import { L2WCT } from "src/L2WCT.sol";
 import { StdCheats } from "forge-std/StdCheats.sol";
 
 import { StdUtils } from "forge-std/StdUtils.sol";
@@ -26,16 +26,16 @@ abstract contract BaseHandler is Constants, StdCheats, StdUtils, CommonBase, Uti
                                    TEST CONTRACTS
     //////////////////////////////////////////////////////////////////////////*/
 
-    BRR public brr;
-    L2BRR public l2brr;
+    WCT public wct;
+    L2WCT public l2wct;
 
     /*//////////////////////////////////////////////////////////////////////////
                                     CONSTRUCTOR
     //////////////////////////////////////////////////////////////////////////*/
 
-    constructor(BRR brr_, L2BRR l2brr_) {
-        brr = brr_;
-        l2brr = l2brr_;
+    constructor(WCT wct_, L2WCT l2wct_) {
+        wct = wct_;
+        l2wct = l2wct_;
     }
 
     /*//////////////////////////////////////////////////////////////////////////

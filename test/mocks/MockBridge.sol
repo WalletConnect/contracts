@@ -28,8 +28,12 @@ contract MockBridge {
         bytes extraData
     );
 
-    /// @dev Mock implementation of the bridgeERC20 function. When localToken is L2BRR, it mints the amount of tokens to
-    /// the to address. When remoteToken is L2BRR, it burns the amount of tokens from the from address.
+    error InsufficientBalanceForBurn();
+    error MintFailed(string reason);
+
+    /// @dev Mock implementation of the bridgeERC20 function. When localToken is L2WCT, it mints the amount of tokens
+    /// to
+    /// the to address. When remoteToken is L2WCT, it burns the amount of tokens from the from address.
     function bridgeERC20(
         address localToken,
         address remoteToken,
@@ -46,11 +50,13 @@ contract MockBridge {
                     localToken, remoteToken, msg.sender, msg.sender, amount, abi.encodePacked(minGasLimit, extraData)
                 );
             } catch Error(string memory reason) {
-                revert(string(abi.encodePacked("Mint failed: ", reason)));
+                revert MintFailed(reason);
             }
         } else {
             IERC20Burnable token = IERC20Burnable(remoteToken);
-            require(token.balanceOf(msg.sender) >= amount, "Insufficient balance for burn");
+            if (token.balanceOf(msg.sender) < amount) {
+                revert InsufficientBalanceForBurn();
+            }
             // Bridging from L2 to L1
             token.burn(msg.sender, amount);
             emit ERC20BridgeInitiated(

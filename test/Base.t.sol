@@ -2,11 +2,11 @@
 pragma solidity >=0.8.25 <0.9.0;
 
 import { UnsafeUpgrades } from "openzeppelin-foundry-upgrades/Upgrades.sol";
-import { BRR } from "src/BRR.sol";
-import { L2BRR } from "src/L2BRR.sol";
+import { WCT } from "src/WCT.sol";
+import { L2WCT } from "src/L2WCT.sol";
 import { Pauser } from "src/Pauser.sol";
 import { PermissionedNodeRegistry } from "src/PermissionedNodeRegistry.sol";
-import { BakersSyndicateConfig } from "src/BakersSyndicateConfig.sol";
+import { WalletConnectConfig } from "src/WalletConnectConfig.sol";
 import { RewardManager } from "src/RewardManager.sol";
 import { Staking } from "src/Staking.sol";
 import { MockBridge } from "./mocks/MockBridge.sol";
@@ -32,11 +32,11 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
     //////////////////////////////////////////////////////////////////////////*/
 
     Defaults internal defaults;
-    BRR internal brr;
-    L2BRR internal l2brr;
+    WCT internal wct;
+    L2WCT internal l2wct;
     Pauser internal pauser;
     PermissionedNodeRegistry internal permissionedNodeRegistry;
-    BakersSyndicateConfig internal bakersSyndicateConfig;
+    WalletConnectConfig internal bakersSyndicateConfig;
     RewardManager internal rewardManager;
     Staking internal staking;
 
@@ -79,16 +79,16 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
         return user;
     }
 
-    /// @dev Conditionally deploys BakersSyndicate Core
+    /// @dev Conditionally deploys WalletConnect Core
     function deployCoreConditionally() internal {
         // Admin deploys/sets up the contracts.
         vm.startPrank(users.admin);
         // Deploy the proxy contracts
-        bakersSyndicateConfig = BakersSyndicateConfig(
+        bakersSyndicateConfig = WalletConnectConfig(
             UnsafeUpgrades.deployTransparentProxy(
-                address(new BakersSyndicateConfig()),
+                address(new WalletConnectConfig()),
                 users.admin,
-                abi.encodeCall(BakersSyndicateConfig.initialize, BakersSyndicateConfig.Init({ admin: users.admin }))
+                abi.encodeCall(WalletConnectConfig.initialize, WalletConnectConfig.Init({ admin: users.admin }))
             )
         );
 
@@ -130,9 +130,9 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
             )
         );
 
-        brr = BRR(
+        wct = WCT(
             UnsafeUpgrades.deployTransparentProxy(
-                address(new BRR()), users.admin, abi.encodeCall(BRR.initialize, BRR.Init({ initialOwner: users.admin }))
+                address(new WCT()), users.admin, abi.encodeCall(WCT.initialize, WCT.Init({ initialOwner: users.admin }))
             )
         );
 
@@ -142,16 +142,16 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
         permissionedNodeRegistry =
             new PermissionedNodeRegistry({ initialAdmin: users.admin, maxNodes_: defaults.MAX_REGISTRY_NODES() });
 
-        l2brr = new L2BRR(users.admin, users.manager, address(mockBridge), address(brr));
+        l2wct = new L2WCT(users.admin, users.manager, address(mockBridge), address(wct));
 
-        // Update the BakersSyndicateConfig with the necessary contracts.
-        bakersSyndicateConfig.updateBrr(address(brr));
-        bakersSyndicateConfig.updateL2brr(address(l2brr));
+        // Update the WalletConnectConfig with the necessary contracts.
+        bakersSyndicateConfig.updateWCT(address(wct));
+        bakersSyndicateConfig.updateL2wct(address(l2wct));
         bakersSyndicateConfig.updatePermissionedNodeRegistry(address(permissionedNodeRegistry));
         bakersSyndicateConfig.updateRewardManager(address(rewardManager));
         bakersSyndicateConfig.updatePauser(address(pauser));
         bakersSyndicateConfig.updateStaking(address(staking));
-        bakersSyndicateConfig.updateBakersSyndicateRewardsVault(users.treasury);
+        bakersSyndicateConfig.updateWalletConnectRewardsVault(users.treasury);
 
         // Add roles
         vm.startPrank(users.admin);
@@ -160,9 +160,9 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
         vm.stopPrank();
 
         // Label the contracts.
-        vm.label({ account: address(bakersSyndicateConfig), newLabel: "BakersSyndicateConfig" });
-        vm.label({ account: address(brr), newLabel: "BRR" });
-        vm.label({ account: address(l2brr), newLabel: "L2BRR" });
+        vm.label({ account: address(bakersSyndicateConfig), newLabel: "WalletConnectConfig" });
+        vm.label({ account: address(wct), newLabel: "WCT" });
+        vm.label({ account: address(l2wct), newLabel: "L2WCT" });
         vm.label({ account: address(pauser), newLabel: "Pauser" });
         vm.label({ account: address(permissionedNodeRegistry), newLabel: "PermissionedNodeRegistry" });
         vm.label({ account: address(rewardManager), newLabel: "RewardManager" });
@@ -171,11 +171,11 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
     }
 
     function fundRewardsVaultAndApprove() internal {
-        // Fund the RewardManager with BRR.
-        brr.mint(address(users.treasury), defaults.REWARD_BUDGET());
+        // Fund the RewardManager with WCT.
+        wct.mint(address(users.treasury), defaults.REWARD_BUDGET());
         vm.startPrank({ msgSender: users.treasury });
-        // Approve the Staking contract to spend BRR.
-        brr.approve(address(staking), defaults.REWARD_BUDGET());
+        // Approve the Staking contract to spend WCT.
+        wct.approve(address(staking), defaults.REWARD_BUDGET());
         vm.stopPrank();
     }
 
