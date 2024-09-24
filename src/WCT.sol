@@ -21,6 +21,7 @@ contract WCT is ERC20VotesUpgradeable, ERC20PermitUpgradeable, ERC20BurnableUpgr
         address initialOwner;
     }
 
+    /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }

@@ -19,7 +19,7 @@ endif
 
 deploy-mainnet:
 	@echo "Deploying to Ethereum Mainnet"
-	@$(MAKE) _deploy ENV_FILE=.mainnet.env SCRIPT=$(ETHEREUM_DEPLOY)
+	@$(MAKE) _deploy ENV_FILE=.mainnet.env SCRIPT=$(ETHEREUM_DEPLOY) LEDGER=true
 
 deploy-sepolia:
 	@echo "Deploying to Sepolia testnet"
@@ -53,13 +53,24 @@ log-optimism-sepolia:
 _deploy:
 	$(eval include .common.env)
 	$(eval include $(ENV_FILE))
-	$(FORGE_CMD) $(SCRIPT) \
-    -vvvv \
-    --rpc-url https://${CHAIN_NAME}.infura.io/v3/${API_KEY_INFURA} \
-    --sender ${ETH_FROM} \
-    --account ${KEYSTORE_ACCOUNT} \
-    --force \
-    $(BROADCAST_FLAGS)
+	@if [ "$(LEDGER)" = "true" ]; then \
+		$(FORGE_CMD) $(SCRIPT) \
+		-vvvv \
+		--rpc-url https://${CHAIN_NAME}.infura.io/v3/${API_KEY_INFURA} \
+		--sender ${ETH_FROM} \
+		--mnemonic-indexes ${MNEMONIC_INDEX} \
+		--ledger \
+		--force \
+		$(BROADCAST_FLAGS); \
+	else \
+		$(FORGE_CMD) $(SCRIPT) \
+		-vvvv \
+		--rpc-url https://${CHAIN_NAME}.infura.io/v3/${API_KEY_INFURA} \
+		--sender ${ETH_FROM} \
+		--account ${KEYSTORE_ACCOUNT} \
+		--force \
+		$(BROADCAST_FLAGS); \
+	fi
 
 # New function for logging deployments
 _log_deployments:
