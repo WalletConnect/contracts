@@ -6,6 +6,8 @@ import { Script } from "forge-std/Script.sol";
 import { WCT } from "src/WCT.sol";
 import { L2WCT } from "src/L2WCT.sol";
 import { Timelock } from "src/Timelock.sol";
+import { Eip1967Logger } from "script/utils/Eip1967Logger.sol";
+import { StdCheats } from "forge-std/StdCheats.sol";
 
 struct EthereumDeployments {
     WCT wct;
@@ -18,7 +20,7 @@ struct OptimismDeployments {
     Timelock managerTimelock;
 }
 
-abstract contract BaseScript is Script {
+abstract contract BaseScript is Script, StdCheats {
     /// @dev Included to enable compilation of the script without a $MNEMONIC environment variable.
     string internal constant TEST_MNEMONIC = "test test test test test test test test test test test junk";
 
