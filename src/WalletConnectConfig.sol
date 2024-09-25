@@ -36,7 +36,7 @@ contract WalletConnectConfig is Initializable, AccessControlUpgradeable {
     mapping(bytes32 => address) private _accountsMap;
     mapping(bytes32 => address) private _contractsMap;
 
-    bytes32 public constant BAKERSSYNDICATE_REWARDS_VAULT = keccak256("BAKERSSYNDICATE_REWARDS_VAULT");
+    bytes32 public constant WALLETCONNECT_REWARDS_VAULT = keccak256("WALLETCONNECT_REWARDS_VAULT");
     bytes32 public constant WCT_TOKEN = keccak256("WCT_TOKEN");
     bytes32 public constant L2WCT_TOKEN = keccak256("L2WCT_TOKEN");
     bytes32 public constant PERMISSIONED_NODE_REGISTRY = keccak256("PERMISSIONED_NODE_REGISTRY");
@@ -91,7 +91,7 @@ contract WalletConnectConfig is Initializable, AccessControlUpgradeable {
     /// @notice Gets the WalletConnect Rewards Vault address
     /// @return The address of the WalletConnect Rewards Vault
     function getWalletConnectRewardsVault() external view returns (address) {
-        return _accountsMap[BAKERSSYNDICATE_REWARDS_VAULT];
+        return _accountsMap[WALLETCONNECT_REWARDS_VAULT];
     }
 
     /// @notice Updates the WCT token address
@@ -131,9 +131,9 @@ contract WalletConnectConfig is Initializable, AccessControlUpgradeable {
     }
 
     /// @notice Updates the WalletConnect Rewards Vault address
-    /// @param bakersSyndicateRewardsVault The new WalletConnect Rewards Vault address
-    function updateWalletConnectRewardsVault(address bakersSyndicateRewardsVault) external onlyRole(ADMIN_ROLE) {
-        _setAccount({ key: BAKERSSYNDICATE_REWARDS_VAULT, val: bakersSyndicateRewardsVault });
+    /// @param walletConnectRewardsVault The new WalletConnect Rewards Vault address
+    function updateWalletConnectRewardsVault(address walletConnectRewardsVault) external onlyRole(ADMIN_ROLE) {
+        _setAccount({ key: WALLETCONNECT_REWARDS_VAULT, val: walletConnectRewardsVault });
     }
 
     /// @notice Checks if the given address is a recognized WalletConnect contract

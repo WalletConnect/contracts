@@ -6,7 +6,6 @@ contract Defaults {
     // NodeRewardManager
     uint256 public constant EPOCH_REWARD_EMISSION = 1000 ether;
     uint256 public constant REWARD_BUDGET = EPOCH_REWARD_EMISSION * 1000;
-    uint256 public constant AIRDROP_BUDGET = 1_000_000 ether;
     uint256 public constant EPOCH_DURATION = 1 days;
     uint256 public constant FIRST_EPOCH = 1;
     uint256 public constant PERFORMANCE_SCALE = 1e18;

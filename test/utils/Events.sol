@@ -12,20 +12,20 @@ abstract contract Events {
     event Burn(address indexed from, uint256 value);
 
     /*//////////////////////////////////////////////////////////////////////////
-                            BAKERSSYNDICATE-REWARD-MANAGER
+                            WALLETCONNECT-REWARD-MANAGER
     //////////////////////////////////////////////////////////////////////////*/
     event PerformanceUpdated(uint256 reportingEpoch, uint256 rewardsPerEpoch);
     event RewardsClaimed(address indexed node, uint256 reward);
 
     /*//////////////////////////////////////////////////////////////////////////
-                        BAKERSSYNDICATE-PERMISSIONED-NODE-REGISTRY
+                        WALLETCONNECT-PERMISSIONED-NODE-REGISTRY
     //////////////////////////////////////////////////////////////////////////*/
     event NodeWhitelisted(address indexed node);
     event NodeRemovedFromWhitelist(address indexed node);
     event MaxNodesSet(uint8 maxNodes);
 
     /*//////////////////////////////////////////////////////////////////////////
-                                BAKERSSYNDICATE-STAKING
+                                WALLETCONNECT-STAKING
     //////////////////////////////////////////////////////////////////////////*/
     event Staked(address indexed node, uint256 amount);
     event Unstaked(address indexed node, uint256 amount);
@@ -34,7 +34,7 @@ abstract contract Events {
     event MinStakeAmountUpdated(uint256 oldMinStakeAmount, uint256 newMinStakeAmount);
 
     /*//////////////////////////////////////////////////////////////////////////
-                                BAKERSSYNDICATE-MINT-MANAGER
+                                WALLETCONNECT-MINT-MANAGER
     //////////////////////////////////////////////////////////////////////////*/
     event TokensMinted(address indexed account, uint256 amount);
 
@@ -46,7 +46,7 @@ abstract contract Events {
     event TransferRestrictionsDisabled();
 
     /*//////////////////////////////////////////////////////////////////////////
-                                BAKERSSYNDICATE-TIMELOCK
+                                WALLETCONNECT-TIMELOCK
     //////////////////////////////////////////////////////////////////////////*/
     event MinDelayChange(uint256 oldMinDelay, uint256 newMinDelay);
 

@@ -46,7 +46,7 @@
       },
       {
         "type": "node",
-        "name": "IERC20(bakersSyndicateConfig.getWCT()).safeTransferFrom(bakersSyndicateConfig.getWalletConnectRewardsVault(),msg.sender,reward)",
+        "name": "IERC20(walletConnectConfig.getWCT()).safeTransferFrom(walletConnectConfig.getWalletConnectRewardsVault(),msg.sender,reward)",
         "source_mapping": {
           "start": 7288,
           "length": 152,
@@ -105,8 +105,8 @@
         }
       }
     ],
-    "description": "Staking.claimRewards() (src/Staking.sol#167-183) uses arbitrary from in transferFrom: IERC20(bakersSyndicateConfig.getWCT()).safeTransferFrom(bakersSyndicateConfig.getWalletConnectRewardsVault(),msg.sender,reward) (src/Staking.sol#180-182)\n",
-    "markdown": "[Staking.claimRewards()](src/Staking.sol#L167-L183) uses arbitrary from in transferFrom: [IERC20(bakersSyndicateConfig.getWCT()).safeTransferFrom(bakersSyndicateConfig.getWalletConnectRewardsVault(),msg.sender,reward)](src/Staking.sol#L180-L182)\n",
+    "description": "Staking.claimRewards() (src/Staking.sol#167-183) uses arbitrary from in transferFrom: IERC20(walletConnectConfig.getWCT()).safeTransferFrom(walletConnectConfig.getWalletConnectRewardsVault(),msg.sender,reward) (src/Staking.sol#180-182)\n",
+    "markdown": "[Staking.claimRewards()](src/Staking.sol#L167-L183) uses arbitrary from in transferFrom: [IERC20(walletConnectConfig.getWCT()).safeTransferFrom(walletConnectConfig.getWalletConnectRewardsVault(),msg.sender,reward)](src/Staking.sol#L180-L182)\n",
     "first_markdown_element": "src/Staking.sol#L167-L183",
     "id": "59b2778d4deeed5054f24a22263192bcc80f44c6bfa3153897a936077bcfcb6b",
     "check": "arbitrary-send-erc20",
@@ -451,7 +451,7 @@
       },
       {
         "type": "node",
-        "name": "IERC20(bakersSyndicateConfig.getWCT()).transfer(msg.sender,amount)",
+        "name": "IERC20(walletConnectConfig.getWCT()).transfer(msg.sender,amount)",
         "source_mapping": {
           "start": 5494,
           "length": 68,
@@ -513,8 +513,8 @@
         }
       }
     ],
-    "description": "Staking.unstake(uint256) (src/Staking.sol#108-134) ignores return value by IERC20(bakersSyndicateConfig.getWCT()).transfer(msg.sender,amount) (src/Staking.sol#133)\n",
-    "markdown": "[Staking.unstake(uint256)](src/Staking.sol#L108-L134) ignores return value by [IERC20(bakersSyndicateConfig.getWCT()).transfer(msg.sender,amount)](src/Staking.sol#L133)\n",
+    "description": "Staking.unstake(uint256) (src/Staking.sol#108-134) ignores return value by IERC20(walletConnectConfig.getWCT()).transfer(msg.sender,amount) (src/Staking.sol#133)\n",
+    "markdown": "[Staking.unstake(uint256)](src/Staking.sol#L108-L134) ignores return value by [IERC20(walletConnectConfig.getWCT()).transfer(msg.sender,amount)](src/Staking.sol#L133)\n",
     "first_markdown_element": "src/Staking.sol#L108-L134",
     "id": "2e9e13f5f75385b875bf63ab71c1c3c1dc0eed9397be033f02e8394b6105e354",
     "check": "unchecked-transfer",
@@ -570,7 +570,7 @@
       },
       {
         "type": "node",
-        "name": "IERC20(bakersSyndicateConfig.getWCT()).transferFrom(msg.sender,address(this),amount)",
+        "name": "IERC20(walletConnectConfig.getWCT()).transferFrom(msg.sender,address(this),amount)",
         "source_mapping": {
           "start": 4514,
           "length": 87,
@@ -631,8 +631,8 @@
         }
       }
     ],
-    "description": "Staking.stake(uint256) (src/Staking.sol#81-105) ignores return value by IERC20(bakersSyndicateConfig.getWCT()).transferFrom(msg.sender,address(this),amount) (src/Staking.sol#104)\n",
-    "markdown": "[Staking.stake(uint256)](src/Staking.sol#L81-L105) ignores return value by [IERC20(bakersSyndicateConfig.getWCT()).transferFrom(msg.sender,address(this),amount)](src/Staking.sol#L104)\n",
+    "description": "Staking.stake(uint256) (src/Staking.sol#81-105) ignores return value by IERC20(walletConnectConfig.getWCT()).transferFrom(msg.sender,address(this),amount) (src/Staking.sol#104)\n",
+    "markdown": "[Staking.stake(uint256)](src/Staking.sol#L81-L105) ignores return value by [IERC20(walletConnectConfig.getWCT()).transferFrom(msg.sender,address(this),amount)](src/Staking.sol#L104)\n",
     "first_markdown_element": "src/Staking.sol#L81-L105",
     "id": "59b2a7ee256276dddacf896e8ca1728490e705d92ff2a03c4fdf639eb44f0055",
     "check": "unchecked-transfer",
@@ -3681,7 +3681,7 @@
     "elements": [
       {
         "type": "node",
-        "name": "IERC20(bakersSyndicateConfig.getWCT()).safeTransferFrom(bakersSyndicateConfig.getWalletConnectRewardsVault(),msg.sender,reward)",
+        "name": "IERC20(walletConnectConfig.getWCT()).safeTransferFrom(walletConnectConfig.getWalletConnectRewardsVault(),msg.sender,reward)",
         "source_mapping": {
           "start": 7288,
           "length": 152,
@@ -3740,8 +3740,8 @@
         }
       }
     ],
-    "description": "Staking claimRewards parameter from is not related to msg.sender IERC20(bakersSyndicateConfig.getWCT()).safeTransferFrom(bakersSyndicateConfig.getWalletConnectRewardsVault(),msg.sender,reward) (src/Staking.sol#180-182)\n",
-    "markdown": "Staking claimRewards parameter from is not related to msg.sender [IERC20(bakersSyndicateConfig.getWCT()).safeTransferFrom(bakersSyndicateConfig.getWalletConnectRewardsVault(),msg.sender,reward)](src/Staking.sol#L180-L182)\n",
+    "description": "Staking claimRewards parameter from is not related to msg.sender IERC20(walletConnectConfig.getWCT()).safeTransferFrom(walletConnectConfig.getWalletConnectRewardsVault(),msg.sender,reward) (src/Staking.sol#180-182)\n",
+    "markdown": "Staking claimRewards parameter from is not related to msg.sender [IERC20(walletConnectConfig.getWCT()).safeTransferFrom(walletConnectConfig.getWalletConnectRewardsVault(),msg.sender,reward)](src/Staking.sol#L180-L182)\n",
     "first_markdown_element": "src/Staking.sol#L180-L182",
     "id": "d00e6dad65b08acfa68732633a9f01b8a1d42337195cc176ba17b8d355102438",
     "check": "pess-nft-approve-warning",
@@ -29064,7 +29064,7 @@
       },
       {
         "type": "variable",
-        "name": "bakersSyndicateConfig",
+        "name": "walletConnectConfig",
         "source_mapping": {
           "start": 2710,
           "length": 48,
@@ -29105,8 +29105,8 @@
         }
       }
     ],
-    "description": "In a function Staking.stake(uint256) (src/Staking.sol#81-105) variable Staking.bakersSyndicateConfig (src/Staking.sol#55) is read multiple times\n",
-    "markdown": "In a function [Staking.stake(uint256)](src/Staking.sol#L81-L105) variable [Staking.bakersSyndicateConfig](src/Staking.sol#L55) is read multiple times\n",
+    "description": "In a function Staking.stake(uint256) (src/Staking.sol#81-105) variable Staking.walletConnectConfig (src/Staking.sol#55) is read multiple times\n",
+    "markdown": "In a function [Staking.stake(uint256)](src/Staking.sol#L81-L105) variable [Staking.walletConnectConfig](src/Staking.sol#L55) is read multiple times\n",
     "first_markdown_element": "src/Staking.sol#L81-L105",
     "id": "2eb60315797b311c77d09588ecdfe1df40d7b74e52fc4c98dc6355472807ca27",
     "check": "pess-multiple-storage-read",

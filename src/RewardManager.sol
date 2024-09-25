@@ -14,7 +14,7 @@ contract RewardManager is Initializable, OwnableUpgradeable {
     error MismatchedDataLengths();
     error TotalPerformanceZero();
 
-    WalletConnectConfig public bakersSyndicateConfig;
+    WalletConnectConfig public walletConnectConfig;
     uint256 public maxRewardsPerEpoch; // tokens to be distributed per epoch
     uint256 public lastUpdatedEpoch; // Last epoch for which rewards were updated
 
@@ -30,17 +30,17 @@ contract RewardManager is Initializable, OwnableUpgradeable {
     struct Init {
         address owner;
         uint256 maxRewardsPerEpoch;
-        WalletConnectConfig bakersSyndicateConfig;
+        WalletConnectConfig walletConnectConfig;
     }
 
     /// @notice Initializes the contract.
     /// @dev MUST be called during the contract upgrade to set up the proxies state.
     function initialize(Init memory init) external initializer {
         __Ownable_init(init.owner);
-        UtilLib.checkNonZeroAddress(address(init.bakersSyndicateConfig));
-        bakersSyndicateConfig = init.bakersSyndicateConfig;
+        UtilLib.checkNonZeroAddress(address(init.walletConnectConfig));
+        walletConnectConfig = init.walletConnectConfig;
         maxRewardsPerEpoch = init.maxRewardsPerEpoch;
-        bakersSyndicateConfig = init.bakersSyndicateConfig;
+        walletConnectConfig = init.walletConnectConfig;
     }
 
     // Function for the Oracle to update performance data and calculate rewards

@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: MIT
-// Compatible with OpenZeppelin Contracts ^5.0.0
 pragma solidity 0.8.25;
 
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { L2WCT } from "./L2WCT.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { WalletConnectConfig } from "./WalletConnectConfig.sol";
 
@@ -45,12 +44,6 @@ contract Staking is Initializable, OwnableUpgradeable {
     /*//////////////////////////////////////////////////////////////////////////
                                     ERRORS
     //////////////////////////////////////////////////////////////////////////*/
-    error Paused();
-    error InsufficientStake(address staker, uint256 currentStake, uint256 amount);
-    error StakingBelowMinimum(uint256 minStakeAmount, uint256 stakingAmount);
-    error UnstakingBelowMinimum(uint256 minStakeAmount, uint256 currentStake, uint256 amount);
-    error NotWhitelisted();
-    error UnchangedState();
     error InvalidInput();
     error InvalidRewardRate();
     error InsufficientRewardBalance();
@@ -58,20 +51,6 @@ contract Staking is Initializable, OwnableUpgradeable {
     /*//////////////////////////////////////////////////////////////////////////
                                     VARIABLES
     //////////////////////////////////////////////////////////////////////////*/
-
-    /// @notice The staking allowlist flag which, when enabled, allows staking only for addresses in allowlist.
-    bool public isStakingAllowlist;
-
-    /// @notice The minimum staking amount for each node.
-    uint256 public minStakeAmount;
-
-    /// @notice The accrued rewards for each node.
-    mapping(address staker => uint256 pendingRewards) public pendingRewards;
-
-    /// @notice Stake amount for each node.
-    mapping(address staker => uint256 amount) public stakes;
-
-    WalletConnectConfig public bakersSyndicateConfig;
 
     /// @notice Configuration for contract initialization.
     struct Init {
@@ -91,28 +70,29 @@ contract Staking is Initializable, OwnableUpgradeable {
     /*//////////////////////////////////////////////////////////////////////////
                                     FUNCTIONS
     //////////////////////////////////////////////////////////////////////////*/
-    /// @notice Interface for nodes to stake their WCT with the protocol. Note: when allowlist is enabled, only nodes
-    /// with the allowlist can stake.
-    function stake(uint256 amount) external {
-        if (Pauser(bakersSyndicateConfig.getPauser()).isStakingPaused()) {
-            revert Paused();
-        }
+    modifier updateReward(address account) {
+        rewardPerTokenStored = rewardPerToken();
+        updatedAt = lastTimeRewardApplicable();
 
-        if (isStakingAllowlist) {
-            if (
-                !PermissionedNodeRegistry(bakersSyndicateConfig.getPermissionedNodeRegistry()).isNodeWhitelisted(
-                    msg.sender
-                )
-            ) {
-                revert NotWhitelisted();
-            }
+        if (account != address(0)) {
+            rewards[account] = earned(account);
+            userRewardPerTokenPaid[account] = rewardPerTokenStored;
         }
+        _;
+    }
 
-        if (amount < minStakeAmount) {
-            revert StakingBelowMinimum({ minStakeAmount: minStakeAmount, stakingAmount: amount });
+    function lastTimeRewardApplicable() public view returns (uint256) {
+        return _min(finishAt, block.timestamp);
+    }
+
+    function rewardPerToken() public view returns (uint256) {
+        if (totalSupply == 0) {
+            return rewardPerTokenStored;
         }
+        return rewardPerTokenStored + (rewardRate * (lastTimeRewardApplicable() - updatedAt) * 1e18) / totalSupply;
+    }
 
-    /// @notice Interface for nodes to stake their WCT with the protocol.
+    /// @notice Interface for nodes to stake their CNKT with the protocol.
     function stake(uint256 amount) external updateReward(msg.sender) {
         L2WCT l2wct = L2WCT(config.getL2wct());
         if (amount == 0) revert InvalidInput();
@@ -120,13 +100,9 @@ contract Staking is Initializable, OwnableUpgradeable {
         balanceOf[msg.sender] += amount;
         l2wct.safeTransferFrom(msg.sender, address(this), amount);
         emit Staked(msg.sender, amount);
-
-        stakes[msg.sender] += amount;
-
-        IERC20(bakersSyndicateConfig.getWCT()).transferFrom(msg.sender, address(this), amount);
     }
 
-    /// @notice Interface for users to unstake their WCT from the protocol.
+    /// @notice Interface for users to unstake their CNKT from the protocol.
     function withdraw(uint256 amount) external updateReward(msg.sender) {
         L2WCT l2wct = L2WCT(config.getL2wct());
         if (amount == 0) revert InvalidInput();
@@ -136,34 +112,8 @@ contract Staking is Initializable, OwnableUpgradeable {
         emit Withdrawn(msg.sender, amount);
     }
 
-    /// @notice Sets the staking allowlist flag.
-    function setStakingAllowlist(bool isStakingAllowlist_) external onlyOwner {
-        if (isStakingAllowlist == isStakingAllowlist_) {
-            revert UnchangedState();
-        }
-        isStakingAllowlist = isStakingAllowlist_;
-        emit StakingAllowlistSet(isStakingAllowlist_);
-    }
-
-    /// @notice Updates the minimum staking amount.
-    function updateMinStakeAmount(uint256 minStakeAmount_) external onlyOwner {
-        if (minStakeAmount == minStakeAmount_) {
-            revert UnchangedState();
-        }
-        emit MinStakeAmountUpdated(minStakeAmount, minStakeAmount_);
-        minStakeAmount = minStakeAmount_;
-    }
-
-    /// @notice Function for the reward manager to add rewards to a node's pending rewards balance.
-    function updateRewards(address node, uint256 amount, uint256 reportingEpoch) external {
-        UtilLib.onlyWalletConnectContract(msg.sender, bakersSyndicateConfig, bakersSyndicateConfig.REWARD_MANAGER());
-        if (Pauser(bakersSyndicateConfig.getPauser()).isStakingPaused()) {
-            revert Paused();
-        }
-        if (stakes[node] >= minStakeAmount) {
-            pendingRewards[node] += amount;
-        }
-        emit RewardsUpdated({ node: node, reportingEpoch: reportingEpoch, newRewards: amount });
+    function earned(address account) public view returns (uint256) {
+        return (balanceOf[account] * (rewardPerToken() - userRewardPerTokenPaid[account])) / 1e18 + rewards[account];
     }
 
     // Function for users to claim rewards
