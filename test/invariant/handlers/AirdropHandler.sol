@@ -2,8 +2,8 @@
 pragma solidity >=0.8.25 <0.9.0;
 
 import { Airdrop } from "src/Airdrop.sol";
-import { CNKT } from "src/CNKT.sol";
-import { L2CNKT } from "src/L2CNKT.sol";
+import { WCT } from "src/WCT.sol";
+import { L2WCT } from "src/L2WCT.sol";
 import { AirdropStore } from "../stores/AirdropStore.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { BaseHandler } from "./BaseHandler.sol";
@@ -20,10 +20,10 @@ contract AirdropHandler is BaseHandler {
         AirdropStore _store,
         address _admin,
         address _pauser,
-        CNKT _cnkt,
-        L2CNKT _l2cnkt
+        WCT _wct,
+        L2WCT _l2wct
     )
-        BaseHandler(_cnkt, _l2cnkt)
+        BaseHandler(_wct, _l2wct)
     {
         airdrop = _airdrop;
         store = _store;

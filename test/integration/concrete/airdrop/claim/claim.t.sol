@@ -57,7 +57,7 @@ contract Claim_Airdrop_Integration_Concrete_Test is Airdrop_Test {
     }
 
     function test_SuccessfulClaim() external whenNotPaused {
-        uint256 initialBalance = l2cnkt.balanceOf(defaultClaimWithProof.claim.recipient);
+        uint256 initialBalance = l2wct.balanceOf(defaultClaimWithProof.claim.recipient);
 
         vm.expectEmit(true, true, true, true);
         emit TokensClaimed(defaultClaimWithProof.claim.recipient, defaultClaimWithProof.claim.amount);
@@ -66,7 +66,7 @@ contract Claim_Airdrop_Integration_Concrete_Test is Airdrop_Test {
         airdrop.claimTokens(0, defaultClaimWithProof.claim.amount, defaultClaimWithProof.proof);
 
         assertEq(
-            l2cnkt.balanceOf(defaultClaimWithProof.claim.recipient),
+            l2wct.balanceOf(defaultClaimWithProof.claim.recipient),
             initialBalance + defaultClaimWithProof.claim.amount,
             "Balance should increase"
         );
@@ -75,11 +75,11 @@ contract Claim_Airdrop_Integration_Concrete_Test is Airdrop_Test {
 
     function test_ClaimAll() external whenNotPaused {
         uint256 totalClaimed;
-        uint256 initialTreasuryBalance = l2cnkt.balanceOf(address(users.treasury));
+        uint256 initialTreasuryBalance = l2wct.balanceOf(address(users.treasury));
 
         for (uint256 i = 0; i < claimsWithProof.length; i++) {
             ClaimWithProof memory claimWithProof = claimsWithProof[i];
-            uint256 initialBalance = l2cnkt.balanceOf(claimWithProof.claim.recipient);
+            uint256 initialBalance = l2wct.balanceOf(claimWithProof.claim.recipient);
 
             vm.prank(claimWithProof.claim.recipient);
             airdrop.claimTokens(claimWithProof.claim.index, claimWithProof.claim.amount, claimWithProof.proof);
@@ -87,7 +87,7 @@ contract Claim_Airdrop_Integration_Concrete_Test is Airdrop_Test {
             totalClaimed += claimWithProof.claim.amount;
 
             assertEq(
-                l2cnkt.balanceOf(claimWithProof.claim.recipient),
+                l2wct.balanceOf(claimWithProof.claim.recipient),
                 initialBalance + claimWithProof.claim.amount,
                 "Recipient balance should increase by claimed amount"
             );
@@ -96,10 +96,10 @@ contract Claim_Airdrop_Integration_Concrete_Test is Airdrop_Test {
 
         assertEq(defaults.AIRDROP_BUDGET(), totalClaimed, "Total claimed should be equal to the sum of all claims");
         assertEq(
-            l2cnkt.balanceOf(address(users.treasury)),
+            l2wct.balanceOf(address(users.treasury)),
             initialTreasuryBalance - totalClaimed,
             "Treasury balance should decrease by total claimed amount"
         );
-        assertEq(l2cnkt.balanceOf(address(airdrop)), 0, "Airdrop contract should have no remaining balance");
+        assertEq(l2wct.balanceOf(address(airdrop)), 0, "Airdrop contract should have no remaining balance");
     }
 }

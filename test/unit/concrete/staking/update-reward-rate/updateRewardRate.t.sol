@@ -23,7 +23,7 @@ contract UpdateRewardRate_Staking_Unit_Concrete_Test is Base_Test {
 
     modifier withSufficientBalance() {
         uint256 initialBalance = defaults.STAKING_REWARD_BUDGET();
-        deal(address(l2cnkt), address(staking), initialBalance);
+        deal(address(l2wct), address(staking), initialBalance);
         _;
     }
 
@@ -35,7 +35,7 @@ contract UpdateRewardRate_Staking_Unit_Concrete_Test is Base_Test {
     function test_RevertWhen_SameRate() external whenCallerOwner {
         // Change from zero to any non-zero rate to prevent getting InvalidRewardRate
         uint256 newRate = 1;
-        deal(address(l2cnkt), address(staking), newRate * defaults.STAKING_REWARD_DURATION());
+        deal(address(l2wct), address(staking), newRate * defaults.STAKING_REWARD_DURATION());
         staking.updateRewardRate(newRate);
         // Actual test
         assertEq(staking.rewardRate(), newRate, "Reward rate should be updated");

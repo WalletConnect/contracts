@@ -17,7 +17,7 @@ contract UpdateRewardRate_Staking_Unit_Fuzz_Test is Base_Test {
 
         // Ensure the contract has enough balance for rewards
         uint256 initialBalance = 1_000_000 * 1e18; // 1 million tokens
-        deal(address(l2cnkt), address(staking), initialBalance);
+        deal(address(l2wct), address(staking), initialBalance);
 
         if (sender != staking.owner()) {
             vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, sender));

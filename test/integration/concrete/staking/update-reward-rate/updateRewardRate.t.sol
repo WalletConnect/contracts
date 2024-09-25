@@ -13,13 +13,13 @@ contract UpdateRewardRate_Staking_Integration_Concrete_Test is Staking_Integrati
         super.setUp();
         // Mint rewards to the staking contract
         vm.startPrank(address(mockBridge));
-        l2cnkt.mint(address(staking), NEW_REWARD_RATE * defaults.STAKING_REWARD_DURATION());
+        l2wct.mint(address(staking), NEW_REWARD_RATE * defaults.STAKING_REWARD_DURATION());
         // Update the reward rate
         resetPrank(users.admin);
         staking.updateRewardRate(OLD_REWARD_RATE);
         resetPrank(users.manager);
-        l2cnkt.setAllowedTo(address(staking), true);
-        l2cnkt.setAllowedFrom(address(staking), true);
+        l2wct.setAllowedTo(address(staking), true);
+        l2wct.setAllowedFrom(address(staking), true);
         vm.stopPrank();
     }
 

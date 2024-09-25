@@ -20,7 +20,7 @@ contract Constructor_Airdrop_Unit_Concrete_Test is Base_Test {
         initialPauser = users.pauser;
         reserveAddress = users.treasury;
         merkleRoot = keccak256("test");
-        tokenAddress = address(l2cnkt);
+        tokenAddress = address(l2wct);
     }
 
     function test_RevertWhen_ReserveAddressIsZero() public {

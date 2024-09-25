@@ -34,11 +34,11 @@ contract CreateLock_StakeWeight_Unit_Concrete_Test is Base_Test {
         uint256 unlockTime = _timestampToFloorWeek(block.timestamp + 52 weeks);
 
         // Deal tokens to Alice and start pranking as Alice
-        deal(address(l2cnkt), users.alice, amount);
+        deal(address(l2wct), users.alice, amount);
         vm.startPrank(users.alice);
 
         // Approve tokens for locking
-        IERC20(address(l2cnkt)).approve(address(stakeWeight), amount);
+        IERC20(address(l2wct)).approve(address(stakeWeight), amount);
 
         uint256 supplyBefore = stakeWeight.supply();
 

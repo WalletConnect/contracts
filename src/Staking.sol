@@ -9,7 +9,7 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { WalletConnectConfig } from "./WalletConnectConfig.sol";
 
 contract Staking is Initializable, OwnableUpgradeable {
-    using SafeERC20 for L2CNKT;
+    using SafeERC20 for L2WCT;
 
     WalletConnectConfig public config;
 
@@ -112,13 +112,13 @@ contract Staking is Initializable, OwnableUpgradeable {
             revert StakingBelowMinimum({ minStakeAmount: minStakeAmount, stakingAmount: amount });
         }
 
-    /// @notice Interface for nodes to stake their CNKT with the protocol.
+    /// @notice Interface for nodes to stake their WCT with the protocol.
     function stake(uint256 amount) external updateReward(msg.sender) {
-        L2CNKT l2cnkt = L2CNKT(config.getL2cnkt());
+        L2WCT l2wct = L2WCT(config.getL2wct());
         if (amount == 0) revert InvalidInput();
         totalSupply += amount;
         balanceOf[msg.sender] += amount;
-        l2cnkt.safeTransferFrom(msg.sender, address(this), amount);
+        l2wct.safeTransferFrom(msg.sender, address(this), amount);
         emit Staked(msg.sender, amount);
 
         stakes[msg.sender] += amount;
@@ -126,13 +126,13 @@ contract Staking is Initializable, OwnableUpgradeable {
         IERC20(bakersSyndicateConfig.getWCT()).transferFrom(msg.sender, address(this), amount);
     }
 
-    /// @notice Interface for users to unstake their CNKT from the protocol.
+    /// @notice Interface for users to unstake their WCT from the protocol.
     function withdraw(uint256 amount) external updateReward(msg.sender) {
-        L2CNKT l2cnkt = L2CNKT(config.getL2cnkt());
+        L2WCT l2wct = L2WCT(config.getL2wct());
         if (amount == 0) revert InvalidInput();
         totalSupply -= amount;
         balanceOf[msg.sender] -= amount;
-        l2cnkt.safeTransfer(msg.sender, amount);
+        l2wct.safeTransfer(msg.sender, amount);
         emit Withdrawn(msg.sender, amount);
     }
 
@@ -168,11 +168,11 @@ contract Staking is Initializable, OwnableUpgradeable {
 
     // Function for users to claim rewards
     function getReward() external updateReward(msg.sender) {
-        L2CNKT l2cnkt = L2CNKT(config.getL2cnkt());
+        L2WCT l2wct = L2WCT(config.getL2wct());
         uint256 reward = rewards[msg.sender];
         if (reward > 0) {
             rewards[msg.sender] = 0;
-            l2cnkt.safeTransfer(msg.sender, reward);
+            l2wct.safeTransfer(msg.sender, reward);
             emit RewardPaid(msg.sender, reward);
         }
     }
@@ -183,7 +183,7 @@ contract Staking is Initializable, OwnableUpgradeable {
     }
 
     function updateRewardRate(uint256 newRewardRate) external onlyOwner updateReward(address(0)) {
-        L2CNKT l2cnkt = L2CNKT(config.getL2cnkt());
+        L2WCT l2wct = L2WCT(config.getL2wct());
         uint256 oldRewardRate = rewardRate;
         uint256 remainingRewards = 0;
 
@@ -194,7 +194,7 @@ contract Staking is Initializable, OwnableUpgradeable {
         if (newRewardRate == 0) revert InvalidRewardRate();
 
         uint256 newRewardAmount = newRewardRate * duration;
-        if (newRewardAmount + remainingRewards > l2cnkt.balanceOf(address(this))) {
+        if (newRewardAmount + remainingRewards > l2wct.balanceOf(address(this))) {
             revert InsufficientRewardBalance();
         }
 

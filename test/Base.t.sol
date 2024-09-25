@@ -203,7 +203,7 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
 
     function disableTransferRestrictions() internal {
         vm.prank(users.admin);
-        l2cnkt.disableTransferRestrictions();
+        l2wct.disableTransferRestrictions();
     }
 
     function _timestampToFloorWeek(uint256 _timestamp) internal pure returns (uint256) {

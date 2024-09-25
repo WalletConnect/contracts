@@ -18,7 +18,7 @@ contract Airdrop_Invariant_Test is Invariant_Test, Airdrop_Test {
         _jsonToMerkleRoot();
 
         store = new AirdropStore();
-        handler = new AirdropHandler(airdrop, store, users.admin, users.pauser, cnkt, l2cnkt);
+        handler = new AirdropHandler(airdrop, store, users.admin, users.pauser, wct, l2wct);
 
         targetContract(address(handler));
 
@@ -38,7 +38,7 @@ contract Airdrop_Invariant_Test is Invariant_Test, Airdrop_Test {
         address[] memory claimers = store.getClaimers();
         for (uint256 i = 0; i < claimers.length; i++) {
             address claimer = claimers[i];
-            assertGe(l2cnkt.balanceOf(claimer), store.claims(claimer), "Claimed amount should never decrease");
+            assertGe(l2wct.balanceOf(claimer), store.claims(claimer), "Claimed amount should never decrease");
         }
     }
 

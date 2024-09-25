@@ -46,7 +46,7 @@ abstract contract Airdrop_Test is Integration_Test {
 
         // Disable transfer restrictions.
         vm.prank(address(users.admin));
-        l2cnkt.disableTransferRestrictions();
+        l2wct.disableTransferRestrictions();
     }
 
     function _jsonToMerkleRoot() internal {
@@ -80,15 +80,15 @@ abstract contract Airdrop_Test is Integration_Test {
     function _deployAirdrop(bytes32 merkleRoot) internal {
         // Deploy the Airdrop contract.
         airdrop = new Airdrop(
-            address(users.admin), address(users.pauser), address(users.treasury), merkleRoot, address(l2cnkt)
+            address(users.admin), address(users.pauser), address(users.treasury), merkleRoot, address(l2wct)
         );
 
         // Mint tokens to the treasury.
         vm.startPrank({ msgSender: address(mockBridge) });
-        l2cnkt.mint(address(users.treasury), defaults.AIRDROP_BUDGET());
+        l2wct.mint(address(users.treasury), defaults.AIRDROP_BUDGET());
         resetPrank(users.treasury);
-        // Approve the Airdrop contract to spend CNKT.
-        l2cnkt.approve(address(airdrop), defaults.AIRDROP_BUDGET());
+        // Approve the Airdrop contract to spend WCT.
+        l2wct.approve(address(airdrop), defaults.AIRDROP_BUDGET());
         vm.stopPrank();
     }
 }

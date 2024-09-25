@@ -15,15 +15,15 @@ contract StakingRewardDistributor_Test is Base_Test {
 
         deployCoreConditionally();
         disableTransferRestrictions();
-        // Mint l2cnkt tokens to users
-        deal(address(l2cnkt), users.alice, 1000e18);
-        deal(address(l2cnkt), users.bob, 1000e18);
+        // Mint l2wct tokens to users
+        deal(address(l2wct), users.alice, 1000e18);
+        deal(address(l2wct), users.bob, 1000e18);
 
-        // Approve StakeWeight to spend l2cnkt
+        // Approve StakeWeight to spend l2wct
         vm.prank(users.alice);
-        l2cnkt.approve(address(stakeWeight), type(uint256).max);
+        l2wct.approve(address(stakeWeight), type(uint256).max);
         vm.prank(users.bob);
-        l2cnkt.approve(address(stakeWeight), type(uint256).max);
+        l2wct.approve(address(stakeWeight), type(uint256).max);
     }
 
     function testInitialized() public view {
@@ -33,7 +33,7 @@ contract StakingRewardDistributor_Test is Base_Test {
         assertEq(stakingRewardDistributor.startWeekCursor(), startWeekCursor);
         assertEq(stakingRewardDistributor.lastTokenTimestamp(), startWeekCursor);
         assertEq(stakingRewardDistributor.weekCursor(), startWeekCursor);
-        assertEq(address(stakingRewardDistributor.rewardToken()), address(l2cnkt));
+        assertEq(address(stakingRewardDistributor.rewardToken()), address(l2wct));
         assertEq(address(stakingRewardDistributor.stakeWeight()), address(stakeWeight));
         assertEq(stakingRewardDistributor.emergencyReturn(), users.emergencyHolder);
         assertFalse(stakingRewardDistributor.canCheckpointToken());
@@ -62,7 +62,7 @@ contract StakingRewardDistributor_Test is Base_Test {
         uint256 latestTimestamp = block.timestamp;
         uint256 rewardAmount = 888e18;
 
-        deal(address(l2cnkt), address(stakingRewardDistributor), rewardAmount);
+        deal(address(l2wct), address(stakingRewardDistributor), rewardAmount);
 
         vm.prank(users.admin);
         stakingRewardDistributor.setCanCheckpointToken(true);
@@ -110,7 +110,7 @@ contract StakingRewardDistributor_Test is Base_Test {
         uint256 latestTimestamp = block.timestamp;
         uint256 rewardAmount = 888e18;
 
-        deal(address(l2cnkt), address(stakingRewardDistributor), rewardAmount);
+        deal(address(l2wct), address(stakingRewardDistributor), rewardAmount);
 
         vm.prank(users.admin);
         stakingRewardDistributor.setCanCheckpointToken(true);
@@ -220,9 +220,9 @@ contract StakingRewardDistributor_Test is Base_Test {
 
         // Inject reward
         uint256 injectAmount = 88_888e18;
-        deal(address(l2cnkt), users.admin, injectAmount);
+        deal(address(l2wct), users.admin, injectAmount);
         vm.startPrank(users.admin);
-        l2cnkt.approve(address(stakingRewardDistributor), injectAmount);
+        l2wct.approve(address(stakingRewardDistributor), injectAmount);
         stakingRewardDistributor.injectRewardForCurrentWeek(injectAmount);
 
         // Checkpoint token and total supply
@@ -258,9 +258,9 @@ contract StakingRewardDistributor_Test is Base_Test {
             uint256 unlockTime = unlockTimes[i];
 
             if (amount > 0) {
-                deal(address(l2cnkt), user, amount);
+                deal(address(l2wct), user, amount);
                 vm.startPrank(user);
-                l2cnkt.approve(address(stakeWeight), amount);
+                l2wct.approve(address(stakeWeight), amount);
                 stakeWeight.createLock(amount, unlockTime);
                 vm.stopPrank();
             }

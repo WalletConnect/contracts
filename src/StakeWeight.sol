@@ -446,7 +446,7 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
         // Handling checkpoint here
         _checkpoint(_for, _prevLocked, _newLocked);
 
-        IERC20(config.getL2cnkt()).safeTransferFrom(msg.sender, address(this), _amount);
+        IERC20(config.getL2wct()).safeTransferFrom(msg.sender, address(this), _amount);
 
         emit Deposit(_for, _amount, _newLocked.end, _actionType, block.timestamp);
         emit Supply(_supplyBefore, supply);
@@ -601,7 +601,7 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
 
         _unlock(msg.sender, _lock, _amount);
 
-        IERC20(config.getL2cnkt()).safeTransfer(msg.sender, _amount);
+        IERC20(config.getL2wct()).safeTransfer(msg.sender, _amount);
 
         emit Withdraw(msg.sender, _amount, block.timestamp);
     }

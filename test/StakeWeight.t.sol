@@ -15,15 +15,15 @@ contract StakeWeight_Test is Base_Test {
 
         deployCoreConditionally();
         disableTransferRestrictions();
-        // Mint l2cnkt tokens to users
-        deal(address(l2cnkt), users.alice, 1000e18);
-        deal(address(l2cnkt), users.bob, 1000e18);
+        // Mint l2wct tokens to users
+        deal(address(l2wct), users.alice, 1000e18);
+        deal(address(l2wct), users.bob, 1000e18);
 
-        // Approve StakeWeight to spend l2cnkt
+        // Approve StakeWeight to spend l2wct
         vm.prank(users.alice);
-        l2cnkt.approve(address(stakeWeight), type(uint256).max);
+        l2wct.approve(address(stakeWeight), type(uint256).max);
         vm.prank(users.bob);
-        l2cnkt.approve(address(stakeWeight), type(uint256).max);
+        l2wct.approve(address(stakeWeight), type(uint256).max);
     }
 
     function testCreateLock() public {
@@ -76,20 +76,20 @@ contract StakeWeight_Test is Base_Test {
 
         // Create lock for user Alice
         vm.startPrank(users.alice);
-        l2cnkt.approve(address(stakeWeight), type(uint256).max);
+        l2wct.approve(address(stakeWeight), type(uint256).max);
         stakeWeight.createLock(amount, unlockTime);
         vm.stopPrank();
 
         // Fast forward to after lock expiration
         vm.warp(unlockTime + 1 weeks);
 
-        uint256 aliceBalanceBefore = l2cnkt.balanceOf(users.alice);
+        uint256 aliceBalanceBefore = l2wct.balanceOf(users.alice);
 
         // Withdraw all tokens
         vm.prank(users.alice);
         stakeWeight.withdrawAll();
 
-        uint256 aliceBalanceAfter = l2cnkt.balanceOf(users.alice);
+        uint256 aliceBalanceAfter = l2wct.balanceOf(users.alice);
 
         // Check balance increase
         assertEq(aliceBalanceAfter - aliceBalanceBefore, amount, "Incorrect amount withdrawn");
@@ -178,8 +178,8 @@ contract StakeWeight_Test is Base_Test {
 
         for (uint256 i = 0; i < testUsers.length; i++) {
             vm.startPrank(testUsers[i]);
-            deal(address(l2cnkt), testUsers[i], amounts[i]);
-            l2cnkt.approve(address(stakeWeight), amounts[i]);
+            deal(address(l2wct), testUsers[i], amounts[i]);
+            l2wct.approve(address(stakeWeight), amounts[i]);
             stakeWeight.createLock(amounts[i], block.timestamp + lockDuration);
             vm.stopPrank();
         }
@@ -224,9 +224,9 @@ contract StakeWeight_Test is Base_Test {
         uint256 lockDuration = 4 weeks;
         uint256 unlockTime = _timestampToFloorWeek(block.timestamp + lockDuration);
 
-        deal(address(l2cnkt), users.alice, amount);
+        deal(address(l2wct), users.alice, amount);
         vm.startPrank(users.alice);
-        l2cnkt.approve(address(stakeWeight), amount);
+        l2wct.approve(address(stakeWeight), amount);
         stakeWeight.createLock(amount, unlockTime);
         vm.stopPrank();
 
@@ -263,9 +263,9 @@ contract StakeWeight_Test is Base_Test {
             uint256 amount = amounts[i];
             uint256 unlockTime = unlockTimes[i];
 
-            deal(address(l2cnkt), user, amount);
+            deal(address(l2wct), user, amount);
             vm.startPrank(user);
-            l2cnkt.approve(address(stakeWeight), amount);
+            l2wct.approve(address(stakeWeight), amount);
             stakeWeight.createLock(amount, unlockTime);
             vm.stopPrank();
         }
