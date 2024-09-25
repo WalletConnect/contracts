@@ -9,6 +9,7 @@ import { StdUtils } from "forge-std/StdUtils.sol";
 import { CommonBase } from "forge-std/Base.sol";
 import { Constants } from "test/utils/Constants.sol";
 import { Utils } from "test/utils/Utils.sol";
+import { Defaults } from "test/utils/Defaults.sol";
 
 /// @notice Base contract with common logic needed by all handler contracts.
 abstract contract BaseHandler is Constants, StdCheats, StdUtils, CommonBase, Utils {
@@ -28,6 +29,7 @@ abstract contract BaseHandler is Constants, StdCheats, StdUtils, CommonBase, Uti
 
     WCT public wct;
     L2WCT public l2wct;
+    Defaults public defaults;
 
     /*//////////////////////////////////////////////////////////////////////////
                                     CONSTRUCTOR
@@ -36,6 +38,7 @@ abstract contract BaseHandler is Constants, StdCheats, StdUtils, CommonBase, Uti
     constructor(WCT wct_, L2WCT l2wct_) {
         wct = wct_;
         l2wct = l2wct_;
+        defaults = new Defaults();
     }
 
     /*//////////////////////////////////////////////////////////////////////////

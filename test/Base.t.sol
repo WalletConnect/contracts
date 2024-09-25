@@ -8,9 +8,17 @@ import { Pauser } from "src/Pauser.sol";
 import { PermissionedNodeRegistry } from "src/PermissionedNodeRegistry.sol";
 import { WalletConnectConfig } from "src/WalletConnectConfig.sol";
 import { RewardManager } from "src/RewardManager.sol";
+import { StakeWeight } from "src/StakeWeight.sol";
 import { Staking } from "src/Staking.sol";
 import {
-    newPauser, newStaking, newRewardManager, newWalletConnectConfig, newWCT, newL2WCT
+    newPauser,
+    newStaking,
+    newRewardManager,
+    newWalletConnectConfig,
+    newWCT,
+    newL2WCT,
+    newStakeWeight,
+    newStakingRewardDistributor
 } from "script/helpers/Proxy.sol";
 
 import { MockBridge } from "./mocks/MockBridge.sol";
@@ -40,10 +48,11 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
     L2WCT internal l2wct;
     Pauser internal pauser;
     PermissionedNodeRegistry internal permissionedNodeRegistry;
-    WalletConnectConfig internal bakersSyndicateConfig;
+    WalletConnectConfig internal walletConnectConfig;
     RewardManager internal rewardManager;
     Staking internal staking;
-
+    StakeWeight internal stakeWeight;
+    StakingRewardDistributor internal stakingRewardDistributor;
     /*//////////////////////////////////////////////////////////////////////////
                                    MOCKS
     //////////////////////////////////////////////////////////////////////////*/
@@ -60,12 +69,14 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
             admin: createUser("Admin"),
             manager: createUser("Manager"),
             timelockCanceller: createUser("TimelockCanceller"),
-            attacker: createUser("Attacker"),
+            emergencyHolder: createUser("EmergencyHolder"),
             treasury: createUser("Treasury"),
+            attacker: createUser("Attacker"),
             permissionedNode: createUser("PermissionedNode"),
             nonPermissionedNode: createUser("NonPermissionedNode"),
             bob: createUser("Bob"),
-            alice: createUser("Alice")
+            alice: createUser("Alice"),
+            carol: createUser("Carol")
         });
 
         defaults = new Defaults();
@@ -88,7 +99,7 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
         // Admin deploys/sets up the contracts.
         vm.startPrank(users.admin);
         // Deploy the proxy contracts
-        bakersSyndicateConfig = newWalletConnectConfig({
+        walletConnectConfig = newWalletConnectConfig({
             initialOwner: users.admin,
             init: WalletConnectConfig.Init({ admin: users.admin })
         });
@@ -100,9 +111,12 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
             init: RewardManager.Init({
                 owner: users.admin,
                 maxRewardsPerEpoch: defaults.EPOCH_REWARD_EMISSION(),
-                bakersSyndicateConfig: bakersSyndicateConfig
+                walletConnectConfig: walletConnectConfig
             })
         });
+
+        stakeWeight =
+            newStakeWeight(users.admin, StakeWeight.Init({ admin: users.admin, config: address(walletConnectConfig) }));
 
         staking = newStaking({
             initialOwner: users.admin,
@@ -110,7 +124,7 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
                 owner: users.admin,
                 minStakeAmount: defaults.MIN_STAKE(),
                 isStakingAllowlist: true,
-                bakersSyndicateConfig: bakersSyndicateConfig
+                walletConnectConfig: walletConnectConfig
             })
         });
 
@@ -129,19 +143,29 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
             })
         });
 
-        // Deploy the non-proxy contracts
+        stakingRewardDistributor = newStakingRewardDistributor({
+            initialOwner: users.admin,
+            init: StakingRewardDistributor.Init({
+                admin: users.admin,
+                stakeWeight: address(stakeWeight),
+                l2wct: address(l2wct),
+                startTime: block.timestamp,
+                emergencyHolder: users.emergencyHolder
+            })
+        });
 
+        // Deploy the non-proxy contracts
         permissionedNodeRegistry =
             new PermissionedNodeRegistry({ initialAdmin: users.admin, maxNodes_: defaults.MAX_REGISTRY_NODES() });
 
         // Update the WalletConnectConfig with the necessary contracts.
-        bakersSyndicateConfig.updateWCT(address(wct));
-        bakersSyndicateConfig.updateL2wct(address(l2wct));
-        bakersSyndicateConfig.updatePermissionedNodeRegistry(address(permissionedNodeRegistry));
-        bakersSyndicateConfig.updateRewardManager(address(rewardManager));
-        bakersSyndicateConfig.updatePauser(address(pauser));
-        bakersSyndicateConfig.updateStaking(address(staking));
-        bakersSyndicateConfig.updateWalletConnectRewardsVault(users.treasury);
+        walletConnectConfig.updateWCT(address(wct));
+        walletConnectConfig.updateL2wct(address(l2wct));
+        walletConnectConfig.updatePermissionedNodeRegistry(address(permissionedNodeRegistry));
+        walletConnectConfig.updateRewardManager(address(rewardManager));
+        walletConnectConfig.updatePauser(address(pauser));
+        walletConnectConfig.updateStaking(address(staking));
+        walletConnectConfig.updateWalletConnectRewardsVault(users.treasury);
 
         // Add roles
         vm.startPrank(users.admin);
@@ -150,14 +174,16 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
         vm.stopPrank();
 
         // Label the contracts.
-        vm.label({ account: address(bakersSyndicateConfig), newLabel: "WalletConnectConfig" });
+        vm.label({ account: address(walletConnectConfig), newLabel: "WalletConnectConfig" });
         vm.label({ account: address(wct), newLabel: "WCT" });
         vm.label({ account: address(l2wct), newLabel: "L2WCT" });
         vm.label({ account: address(pauser), newLabel: "Pauser" });
         vm.label({ account: address(permissionedNodeRegistry), newLabel: "PermissionedNodeRegistry" });
         vm.label({ account: address(rewardManager), newLabel: "RewardManager" });
         vm.label({ account: address(staking), newLabel: "Staking" });
+        vm.label({ account: address(stakeWeight), newLabel: "StakeWeight" });
         vm.label({ account: address(mockBridge), newLabel: "MockBridge" });
+        vm.label({ account: address(stakingRewardDistributor), newLabel: "StakingRewardDistributor" });
     }
 
     function fundRewardsVaultAndApprove() internal {
@@ -172,5 +198,14 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
     function deployMockBridge() internal {
         deployCodeTo("MockBridge.sol:MockBridge", "", BRIDGE_ADDRESS);
         mockBridge = MockBridge(BRIDGE_ADDRESS);
+    }
+
+    function disableTransferRestrictions() internal {
+        vm.prank(users.admin);
+        l2cnkt.disableTransferRestrictions();
+    }
+
+    function _timestampToFloorWeek(uint256 _timestamp) internal pure returns (uint256) {
+        return (_timestamp / 1 weeks) * 1 weeks;
     }
 }

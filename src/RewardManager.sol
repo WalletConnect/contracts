@@ -40,7 +40,6 @@ contract RewardManager is Initializable, OwnableUpgradeable {
         UtilLib.checkNonZeroAddress(address(init.bakersSyndicateConfig));
         bakersSyndicateConfig = init.bakersSyndicateConfig;
         maxRewardsPerEpoch = init.maxRewardsPerEpoch;
-        maxRewardsPerEpoch = init.maxRewardsPerEpoch;
         bakersSyndicateConfig = init.bakersSyndicateConfig;
     }
 
@@ -72,18 +71,18 @@ contract RewardManager is Initializable, OwnableUpgradeable {
 
         emit PerformanceUpdated(data.reportingEpoch, maxRewardsPerEpoch);
 
-        Staking staking = Staking(bakersSyndicateConfig.getStaking());
         // Distribute rewards based on performance
         for (uint256 i = 0; i < data.nodes.length; i++) {
             if (data.performance[i] > 0) {
                 address node = data.nodes[i];
-                if (staking.stakes(node) < staking.minStakeAmount()) {
-                    continue;
-                }
                 uint256 nodePerformance = data.performance[i];
                 uint256 nodeReward = (maxRewardsPerEpoch * nodePerformance) / totalPerformance;
-                staking.updateRewards(node, nodeReward, data.reportingEpoch);
+                updateRewards(node, nodeReward, data.reportingEpoch);
             }
         }
+    }
+
+    function updateRewards(address node, uint256 nodeReward, uint256 reportingEpoch) internal {
+        // TODO: Implement
     }
 }

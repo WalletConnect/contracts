@@ -1,0 +1,17 @@
+updateRewardRate.t.sol
+├── when the caller is not the owner
+│   └── it should revert
+└── when the caller is the owner
+    ├── when the new reward rate is the same as the old rate
+    │   └── it should revert
+    └── when the new reward rate is different from the old rate
+        ├── when there are no stakers
+        │   ├── it should update the reward rate
+        │   └── it should emit a RewardRateUpdated event
+        └── when there are existing stakers
+            ├── it should update the reward rate
+            ├── it should emit a RewardRateUpdated event
+            ├── it should not affect the rewards already earned by existing stakers
+            ├── it should correctly calculate new rewards based on the new rate
+            └── when a user stakes after the rate change
+                └── it should calculate rewards correctly using the new rate

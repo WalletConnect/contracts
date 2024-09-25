@@ -10,6 +10,8 @@ struct Users {
     address payable timelockCanceller;
     // Treasury
     address treasury;
+    // Emergency Holder
+    address emergencyHolder;
     // Attacker
     address payable attacker;
     // Permissioned Node
@@ -20,4 +22,6 @@ struct Users {
     address payable bob;
     // Alice: User
     address payable alice;
+    // Carol: User
+    address payable carol;
 }

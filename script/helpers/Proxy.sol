@@ -92,3 +92,32 @@ function newStaking(address initialOwner, Staking.Init memory init) returns (Sta
 
     return Staking(address(proxy));
 }
+
+function newStakingRewardDistributor(
+    address initialOwner,
+    StakingRewardDistributor.Init memory init
+)
+    returns (StakingRewardDistributor)
+{
+    bytes32 salt = bytes32("walletconnect.stakingrewarddistributor");
+
+    StakingRewardDistributor impl = new StakingRewardDistributor{ salt: salt }();
+    TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy{ salt: salt }({
+        _logic: address(impl),
+        initialOwner: address(initialOwner),
+        _data: abi.encodeCall(StakingRewardDistributor.initialize, init)
+    });
+
+    return StakingRewardDistributor(address(proxy));
+}
+
+function newStakeWeight(address initialOwner, StakeWeight.Init memory init) returns (StakeWeight) {
+    bytes32 salt = bytes32("walletconnect.stakeweight");
+
+    StakeWeight impl = new StakeWeight{ salt: salt }();
+    TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy{ salt: salt }({
+        _logic: address(impl),
+        initialOwner: address(initialOwner),
+        _data: abi.encodeCall(StakeWeight.initialize, init)
+    });
+}

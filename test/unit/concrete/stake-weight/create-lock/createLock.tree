@@ -1,0 +1,12 @@
+createLock.t.sol
+├── when value is zero
+│   └── it should revert
+├── when unlock time is in the past
+│   └── it should revert
+├── when unlock time is too far in the future
+│   └── it should revert
+└── when parameters are valid
+    ├── it should create the lock
+    ├── it should update the user's locked balance
+    ├── it should update the total supply
+    └── it should emit a Deposit event
