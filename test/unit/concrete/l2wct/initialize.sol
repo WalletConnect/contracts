@@ -8,7 +8,7 @@ import { MockBridge } from "test/mocks/MockBridge.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { Base_Test } from "test/Base.t.sol";
 
-contract Constructor_L2WCT_Unit_Concrete_Test is Base_Test {
+contract Initialize_L2WCT_Unit_Concrete_Test is Base_Test {
     address public remoteToken;
     string public name;
     string public symbol;
@@ -35,32 +35,34 @@ contract Constructor_L2WCT_Unit_Concrete_Test is Base_Test {
 
         deployMockBridge();
 
-        l2wct = new L2WCT(users.admin, users.manager, address(mockBridge), remoteToken);
+        l2wct = L2WCT(UnsafeUpgrades.deployTransparentProxy(address(new L2WCT()), users.admin, ""));
 
         vm.stopPrank();
     }
 
     function test_revertWhen_RemoteTokenIsZero() public {
         vm.expectRevert(L2WCT.InvalidAddress.selector);
-        new L2WCT(users.admin, users.manager, address(mockBridge), address(0));
+        l2wct.initialize(users.admin, users.manager, address(mockBridge), address(0));
     }
 
     function test_revertWhen_BridgeIsZero() public {
         vm.expectRevert(L2WCT.InvalidAddress.selector);
-        new L2WCT(users.admin, users.manager, address(0), remoteToken);
+        l2wct.initialize(users.admin, users.manager, address(0), remoteToken);
     }
 
     function test_revertWhen_InitialAdminIsZero() public {
         vm.expectRevert(L2WCT.InvalidAddress.selector);
-        new L2WCT(address(0), users.manager, address(mockBridge), remoteToken);
+        l2wct.initialize(address(0), users.manager, address(mockBridge), remoteToken);
     }
 
     function test_revertWhen_InitialManagerIsZero() public {
         vm.expectRevert(L2WCT.InvalidAddress.selector);
-        new L2WCT(users.admin, address(0), address(mockBridge), remoteToken);
+        l2wct.initialize(users.admin, address(0), address(mockBridge), remoteToken);
     }
 
-    function test_constructor() public view {
+    function test_initialize() public {
+        l2wct.initialize(users.admin, users.manager, address(mockBridge), remoteToken);
+
         assertTrue(l2wct.hasRole(l2wct.DEFAULT_ADMIN_ROLE(), users.admin));
         assertTrue(l2wct.hasRole(l2wct.MANAGER_ROLE(), users.manager));
         assertEq(l2wct.BRIDGE(), address(mockBridge));

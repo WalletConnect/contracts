@@ -142,7 +142,13 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
         permissionedNodeRegistry =
             new PermissionedNodeRegistry({ initialAdmin: users.admin, maxNodes_: defaults.MAX_REGISTRY_NODES() });
 
-        l2wct = new L2WCT(users.admin, users.manager, address(mockBridge), address(wct));
+        l2wct = L2WCT(
+            UnsafeUpgrades.deployTransparentProxy(
+                address(new L2WCT()),
+                users.admin,
+                abi.encodeCall(L2WCT.initialize, (users.admin, users.manager, address(mockBridge), address(wct)))
+            )
+        );
 
         // Update the WalletConnectConfig with the necessary contracts.
         bakersSyndicateConfig.updateWCT(address(wct));
