@@ -1,0 +1,19 @@
+revokeRole.t.sol
+├── when caller doesn't have DEFAULT_ADMIN_ROLE
+│   ├── when revoking DEFAULT_ADMIN_ROLE
+│   │   └── it should revert with AccessControlUnauthorizedAccount
+│   └── when revoking MANAGER_ROLE
+│       └── it should revert with AccessControlUnauthorizedAccount
+└── when caller has DEFAULT_ADMIN_ROLE
+    ├── when revoking DEFAULT_ADMIN_ROLE
+    │   ├── when account has DEFAULT_ADMIN_ROLE
+    │   │   ├── it should revoke the role
+    │   │   └── it should emit RoleRevoked event
+    │   └── when account does not have DEFAULT_ADMIN_ROLE
+    │       └── it should not revert
+    └── when revoking MANAGER_ROLE
+        ├── when account has MANAGER_ROLE
+        │   ├── it should revoke the role
+        │   └── it should emit RoleRevoked event
+        └── when account does not have MANAGER_ROLE
+            └── it should revert

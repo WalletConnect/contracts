@@ -1,0 +1,10 @@
+removeNodeFromWhitelist.t.sol
+├── when the caller is not the owner
+│   └── it should revert
+└── when the caller is the owner
+    ├── given the node is not in the whitelist
+    │   └── it should revert
+    └── given the node is in the whitelist
+        ├── it should remove the node from the whitelist
+        ├── it should emit a NodeRemoved event
+        └── it should decrement the node count

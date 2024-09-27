@@ -1,0 +1,6 @@
+setAllowedFrom.t.sol
+├── when caller is not owner
+│   └── it should revert with "OwnableUnauthorizedAccount"
+└── when caller is owner
+    ├── it should set the allowedFrom status for the specified address
+    └── it should emit a {SetAllowedFrom} event
