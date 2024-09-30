@@ -39,7 +39,8 @@ contract EthereumDeploy is BaseScript {
 
     function logDeployments() public {
         EthereumDeployments memory deps = readEthereumDeployments(block.chainid);
-        console2.log("WCT:", address(deps.wct));
+        logEip1967("WCT", address(deps.wct));
+        console2.log("Timelock", address(deps.timelock));
     }
 
     function _deployAll(EthereumDeploymentParams memory params) private returns (EthereumDeployments memory) {

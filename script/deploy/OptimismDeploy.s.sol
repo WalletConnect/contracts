@@ -32,7 +32,7 @@ contract OptimismDeploy is BaseScript {
 
     function logDeployments() public {
         OptimismDeployments memory deps = readOptimismDeployments(block.chainid);
-        console2.log("L2WCT:", address(deps.l2wct));
+        logEip1967("L2WCT", address(deps.l2wct));
         console2.log("Admin Timelock:", address(deps.adminTimelock));
         console2.log("Manager Timelock:", address(deps.managerTimelock));
     }
