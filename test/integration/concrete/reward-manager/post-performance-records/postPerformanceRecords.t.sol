@@ -10,7 +10,6 @@ contract PostPerformanceRecords_RewardManager_Integration_Concrete_Test is Staki
 
     function setUp() public override {
         super.setUp();
-        deployCoreConditionally();
         defaultReportingEpoch = defaults.FIRST_EPOCH();
     }
 

@@ -4,8 +4,8 @@ pragma solidity >=0.8.25 <0.9.0;
 import { console2 } from "forge-std/console2.sol";
 import { Timelock } from "src/Timelock.sol";
 import { L2WCT } from "src/L2WCT.sol";
-import { Upgrades } from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import { OptimismDeployments, BaseScript } from "script/Base.s.sol";
+import { newL2WCT } from "script/helpers/Proxy.sol";
 
 struct OptimismDeploymentParams {
     address admin;
@@ -42,13 +42,15 @@ contract OptimismDeploy is BaseScript {
             block.chainid == getChain("optimism").chainId ? getChain("mainnet").chainId : getChain("sepolia").chainId;
         address remoteToken = address(readEthereumDeployments(parentChainId).wct);
 
-        L2WCT l2wct = L2WCT(
-            Upgrades.deployTransparentProxy(
-                "L2WCT.sol",
-                params.admin,
-                abi.encodeCall(L2WCT.initialize, (params.admin, params.manager, address(params.opBridge), remoteToken))
-            )
-        );
+        L2WCT l2wct = newL2WCT({
+            initialOwner: params.admin,
+            init: L2WCT.Init({
+                initialAdmin: params.admin,
+                initialManager: params.manager,
+                bridge: address(params.opBridge),
+                remoteToken: remoteToken
+            })
+        });
 
         Timelock adminTimelock = new Timelock(
             1 weeks, _singleAddressArray(params.admin), _singleAddressArray(params.admin), params.timelockCanceller

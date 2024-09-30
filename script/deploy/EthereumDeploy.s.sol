@@ -6,6 +6,7 @@ import { WCT } from "src/WCT.sol";
 import { Timelock } from "src/Timelock.sol";
 import { Upgrades } from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import { EthereumDeployments, BaseScript } from "script/Base.s.sol";
+import { newWCT } from "script/helpers/Proxy.sol";
 
 struct EthereumDeploymentParams {
     address admin;
@@ -42,18 +43,11 @@ contract EthereumDeploy is BaseScript {
     }
 
     function _deployAll(EthereumDeploymentParams memory params) private returns (EthereumDeployments memory) {
-        WCT wct = WCT(
-            Upgrades.deployTransparentProxy(
-                // We deploy with broadcaster as owner to mint initial supply and bridge it
-                "WCT.sol:WCT",
-                broadcaster,
-                abi.encodeCall(WCT.initialize, WCT.Init({ initialOwner: broadcaster }))
-            )
-        );
-
         Timelock timelock = new Timelock(
             1 weeks, _singleAddressArray(params.admin), _singleAddressArray(params.admin), params.timelockCanceller
         );
+
+        WCT wct = newWCT({ initialOwner: broadcaster, init: WCT.Init({ initialOwner: params.admin }) });
 
         return EthereumDeployments({ wct: wct, timelock: timelock });
     }

@@ -9,6 +9,10 @@ import { PermissionedNodeRegistry } from "src/PermissionedNodeRegistry.sol";
 import { WalletConnectConfig } from "src/WalletConnectConfig.sol";
 import { RewardManager } from "src/RewardManager.sol";
 import { Staking } from "src/Staking.sol";
+import {
+    newPauser, newStaking, newRewardManager, newWalletConnectConfig, newWCT, newL2WCT
+} from "script/helpers/Proxy.sol";
+
 import { MockBridge } from "./mocks/MockBridge.sol";
 
 import { Test } from "forge-std/Test.sol";
@@ -84,71 +88,51 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
         // Admin deploys/sets up the contracts.
         vm.startPrank(users.admin);
         // Deploy the proxy contracts
-        bakersSyndicateConfig = WalletConnectConfig(
-            UnsafeUpgrades.deployTransparentProxy(
-                address(new WalletConnectConfig()),
-                users.admin,
-                abi.encodeCall(WalletConnectConfig.initialize, WalletConnectConfig.Init({ admin: users.admin }))
-            )
-        );
+        bakersSyndicateConfig = newWalletConnectConfig({
+            initialOwner: users.admin,
+            init: WalletConnectConfig.Init({ admin: users.admin })
+        });
 
-        pauser = Pauser(
-            UnsafeUpgrades.deployTransparentProxy(
-                address(new Pauser()),
-                users.admin,
-                abi.encodeCall(Pauser.initialize, Pauser.Init({ admin: users.admin }))
-            )
-        );
+        pauser = newPauser({ initialOwner: users.admin, init: Pauser.Init({ admin: users.admin }) });
 
-        rewardManager = RewardManager(
-            UnsafeUpgrades.deployTransparentProxy(
-                address(new RewardManager()),
-                users.admin,
-                abi.encodeCall(
-                    RewardManager.initialize,
-                    RewardManager.Init({
-                        owner: users.admin,
-                        maxRewardsPerEpoch: defaults.EPOCH_REWARD_EMISSION(),
-                        bakersSyndicateConfig: bakersSyndicateConfig
-                    })
-                )
-            )
-        );
-        staking = Staking(
-            UnsafeUpgrades.deployTransparentProxy(
-                address(new Staking()),
-                users.admin,
-                abi.encodeCall(
-                    Staking.initialize,
-                    Staking.Init({
-                        owner: users.admin,
-                        minStakeAmount: defaults.MIN_STAKE(),
-                        isStakingAllowlist: true,
-                        bakersSyndicateConfig: bakersSyndicateConfig
-                    })
-                )
-            )
-        );
+        rewardManager = newRewardManager({
+            initialOwner: users.admin,
+            init: RewardManager.Init({
+                owner: users.admin,
+                maxRewardsPerEpoch: defaults.EPOCH_REWARD_EMISSION(),
+                bakersSyndicateConfig: bakersSyndicateConfig
+            })
+        });
 
-        wct = WCT(
-            UnsafeUpgrades.deployTransparentProxy(
-                address(new WCT()), users.admin, abi.encodeCall(WCT.initialize, WCT.Init({ initialOwner: users.admin }))
-            )
-        );
+        staking = newStaking({
+            initialOwner: users.admin,
+            init: Staking.Init({
+                owner: users.admin,
+                minStakeAmount: defaults.MIN_STAKE(),
+                isStakingAllowlist: true,
+                bakersSyndicateConfig: bakersSyndicateConfig
+            })
+        });
+
+        wct = newWCT({ initialOwner: users.admin, init: WCT.Init({ initialOwner: users.admin }) });
+
+        // Dependency for L2WCT
+        deployMockBridge();
+
+        l2wct = newL2WCT({
+            initialOwner: users.admin,
+            init: L2WCT.Init({
+                initialAdmin: users.admin,
+                initialManager: users.manager,
+                bridge: address(mockBridge),
+                remoteToken: address(wct)
+            })
+        });
 
         // Deploy the non-proxy contracts
-        deployMockBridge();
 
         permissionedNodeRegistry =
             new PermissionedNodeRegistry({ initialAdmin: users.admin, maxNodes_: defaults.MAX_REGISTRY_NODES() });
-
-        l2wct = L2WCT(
-            UnsafeUpgrades.deployTransparentProxy(
-                address(new L2WCT()),
-                users.admin,
-                abi.encodeCall(L2WCT.initialize, (users.admin, users.manager, address(mockBridge), address(wct)))
-            )
-        );
 
         // Update the WalletConnectConfig with the necessary contracts.
         bakersSyndicateConfig.updateWCT(address(wct));

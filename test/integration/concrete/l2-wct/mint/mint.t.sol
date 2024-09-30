@@ -6,11 +6,6 @@ import { ERC20Votes } from "@openzeppelin/contracts/token/ERC20/extensions/ERC20
 import { Integration_Test } from "test/integration/Integration.t.sol";
 
 contract Mint_L2WCT_Integration_Concrete_Test is Integration_Test {
-    function setUp() public override {
-        super.setUp();
-        deployCoreConditionally();
-    }
-
     function test_RevertWhen_CallerNotBridge() external {
         vm.expectRevert(L2WCT.OnlyBridge.selector);
         vm.prank(users.alice);

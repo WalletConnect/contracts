@@ -5,11 +5,6 @@ import { RewardManager } from "src/RewardManager.sol";
 import { Staking_Integration_Shared_Test } from "test/integration/shared/Staking.t.sol";
 
 contract PostPerformanceRecords_RewardManager_Unit_Fuzz_Test is Staking_Integration_Shared_Test {
-    function setUp() public override {
-        super.setUp();
-        deployCoreConditionally();
-    }
-
     modifier whenCallerOwner() {
         vm.startPrank(users.admin);
         _;
