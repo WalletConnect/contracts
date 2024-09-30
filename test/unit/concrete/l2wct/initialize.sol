@@ -41,27 +41,58 @@ contract Initialize_L2WCT_Unit_Concrete_Test is Base_Test {
     }
 
     function test_revertWhen_RemoteTokenIsZero() public {
+        L2WCT.Init memory init = L2WCT.Init({
+            initialAdmin: users.admin,
+            initialManager: users.manager,
+            bridge: address(mockBridge),
+            remoteToken: address(0)
+        });
         vm.expectRevert(L2WCT.InvalidAddress.selector);
-        l2wct.initialize(users.admin, users.manager, address(mockBridge), address(0));
+        l2wct.initialize(init);
     }
 
     function test_revertWhen_BridgeIsZero() public {
+        L2WCT.Init memory init = L2WCT.Init({
+            initialAdmin: users.admin,
+            initialManager: users.manager,
+            bridge: address(0),
+            remoteToken: remoteToken
+        });
         vm.expectRevert(L2WCT.InvalidAddress.selector);
-        l2wct.initialize(users.admin, users.manager, address(0), remoteToken);
+        l2wct.initialize(init);
     }
 
     function test_revertWhen_InitialAdminIsZero() public {
+        L2WCT.Init memory init = L2WCT.Init({
+            initialAdmin: address(0),
+            initialManager: users.manager,
+            bridge: address(mockBridge),
+            remoteToken: remoteToken
+        });
         vm.expectRevert(L2WCT.InvalidAddress.selector);
-        l2wct.initialize(address(0), users.manager, address(mockBridge), remoteToken);
+        l2wct.initialize(init);
     }
 
     function test_revertWhen_InitialManagerIsZero() public {
+        L2WCT.Init memory init = L2WCT.Init({
+            initialAdmin: users.admin,
+            initialManager: address(0),
+            bridge: address(mockBridge),
+            remoteToken: remoteToken
+        });
         vm.expectRevert(L2WCT.InvalidAddress.selector);
-        l2wct.initialize(users.admin, address(0), address(mockBridge), remoteToken);
+        l2wct.initialize(init);
     }
 
     function test_initialize() public {
-        l2wct.initialize(users.admin, users.manager, address(mockBridge), remoteToken);
+        L2WCT.Init memory init = L2WCT.Init({
+            initialAdmin: users.admin,
+            initialManager: users.manager,
+            bridge: address(mockBridge),
+            remoteToken: remoteToken
+        });
+
+        l2wct.initialize(init);
 
         assertTrue(l2wct.hasRole(l2wct.DEFAULT_ADMIN_ROLE(), users.admin));
         assertTrue(l2wct.hasRole(l2wct.MANAGER_ROLE(), users.manager));

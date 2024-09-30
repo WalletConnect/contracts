@@ -75,36 +75,36 @@ contract L2WCT is
         _disableInitializers();
     }
 
+    /// @notice Initialization data for the contract
+    struct Init {
+        /// @dev The address that will be the initial admin of the contract
+        address initialAdmin;
+        /// @dev The address that will be the initial manager of the contract
+        address initialManager;
+        /// @dev Address of the L2 standard bridge
+        address bridge;
+        /// @dev Address of the corresponding L1 token
+        address remoteToken;
+    }
+
     /// @notice Initializes the L2WCT token
-    /// @param initialAdmin Address of the initial admin of the contract
-    /// @param initialManager Address of the initial manager of the contract
-    /// @param _bridge Address of the L2 standard bridge
-    /// @param _remoteToken Address of the corresponding L1 token
-    function initialize(
-        address initialAdmin,
-        address initialManager,
-        address _bridge,
-        address _remoteToken
-    )
-        public
-        initializer
-    {
+    function initialize(Init memory init) public initializer {
         __ERC20_init({ name_: "WalletConnect", symbol_: "WCT" });
         __ERC20Permit_init("WalletConnect");
         __ERC20Votes_init();
         __AccessControl_init();
 
-        if (_remoteToken == address(0)) revert InvalidAddress();
-        if (_bridge == address(0)) revert InvalidAddress();
-        if (initialAdmin == address(0)) revert InvalidAddress();
-        if (initialManager == address(0)) revert InvalidAddress();
-        REMOTE_TOKEN = _remoteToken;
-        BRIDGE = _bridge;
+        if (init.remoteToken == address(0)) revert InvalidAddress();
+        if (init.bridge == address(0)) revert InvalidAddress();
+        if (init.initialAdmin == address(0)) revert InvalidAddress();
+        if (init.initialManager == address(0)) revert InvalidAddress();
+        REMOTE_TOKEN = init.remoteToken;
+        BRIDGE = init.bridge;
         // Set transfer restrictions to be disabled at type(uint256).max to be set down later
         transferRestrictionsDisabledAfter = type(uint256).max;
 
-        _grantRole(DEFAULT_ADMIN_ROLE, initialAdmin);
-        _grantRole(MANAGER_ROLE, initialManager);
+        _grantRole(DEFAULT_ADMIN_ROLE, init.initialAdmin);
+        _grantRole(MANAGER_ROLE, init.initialManager);
     }
 
     /// @custom:legacy
