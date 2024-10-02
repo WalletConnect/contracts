@@ -9,6 +9,7 @@ import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/O
 import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { WalletConnectConfig } from "./WalletConnectConfig.sol";
+import { Pauser } from "./Pauser.sol";
 
 /**
  * @dev This contract was inspired by Curve's veCRV and PancakeSwap's veCake implementations.
@@ -90,6 +91,7 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
     error AmountTooLarge(uint256 attemptedAmount, uint256 maxAllowedAmount);
     error BadBlockNumber(uint256 blockNumber);
     error InsufficientBalance(uint256 requiredBalance, uint256 actualBalance);
+    error Paused();
 
     uint256 public constant ACTION_DEPOSIT_FOR = 0;
     uint256 public constant ACTION_CREATE_LOCK = 1;
@@ -118,10 +120,6 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
     /// @param _user The address to get a balance of Stake Weight
     /// @param _blockNumber The specific block number that you want to check the balance of Stake Weight
     function balanceOfAt(address _user, uint256 _blockNumber) external view returns (uint256) {
-        return _balanceOfAt(_user, _blockNumber);
-    }
-
-    function balanceOfAtUser(address _user, uint256 _blockNumber) external view returns (uint256) {
         return _balanceOfAt(_user, _blockNumber);
     }
 
@@ -167,10 +165,17 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
     function balanceOf(address _user) external view returns (uint256) {
         return _balanceOf(_user, block.timestamp);
     }
-
-    function balanceOfUser(address _user) external view returns (uint256) {
-        return _balanceOf(_user, block.timestamp);
-    }
+    /// @notice Calculate the stake weight of a user at a specific timestamp
+    /// @dev This function is primarily designed for calculating future balances.
+    ///      CAUTION: It will revert due to underflow for timestamps before the user's last checkpoint.
+    ///      This behavior is intentional and should be carefully considered when calling this function.
+    ///      - For timestamps > last checkpoint: Projects future balance based on current slope
+    ///      - For timestamps == last checkpoint: Returns current balance
+    ///      - For timestamps < last checkpoint: Reverts due to underflow
+    ///      Use with care in contract interactions and consider implementing try/catch for calls to this function.
+    /// @param _user The address of the user to check
+    /// @param _timestamp The timestamp to check the stake weight at
+    /// @return The user's projected stake weight at the specified timestamp
 
     function balanceOfAtTime(address _user, uint256 _timestamp) external view returns (uint256) {
         return _balanceOf(_user, _timestamp);
@@ -390,6 +395,7 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
     /// @param _unlockTime the timestamp when WCT get unlocked, it will be
     /// floored down to whole weeks
     function createLock(uint256 _amount, uint256 _unlockTime) external nonReentrant {
+        if (Pauser(config.getPauser()).isStakeWeightPaused()) revert Paused();
         _createLock(_amount, _unlockTime);
     }
 
@@ -410,6 +416,7 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
     /// @param _amount The amount that user wishes to deposit
 
     function depositFor(address _for, uint256 _amount) external nonReentrant {
+        if (Pauser(config.getPauser()).isStakeWeightPaused()) revert Paused();
         _depositFor(_for, _amount, 0, locks[_for], ACTION_DEPOSIT_FOR);
     }
 
@@ -496,6 +503,7 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
     /// @notice Increase lock amount without increase "end"
     /// @param _amount The amount of WCT to be added to the lock
     function increaseLockAmount(uint256 _amount) external nonReentrant {
+        if (Pauser(config.getPauser()).isStakeWeightPaused()) revert Paused();
         LockedBalance memory _lock = locks[msg.sender];
         if (_amount == 0) revert InvalidAmount(_amount);
         if (_lock.amount == 0) revert InvalidLockState();
@@ -506,6 +514,7 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
     /// @notice Increase unlock time without changing locked amount
     /// @param _newUnlockTime The new unlock time to be updated
     function increaseUnlockTime(uint256 _newUnlockTime) external nonReentrant {
+        if (Pauser(config.getPauser()).isStakeWeightPaused()) revert Paused();
         LockedBalance memory _locked = locks[msg.sender];
         _newUnlockTime = _timestampToFloorWeek(_newUnlockTime);
         if (_locked.end <= block.timestamp) revert ExpiredLock(block.timestamp, _locked.end);
@@ -595,6 +604,7 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
 
     /// @notice Withdraw all WCT when lock has expired.
     function withdrawAll() external nonReentrant {
+        if (Pauser(config.getPauser()).isStakeWeightPaused()) revert Paused();
         LockedBalance memory _lock = locks[msg.sender];
 
         uint256 _amount = SafeCast.toUint256(_lock.amount);
