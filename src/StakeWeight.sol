@@ -44,7 +44,8 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
                                     CONSTANTS
     //////////////////////////////////////////////////////////////////////////*/
 
-    uint256 public constant MAX_LOCK = 4 * 365 days;
+    // MAX_LOCK 209 weeks - 1 seconds
+    uint256 public constant MAX_LOCK = (209 weeks) - 1;
     uint256 public constant MULTIPLIER = 1e18;
 
     /*//////////////////////////////////////////////////////////////////////////
