@@ -168,10 +168,6 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
         walletConnectConfig.updateStaking(address(staking));
         walletConnectConfig.updateWalletConnectRewardsVault(users.treasury);
 
-        // Add roles
-        vm.startPrank(users.admin);
-        pauser.grantRole(pauser.PAUSER_ROLE(), users.admin);
-        pauser.grantRole(pauser.UNPAUSER_ROLE(), users.admin);
         vm.stopPrank();
 
         // Label the contracts.
@@ -204,9 +200,5 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
     function disableTransferRestrictions() internal {
         vm.prank(users.admin);
         l2wct.disableTransferRestrictions();
-    }
-
-    function _timestampToFloorWeek(uint256 _timestamp) internal pure returns (uint256) {
-        return (_timestamp / 1 weeks) * 1 weeks;
     }
 }

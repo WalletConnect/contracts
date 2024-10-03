@@ -1,35 +1,69 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.25 <0.9.0;
 
-import { Base_Test } from "test/Base.t.sol";
+import { StakeWeight_Integration_Shared_Test } from "test/integration/shared/StakeWeight.t.sol";
 import { StakeWeight } from "src/StakeWeight.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-contract CreateLock_StakeWeight_Unit_Concrete_Test is Base_Test {
-    function setUp() public override {
-        super.setUp();
-        deployCoreConditionally();
-        disableTransferRestrictions();
+contract CreateLock_StakeWeight_Unit_Concrete_Test is StakeWeight_Integration_Shared_Test {
+
+    function test_RevertWhen_ContractIsPaused() external {
+        _pause();
+
+        vm.expectRevert(StakeWeight.Paused.selector);
+        stakeWeight.createLock(100 ether, block.timestamp + 1 weeks);
     }
 
-    function test_RevertWhen_ValueIsZero() external {
+    modifier whenContractIsNotPaused() {
+        _;
+    }
+
+    function test_RevertGiven_UserAlreadyHasLock() external whenContractIsNotPaused {
+        uint256 amount = 100 ether;
+        uint256 unlockTime = _timestampToFloorWeek(block.timestamp + 52 weeks);
+
+        // Deal tokens to Alice and start pranking as Alice
+        deal(address(l2wct), users.alice, amount * 2);
+        vm.startPrank(users.alice);
+
+        // Approve tokens for locking
+        IERC20(address(l2wct)).approve(address(stakeWeight), amount * 2);
+
+        // Create initial lock
+        stakeWeight.createLock(amount, unlockTime);
+
+        // Attempt to create another lock
+        vm.expectRevert(abi.encodeWithSelector(StakeWeight.InvalidLockState.selector));
+        stakeWeight.createLock(amount, unlockTime);
+
+        vm.stopPrank();
+    }
+
+    modifier givenUserDoesNotHaveALock() {
+        // Ensure the user doesn't have an existing lock
+        (int128 lockAmount,) = stakeWeight.locks(users.alice);
+        require(lockAmount == 0, "User already has a lock");
+        _;
+    }
+
+    function test_RevertWhen_ValueIsZero() external whenContractIsNotPaused givenUserDoesNotHaveALock {
         vm.expectRevert(abi.encodeWithSelector(StakeWeight.InvalidAmount.selector, 0));
         stakeWeight.createLock(0, block.timestamp + 1 weeks);
     }
 
-    function test_RevertWhen_UnlockTimeInPast() external {
+    function test_RevertWhen_UnlockTimeInPast() external whenContractIsNotPaused givenUserDoesNotHaveALock {
         uint256 lockTime = _timestampToFloorWeek(block.timestamp - 1);
         vm.expectRevert(abi.encodeWithSelector(StakeWeight.InvalidUnlockTime.selector, lockTime));
         stakeWeight.createLock(1 ether, lockTime);
     }
 
-    function test_RevertWhen_UnlockTimeTooFarInFuture() external {
+    function test_RevertWhen_UnlockTimeTooFarInFuture() external whenContractIsNotPaused givenUserDoesNotHaveALock {
         uint256 maxLock = stakeWeight.MAX_LOCK();
         vm.expectRevert(abi.encodeWithSelector(StakeWeight.VotingLockMaxExceeded.selector));
         stakeWeight.createLock(1 ether, block.timestamp + maxLock + 2 weeks);
     }
 
-    function test_WhenValidParameters() external {
+    function test_WhenValidParameters() external whenContractIsNotPaused givenUserDoesNotHaveALock {
         uint256 amount = 100 ether;
         uint256 unlockTime = _timestampToFloorWeek(block.timestamp + 52 weeks);
 
@@ -75,5 +109,23 @@ contract CreateLock_StakeWeight_Unit_Concrete_Test is Base_Test {
         assertGt(balance, 0, "Balance should be greater than zero after locking");
 
         vm.stopPrank();
+    }
+
+    function test_WhenValidParameters_And_MaxLock() external whenContractIsNotPaused givenUserDoesNotHaveALock {
+        uint256 amount = 100 ether;
+        uint256 unlockTime = block.timestamp + stakeWeight.MAX_LOCK();
+
+        // Deal tokens to Alice and start pranking as Alice
+        deal(address(l2wct), users.alice, amount);
+        vm.startPrank(users.alice);
+
+        // Approve tokens for locking
+        IERC20(address(l2wct)).approve(address(stakeWeight), amount);
+
+        vm.expectEmit(true, true, true, true);
+        emit Deposit(
+            users.alice, amount, _timestampToFloorWeek(unlockTime), stakeWeight.ACTION_CREATE_LOCK(), block.timestamp
+        );
+        stakeWeight.createLock(amount, unlockTime);
     }
 }

@@ -9,4 +9,9 @@ abstract contract Utils is CommonBase {
         vm.stopPrank();
         vm.startPrank(msgSender);
     }
+
+    /// @dev Converts a timestamp to the floor of the week it belongs to.
+    function _timestampToFloorWeek(uint256 _timestamp) internal pure returns (uint256) {
+        return (_timestamp / 1 weeks) * 1 weeks;
+    }
 }

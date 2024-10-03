@@ -1,0 +1,20 @@
+increaseUnlockTime.t.sol
+├── given contract is paused
+│   └── it should revert
+└── given contract is not paused
+    ├── when user has no existing lock
+    │   └── it should revert with InvalidLockState
+    ├── when user has an expired lock
+    │   └── it should revert with ExpiredLock
+    └── when user has an active lock
+        ├── when new unlock time is less than or equal to current lock end
+        │   └── it should revert with CanOnlyIncreaseLockDuration
+        ├── when new unlock time exceeds MAX_LOCK
+        │   └── it should revert with VotingLockMaxExceeded
+        └── when new unlock time is valid
+            ├── it should update the lock end time
+            ├── it should update the user's voting power
+            ├── it should not update the supply
+            ├── it should update the total supply
+            ├── it should emit a Deposit event
+            └── it should emit a Supply event

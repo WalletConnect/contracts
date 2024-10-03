@@ -1,0 +1,21 @@
+totalSupplyAtTime.t.sol
+├── when querying supply at a time before any locks
+│   └── it should return zero
+├── when querying supply at the current time
+│   └── it should match the regular totalSupply
+├── when querying supply at a time with active locks
+│   ├── it should return the sum of all active locks at that time
+│   └── it should be less than or equal to the current totalSupply
+├── when querying supply at a time after some locks have expired
+│   ├── it should only include non-expired locks in the total supply
+│   └── it should be less than the original totalSupply
+├── when querying supply at a time after all locks have expired
+│   └── it should return zero
+├── when locks have different durations
+│   └── it should correctly calculate partial lock values
+├── when querying supply into the future
+│   ├── it should decrease over time as locks expire
+│   └── it should eventually return zero when all locks expire
+└── when querying supply backwards after warping time
+    ├── it should increase as we query backwards
+    └── it should match the initial supply at the start time

@@ -3,6 +3,8 @@ pragma solidity >=0.8.25;
 
 /// @notice Contract with default values used throughout the tests.
 contract Defaults {
+    uint256 public constant SECONDS_PER_BLOCK = 2;
+    uint256 public constant ONE_WEEK_IN_BLOCKS = 1 weeks / SECONDS_PER_BLOCK;
     // NodeRewardManager
     uint256 public constant EPOCH_REWARD_EMISSION = 1000 ether;
     uint256 public constant REWARD_BUDGET = EPOCH_REWARD_EMISSION * 1000;

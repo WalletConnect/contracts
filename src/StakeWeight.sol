@@ -83,10 +83,10 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
 
     error InvalidInput();
     error InvalidAmount(uint256 amount);
+    error InvalidAddress();
     error InvalidLockState();
     error InvalidUnlockTime(uint256 unlockTime);
     error ExpiredLock(uint256 currentTime, uint256 lockEndTime);
-    error InvalidAction();
     error VotingLockMaxExceeded();
     error CanOnlyIncreaseLockDuration();
     error AmountTooLarge(uint256 attemptedAmount, uint256 maxAllowedAmount);
@@ -418,7 +418,14 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
 
     function depositFor(address _for, uint256 _amount) external nonReentrant {
         if (Pauser(config.getPauser()).isStakeWeightPaused()) revert Paused();
-        _depositFor(_for, _amount, 0, locks[_for], ACTION_DEPOSIT_FOR);
+        LockedBalance memory _lock = LockedBalance({ amount: locks[_for].amount, end: locks[_for].end });
+
+        if (_for == address(0)) revert InvalidAddress();
+        if (_amount == 0) revert InvalidAmount(_amount);
+        if (_lock.amount == 0) revert InvalidLockState();
+        if (_lock.end <= block.timestamp) revert ExpiredLock(block.timestamp, _lock.end);
+
+        _depositFor(_for, _amount, 0, _lock, ACTION_DEPOSIT_FOR);
     }
 
     /// @notice Internal function to perform deposit and lock WCT for a user
@@ -518,6 +525,7 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
         if (Pauser(config.getPauser()).isStakeWeightPaused()) revert Paused();
         LockedBalance memory _locked = locks[msg.sender];
         _newUnlockTime = _timestampToFloorWeek(_newUnlockTime);
+        if (_locked.amount == 0) revert InvalidLockState();
         if (_locked.end <= block.timestamp) revert ExpiredLock(block.timestamp, _locked.end);
         if (_newUnlockTime <= _locked.end) revert CanOnlyIncreaseLockDuration();
         if (_newUnlockTime > block.timestamp + MAX_LOCK) revert VotingLockMaxExceeded();
@@ -607,6 +615,8 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
     function withdrawAll() external nonReentrant {
         if (Pauser(config.getPauser()).isStakeWeightPaused()) revert Paused();
         LockedBalance memory _lock = locks[msg.sender];
+        if (_lock.amount == 0) revert InvalidLockState();
+        if (_lock.end > block.timestamp) revert InvalidLockState();
 
         uint256 _amount = SafeCast.toUint256(_lock.amount);
 
