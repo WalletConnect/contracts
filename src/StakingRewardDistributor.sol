@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import { WalletConnectConfig } from "./WalletConnectConfig.sol";
 import { StakeWeight } from "./StakeWeight.sol";
 import { Math128 } from "./library/Math128.sol";
 
@@ -41,7 +43,7 @@ interface IStakeWeight {
     function pointHistory(uint256 _epoch) external view returns (StakeWeight.Point memory);
 }
 
-contract StakingRewardDistributor is Ownable, ReentrancyGuard {
+contract StakingRewardDistributor is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20 for IERC20;
 
     /// @dev Events
@@ -55,6 +57,14 @@ contract StakingRewardDistributor is Ownable, ReentrancyGuard {
         address _owner, address indexed _user, address indexed _oldRecipient, address indexed _newRecipient
     );
 
+    /// @dev Custom Errors
+    error ContractKilled();
+    error TooManyUsers();
+    error InvalidUser();
+    error InvalidConfig();
+    error InvalidEmergencyReturn();
+    error Unauthorized();
+
     uint256 public startWeekCursor;
     uint256 public weekCursor;
     mapping(address => uint256) public weekCursorOf;
@@ -63,8 +73,7 @@ contract StakingRewardDistributor is Ownable, ReentrancyGuard {
     uint256 public lastTokenTimestamp;
     mapping(uint256 => uint256) public tokensPerWeek;
 
-    IStakeWeight public stakeWeight;
-    IERC20 public rewardToken;
+    WalletConnectConfig public config;
     uint256 public lastTokenBalance;
 
     uint256 public totalDistributed;
@@ -79,27 +88,43 @@ contract StakingRewardDistributor is Ownable, ReentrancyGuard {
     bool public isKilled;
     address public emergencyReturn;
 
-    /// @notice constructor
-    constructor(
-        address _admin,
-        address _stakeWeight,
-        address _rewardToken,
-        uint256 _startTime,
-        address _emergencyReturn
-    )
-        Ownable(_admin)
-    {
-        uint256 _startTimeFloorWeek = _timestampToFloorWeek(_startTime);
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    /// @notice Initializes the contract
+    /// @notice Initialization parameters
+    struct Init {
+        /// @param admin Address of the admin
+        address admin;
+        /// @param startTime Start time for the distribution
+        uint256 startTime;
+        /// @param emergencyReturn Address for emergency return
+        address emergencyReturn;
+        /// @param config Address of the WalletConnectConfig contract
+        address config;
+    }
+
+    /// @notice Initializes the contract
+    /// @param _init Initialization parameters
+    function initialize(Init memory _init) public initializer {
+        __Ownable_init(_init.admin);
+        __ReentrancyGuard_init();
+
+        if (_init.config == address(0)) revert InvalidConfig();
+        if (_init.emergencyReturn == address(0)) revert InvalidEmergencyReturn();
+        config = WalletConnectConfig(_init.config);
+
+        uint256 _startTimeFloorWeek = _timestampToFloorWeek(_init.startTime);
         startWeekCursor = _startTimeFloorWeek;
         lastTokenTimestamp = _startTimeFloorWeek;
         weekCursor = _startTimeFloorWeek;
-        rewardToken = IERC20(_rewardToken);
-        stakeWeight = IStakeWeight(_stakeWeight);
-        emergencyReturn = _emergencyReturn;
+        emergencyReturn = _init.emergencyReturn;
     }
 
     modifier onlyLive() {
-        require(!isKilled, "killed");
+        if (isKilled) revert ContractKilled();
         _;
     }
 
@@ -107,6 +132,7 @@ contract StakingRewardDistributor is Ownable, ReentrancyGuard {
     /// @param _user The user address
     /// @param _timestamp The timestamp to get user's balance
     function balanceOfAt(address _user, uint256 _timestamp) external view returns (uint256) {
+        IStakeWeight stakeWeight = IStakeWeight(config.getStakeWeight());
         uint256 _maxUserEpoch = stakeWeight.userPointEpoch(_user);
         if (_maxUserEpoch == 0) {
             return 0;
@@ -124,7 +150,7 @@ contract StakingRewardDistributor is Ownable, ReentrancyGuard {
     /// @notice Record token distribution checkpoint
     function _checkpointToken() internal {
         // Find out how many tokens to be distributed
-        uint256 _rewardTokenBalance = rewardToken.balanceOf(address(this));
+        uint256 _rewardTokenBalance = IERC20(config.getL2wct()).balanceOf(address(this));
         uint256 _toDistribute = _rewardTokenBalance - lastTokenBalance;
         lastTokenBalance = _rewardTokenBalance;
 
@@ -179,6 +205,7 @@ contract StakingRewardDistributor is Ownable, ReentrancyGuard {
 
     /// @notice Record StakeWeight total supply for each week
     function _checkpointTotalSupply() internal {
+        IStakeWeight stakeWeight = IStakeWeight(config.getStakeWeight());
         uint256 _weekCursor = weekCursor;
         uint256 _roundedTimestamp = _timestampToFloorWeek(block.timestamp);
 
@@ -217,6 +244,8 @@ contract StakingRewardDistributor is Ownable, ReentrancyGuard {
     /// @notice Claim rewardToken
     /// @dev Perform claim rewardToken
     function _claim(address _user, address _recipient, uint256 _maxClaimTimestamp) internal returns (uint256) {
+        IStakeWeight stakeWeight = IStakeWeight(config.getStakeWeight());
+
         uint256 _userEpoch = 0;
         uint256 _toDistribute = 0;
 
@@ -354,7 +383,7 @@ contract StakingRewardDistributor is Ownable, ReentrancyGuard {
         uint256 _total = _claim(_user, _recipient, _lastTokenTimestamp);
         if (_total != 0) {
             lastTokenBalance = lastTokenBalance - _total;
-            rewardToken.safeTransfer(_recipient, _total);
+            IERC20(config.getL2wct()).safeTransfer(_recipient, _total);
         }
 
         return _total;
@@ -363,7 +392,7 @@ contract StakingRewardDistributor is Ownable, ReentrancyGuard {
     /// @notice Claim rewardToken for multiple users
     /// @param _users The array of addresses to claim reward for
     function claimMany(address[] calldata _users) external nonReentrant onlyLive returns (bool) {
-        require(_users.length <= 20, "!over 20 users");
+        if (_users.length > 20) revert TooManyUsers();
 
         if (block.timestamp >= weekCursor) _checkpointTotalSupply();
 
@@ -377,13 +406,13 @@ contract StakingRewardDistributor is Ownable, ReentrancyGuard {
 
         for (uint256 i = 0; i < _users.length; i++) {
             address _user = _users[i];
-            require(_user != address(0), "bad user");
+            if (_user == address(0)) revert InvalidUser();
 
             address _recipient = getRecipient(_user);
             uint256 _amount = _claim(_user, _recipient, _lastTokenTimestamp);
 
             if (_amount != 0) {
-                rewardToken.safeTransfer(_recipient, _amount);
+                IERC20(config.getL2wct()).safeTransfer(_recipient, _amount);
                 _total = _total + _amount;
             }
         }
@@ -397,7 +426,7 @@ contract StakingRewardDistributor is Ownable, ReentrancyGuard {
 
     /// @notice Receive rewardTokens into the contract and trigger token checkpoint
     function feed(uint256 _amount) external nonReentrant onlyLive returns (bool) {
-        rewardToken.safeTransferFrom(msg.sender, address(this), _amount);
+        IERC20(config.getL2wct()).safeTransferFrom(msg.sender, address(this), _amount);
 
         _checkpointToken();
 
@@ -409,6 +438,8 @@ contract StakingRewardDistributor is Ownable, ReentrancyGuard {
     /// @notice Do Binary Search to find out epoch from timestamp
     /// @param _timestamp Timestamp to find epoch
     function _findTimestampEpoch(uint256 _timestamp) internal view returns (uint256) {
+        IStakeWeight stakeWeight = IStakeWeight(config.getStakeWeight());
+
         uint256 _min = 0;
         uint256 _max = stakeWeight.epoch();
         // Loop for 128 times -> enough for 128-bit numbers
@@ -447,7 +478,7 @@ contract StakingRewardDistributor is Ownable, ReentrancyGuard {
                 break;
             }
             uint256 _mid = (_min + _max + 1) / 2;
-            StakeWeight.Point memory _point = stakeWeight.userPointHistory(_user, _mid);
+            StakeWeight.Point memory _point = IStakeWeight(config.getStakeWeight()).userPointHistory(_user, _mid);
             if (_point.timestamp <= _timestamp) {
                 _min = _mid;
             } else {
@@ -458,6 +489,7 @@ contract StakingRewardDistributor is Ownable, ReentrancyGuard {
     }
 
     function kill() external onlyOwner {
+        IERC20 rewardToken = IERC20(config.getL2wct());
         isKilled = true;
         rewardToken.safeTransfer(emergencyReturn, rewardToken.balanceOf(address(this)));
 
@@ -484,7 +516,7 @@ contract StakingRewardDistributor is Ownable, ReentrancyGuard {
     }
 
     function _injectReward(uint256 _timestamp, uint256 _amount) internal {
-        rewardToken.safeTransferFrom(msg.sender, address(this), _amount);
+        IERC20(config.getL2wct()).safeTransferFrom(msg.sender, address(this), _amount);
         lastTokenBalance += _amount;
         totalDistributed += _amount;
         uint256 weekTimestamp = _timestampToFloorWeek(_timestamp);
@@ -497,7 +529,9 @@ contract StakingRewardDistributor is Ownable, ReentrancyGuard {
     /// @param _user User address
     /// @param _recipient Recipient address
     function setRecipient(address _user, address _recipient) external {
-        require(msg.sender == _user, "Permission denied");
+        if (msg.sender != _user) {
+            revert Unauthorized();
+        }
         address oldRecipient = recipient[_user];
         recipient[_user] = _recipient;
         emit UpdateRecipient(msg.sender, _user, oldRecipient, _recipient);

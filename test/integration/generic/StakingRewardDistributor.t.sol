@@ -33,8 +33,6 @@ contract StakingRewardDistributor_Test is Base_Test {
         assertEq(stakingRewardDistributor.startWeekCursor(), startWeekCursor);
         assertEq(stakingRewardDistributor.lastTokenTimestamp(), startWeekCursor);
         assertEq(stakingRewardDistributor.weekCursor(), startWeekCursor);
-        assertEq(address(stakingRewardDistributor.rewardToken()), address(l2wct));
-        assertEq(address(stakingRewardDistributor.stakeWeight()), address(stakeWeight));
         assertEq(stakingRewardDistributor.emergencyReturn(), users.emergencyHolder);
     }
 
