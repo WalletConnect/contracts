@@ -41,7 +41,7 @@ contract WalletConnectConfig is Initializable, AccessControlUpgradeable {
     bytes32 public constant L2WCT_TOKEN = keccak256("L2WCT_TOKEN");
     bytes32 public constant PERMISSIONED_NODE_REGISTRY = keccak256("PERMISSIONED_NODE_REGISTRY");
     bytes32 public constant REWARD_MANAGER = keccak256("REWARD_MANAGER");
-    bytes32 public constant STAKING = keccak256("STAKING");
+    bytes32 public constant STAKE_WEIGHT = keccak256("STAKE_WEIGHT");
     bytes32 public constant PAUSER = keccak256("PAUSER");
 
     /// @notice Initializes the contract
@@ -82,10 +82,10 @@ contract WalletConnectConfig is Initializable, AccessControlUpgradeable {
         return _contractsMap[REWARD_MANAGER];
     }
 
-    /// @notice Gets the Staking address
-    /// @return The address of the Staking contract
-    function getStaking() external view returns (address) {
-        return _contractsMap[STAKING];
+    /// @notice Gets the StakeWeight address
+    /// @return The address of the StakeWeight contract
+    function getStakeWeight() external view returns (address) {
+        return _contractsMap[STAKE_WEIGHT];
     }
 
     /// @notice Gets the WalletConnect Rewards Vault address
@@ -124,10 +124,10 @@ contract WalletConnectConfig is Initializable, AccessControlUpgradeable {
         _setContract({ key: REWARD_MANAGER, val: rewardManager });
     }
 
-    /// @notice Updates the Staking address
-    /// @param staking The new Staking address
-    function updateStaking(address staking) external onlyRole(ADMIN_ROLE) {
-        _setContract({ key: STAKING, val: staking });
+    /// @notice Updates the StakeWeight address
+    /// @param stakeWeight The new StakeWeight address
+    function updateStakeWeight(address stakeWeight) external onlyRole(ADMIN_ROLE) {
+        _setContract({ key: STAKE_WEIGHT, val: stakeWeight });
     }
 
     /// @notice Updates the WalletConnect Rewards Vault address

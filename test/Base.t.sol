@@ -9,18 +9,7 @@ import { PermissionedNodeRegistry } from "src/PermissionedNodeRegistry.sol";
 import { WalletConnectConfig } from "src/WalletConnectConfig.sol";
 import { RewardManager } from "src/RewardManager.sol";
 import { StakeWeight } from "src/StakeWeight.sol";
-import { Staking } from "src/Staking.sol";
-import {
-    newPauser,
-    newStaking,
-    newRewardManager,
-    newWalletConnectConfig,
-    newWCT,
-    newL2WCT,
-    newStakeWeight,
-    newStakingRewardDistributor
-} from "script/helpers/Proxy.sol";
-
+import { StakingRewardDistributor } from "src/StakingRewardDistributor.sol";
 import { MockBridge } from "./mocks/MockBridge.sol";
 
 import { Test } from "forge-std/Test.sol";
@@ -50,7 +39,6 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
     PermissionedNodeRegistry internal permissionedNodeRegistry;
     WalletConnectConfig internal walletConnectConfig;
     RewardManager internal rewardManager;
-    Staking internal staking;
     StakeWeight internal stakeWeight;
     StakingRewardDistributor internal stakingRewardDistributor;
     /*//////////////////////////////////////////////////////////////////////////
@@ -165,7 +153,7 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
         walletConnectConfig.updatePermissionedNodeRegistry(address(permissionedNodeRegistry));
         walletConnectConfig.updateRewardManager(address(rewardManager));
         walletConnectConfig.updatePauser(address(pauser));
-        walletConnectConfig.updateStaking(address(staking));
+        walletConnectConfig.updateStakeWeight(address(stakeWeight));
         walletConnectConfig.updateWalletConnectRewardsVault(users.treasury);
 
         vm.stopPrank();
@@ -177,19 +165,9 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
         vm.label({ account: address(pauser), newLabel: "Pauser" });
         vm.label({ account: address(permissionedNodeRegistry), newLabel: "PermissionedNodeRegistry" });
         vm.label({ account: address(rewardManager), newLabel: "RewardManager" });
-        vm.label({ account: address(staking), newLabel: "Staking" });
         vm.label({ account: address(stakeWeight), newLabel: "StakeWeight" });
         vm.label({ account: address(mockBridge), newLabel: "MockBridge" });
         vm.label({ account: address(stakingRewardDistributor), newLabel: "StakingRewardDistributor" });
-    }
-
-    function fundRewardsVaultAndApprove() internal {
-        // Fund the RewardManager with WCT.
-        wct.mint(address(users.treasury), defaults.REWARD_BUDGET());
-        vm.startPrank({ msgSender: users.treasury });
-        // Approve the Staking contract to spend WCT.
-        wct.approve(address(staking), defaults.REWARD_BUDGET());
-        vm.stopPrank();
     }
 
     function deployMockBridge() internal {
