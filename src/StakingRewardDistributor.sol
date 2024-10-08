@@ -45,21 +45,15 @@ contract StakingRewardDistributor is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     /// @dev Events
-    event SetCanCheckpointToken(bool _toggleFlag);
     event Feed(uint256 _amount);
     event CheckpointToken(uint256 _timestamp, uint256 _tokens);
     event Claimed(
         address indexed _user, address indexed _recipient, uint256 _amount, uint256 _claimEpoch, uint256 _maxEpoch
     );
     event Killed();
-    event SetWhitelistedCheckpointCallers(address indexed _caller, address indexed _address, bool _ok);
     event UpdateRecipient(
         address _owner, address indexed _user, address indexed _oldRecipient, address indexed _newRecipient
     );
-
-    /// @dev Time-related constants
-    uint256 public constant WEEK = 1 weeks;
-    uint256 public constant TOKEN_CHECKPOINT_DEADLINE = 1 days;
 
     uint256 public startWeekCursor;
     uint256 public weekCursor;
@@ -81,26 +75,19 @@ contract StakingRewardDistributor is Ownable, ReentrancyGuard {
     /// @dev User can set recipient address for claim
     mapping(address => address) public recipient;
 
-    /// @dev User had set recipient or not
-    mapping(address => bool) public everSetRecipient;
-
-    bool public canCheckpointToken;
-
     /// @dev address to get token when contract is emergency stop
     bool public isKilled;
     address public emergencyReturn;
 
-    /// @dev list of whitelist checkpoint callers
-    mapping(address => bool) public whitelistedCheckpointCallers;
-
     /// @notice constructor
     constructor(
+        address _admin,
         address _stakeWeight,
         address _rewardToken,
         uint256 _startTime,
         address _emergencyReturn
     )
-        Ownable(msg.sender)
+        Ownable(_admin)
     {
         uint256 _startTimeFloorWeek = _timestampToFloorWeek(_startTime);
         startWeekCursor = _startTimeFloorWeek;
@@ -120,7 +107,18 @@ contract StakingRewardDistributor is Ownable, ReentrancyGuard {
     /// @param _user The user address
     /// @param _timestamp The timestamp to get user's balance
     function balanceOfAt(address _user, uint256 _timestamp) external view returns (uint256) {
-        return stakeWeight.balanceOfAtTime(_user, _timestamp);
+        uint256 _maxUserEpoch = stakeWeight.userPointEpoch(_user);
+        if (_maxUserEpoch == 0) {
+            return 0;
+        }
+
+        uint256 _epoch = _findTimestampUserEpoch(_user, _timestamp, _maxUserEpoch);
+        StakeWeight.Point memory _point = stakeWeight.userPointHistory(_user, _epoch);
+        int128 _bias = _point.bias - _point.slope * SafeCast.toInt128(int256(_timestamp - _point.timestamp));
+        if (_bias < 0) {
+            return 0;
+        }
+        return SafeCast.toUint256(_bias);
     }
 
     /// @notice Record token distribution checkpoint
@@ -145,7 +143,7 @@ contract StakingRewardDistributor is Ownable, ReentrancyGuard {
 
         // Iterate through weeks to filled out missing tokensPerWeek (if any)
         for (uint256 _i = 0; _i < 52; _i++) {
-            _nextWeekCursor = _thisWeekCursor + WEEK;
+            _nextWeekCursor = _thisWeekCursor + 1 weeks;
 
             // if block.timestamp < _nextWeekCursor, means _nextWeekCursor goes
             // beyond the actual block.timestamp, hence it is the last iteration
@@ -175,14 +173,7 @@ contract StakingRewardDistributor is Ownable, ReentrancyGuard {
 
     /// @notice Update token checkpoint
     /// @dev Calculate the total token to be distributed in a given week.
-    /// At launch can only be called by owner, after launch can be called
-    /// by anyone if block.timestamp > lastTokenTime + TOKEN_CHECKPOINT_DEADLINE
     function checkpointToken() external nonReentrant {
-        require(
-            msg.sender == owner() || whitelistedCheckpointCallers[msg.sender]
-                || (canCheckpointToken && (block.timestamp > lastTokenTimestamp + TOKEN_CHECKPOINT_DEADLINE)),
-            "!allow"
-        );
         _checkpointToken();
     }
 
@@ -210,7 +201,7 @@ contract StakingRewardDistributor is Ownable, ReentrancyGuard {
                     totalSupplyAt[_weekCursor] = SafeCast.toUint256(_bias);
                 }
             }
-            _weekCursor = _weekCursor + WEEK;
+            _weekCursor = _weekCursor + 1 weeks;
         }
 
         weekCursor = _weekCursor;
@@ -255,7 +246,7 @@ contract StakingRewardDistributor is Ownable, ReentrancyGuard {
         StakeWeight.Point memory _userPoint = stakeWeight.userPointHistory(_user, _userEpoch);
 
         if (_userWeekCursor == 0) {
-            _userWeekCursor = ((_userPoint.timestamp + WEEK - 1) / WEEK) * WEEK;
+            _userWeekCursor = ((_userPoint.timestamp + 1 weeks - 1) / 1 weeks) * 1 weeks;
         }
 
         // _userWeekCursor is already at/beyond _maxClaimTimestamp
@@ -310,7 +301,7 @@ contract StakingRewardDistributor is Ownable, ReentrancyGuard {
                     _toDistribute =
                         _toDistribute + (_balanceOf * tokensPerWeek[_userWeekCursor]) / totalSupplyAt[_userWeekCursor];
                 }
-                _userWeekCursor = _userWeekCursor + WEEK;
+                _userWeekCursor = _userWeekCursor + 1 weeks;
             }
         }
 
@@ -334,51 +325,27 @@ contract StakingRewardDistributor is Ownable, ReentrancyGuard {
         }
     }
 
-    /// @notice Claim rewardToken for "_user", without cake pool proxy
-    /// @param _user The address to claim rewards for
-    function claimForUser(address _user) external nonReentrant onlyLive returns (uint256) {
-        if (block.timestamp >= weekCursor) _checkpointTotalSupply();
-        uint256 _lastTokenTimestamp = lastTokenTimestamp;
-
-        if (canCheckpointToken && (block.timestamp > _lastTokenTimestamp + TOKEN_CHECKPOINT_DEADLINE)) {
-            _checkpointToken();
-            _lastTokenTimestamp = block.timestamp;
-        }
-
-        _lastTokenTimestamp = _timestampToFloorWeek(_lastTokenTimestamp);
-        address _recipient = getRecipient(_user);
-        uint256 _amount = _claim(_user, _recipient, _lastTokenTimestamp);
-        if (_amount != 0) {
-            lastTokenBalance = lastTokenBalance - _amount;
-            rewardToken.safeTransfer(_recipient, _amount);
-        }
-
-        return _amount;
-    }
-
-    /// @notice Claim rewardToken for user and user's cake pool proxy
+    /// @notice Claim rewardToken for user and user's recipient
     /// @dev Need owner permission
     /// @param _recipient The recipient address will be claimed to
     function claimTo(address _recipient) external nonReentrant onlyLive returns (uint256) {
-        return _claimWithCakePoolProxy(msg.sender, _recipient);
+        return _claimWithCustomRecipient(msg.sender, _recipient);
     }
 
-    /// @notice Claim rewardToken for user and user's cake pool proxy
+    /// @notice Claim rewardToken for user and user's recipient
     /// @dev Do not need owner permission
     /// @param _user The address to claim rewards for
     function claim(address _user) external nonReentrant onlyLive returns (uint256) {
-        return _claimWithCakePoolProxy(_user, address(0));
+        return _claimWithCustomRecipient(_user, address(0));
     }
 
-    function _claimWithCakePoolProxy(address _user, address _recipient) internal returns (uint256) {
+    function _claimWithCustomRecipient(address _user, address _recipient) internal returns (uint256) {
         if (block.timestamp >= weekCursor) _checkpointTotalSupply();
 
         uint256 _lastTokenTimestamp = lastTokenTimestamp;
 
-        if (canCheckpointToken && (block.timestamp > _lastTokenTimestamp + TOKEN_CHECKPOINT_DEADLINE)) {
-            _checkpointToken();
-            _lastTokenTimestamp = block.timestamp;
-        }
+        _checkpointToken();
+        _lastTokenTimestamp = block.timestamp;
 
         _lastTokenTimestamp = _timestampToFloorWeek(_lastTokenTimestamp);
         if (_recipient == address(0)) {
@@ -402,10 +369,8 @@ contract StakingRewardDistributor is Ownable, ReentrancyGuard {
 
         uint256 _lastTokenTimestamp = lastTokenTimestamp;
 
-        if (canCheckpointToken && (block.timestamp > _lastTokenTimestamp + TOKEN_CHECKPOINT_DEADLINE)) {
-            _checkpointToken();
-            _lastTokenTimestamp = block.timestamp;
-        }
+        _checkpointToken();
+        _lastTokenTimestamp = block.timestamp;
 
         _lastTokenTimestamp = _timestampToFloorWeek(_lastTokenTimestamp);
         uint256 _total = 0;
@@ -434,9 +399,7 @@ contract StakingRewardDistributor is Ownable, ReentrancyGuard {
     function feed(uint256 _amount) external nonReentrant onlyLive returns (bool) {
         rewardToken.safeTransferFrom(msg.sender, address(this), _amount);
 
-        if (canCheckpointToken && (block.timestamp > lastTokenTimestamp + TOKEN_CHECKPOINT_DEADLINE)) {
-            _checkpointToken();
-        }
+        _checkpointToken();
 
         emit Feed(_amount);
 
@@ -501,17 +464,10 @@ contract StakingRewardDistributor is Ownable, ReentrancyGuard {
         emit Killed();
     }
 
-    /// @notice Set canCheckpointToken to allow random callers to call checkpointToken
-    /// @param _newCanCheckpointToken The new canCheckpointToken flag
-    function setCanCheckpointToken(bool _newCanCheckpointToken) external onlyOwner {
-        canCheckpointToken = _newCanCheckpointToken;
-        emit SetCanCheckpointToken(_newCanCheckpointToken);
-    }
-
     /// @notice Round off random timestamp to week
     /// @param _timestamp The timestamp to be rounded off
     function _timestampToFloorWeek(uint256 _timestamp) internal pure returns (uint256) {
-        return (_timestamp / WEEK) * WEEK;
+        return (_timestamp / 1 weeks) * 1 weeks;
     }
 
     /// @notice Inject rewardToken into the contract
@@ -535,48 +491,15 @@ contract StakingRewardDistributor is Ownable, ReentrancyGuard {
         tokensPerWeek[weekTimestamp] += _amount;
     }
 
-    /// @notice Set whitelisted checkpoint callers.
-    /// @dev Must only be called by owner.
-    /// @param _callers addresses to be whitelisted.
-    /// @param _ok The new ok flag for callers.
-    function setWhitelistedCheckpointCallers(address[] calldata _callers, bool _ok) external onlyOwner {
-        for (uint256 _idx = 0; _idx < _callers.length; _idx++) {
-            whitelistedCheckpointCallers[_callers[_idx]] = _ok;
-            emit SetWhitelistedCheckpointCallers(msg.sender, _callers[_idx], _ok);
-        }
-    }
-
     /// @notice Set recipient address
-    /// @dev In case some partners integrated our VECake , but did not write claim logic for revenue sharing pool. So
-    /// owner can set recipient for them , partners still can get reward.
     /// @dev If the user address is not EOA, You can set recipient once , then owner will lose permission to set
     /// recipient for the user
     /// @param _user User address
     /// @param _recipient Recipient address
     function setRecipient(address _user, address _recipient) external {
-        bool allowOwner;
-        // if user address is not EOA and has not set recipient before, owner can set recipient for it.
-        if (_isContract(_user) && !everSetRecipient[_user]) {
-            allowOwner = true;
-        }
-        address ownerAddress = owner();
-        require(msg.sender == _user || (allowOwner && msg.sender == ownerAddress), "Permission denied");
-        if (msg.sender != ownerAddress && !everSetRecipient[_user]) {
-            everSetRecipient[_user] = true;
-        }
+        require(msg.sender == _user, "Permission denied");
         address oldRecipient = recipient[_user];
         recipient[_user] = _recipient;
         emit UpdateRecipient(msg.sender, _user, oldRecipient, _recipient);
-    }
-
-    /**
-     * @notice Checks if address is a contract
-     */
-    function _isContract(address addr) internal view returns (bool) {
-        uint256 size;
-        assembly {
-            size := extcodesize(addr)
-        }
-        return size > 0;
     }
 }

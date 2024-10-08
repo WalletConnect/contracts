@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.25 <0.9.0;
 
-import { Base_Test } from "./Base.t.sol";
+import { Base_Test } from "test/Base.t.sol";
 import { StakingRewardDistributor } from "src/StakingRewardDistributor.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { WalletConnectConfig } from "src/WalletConnectConfig.sol";
