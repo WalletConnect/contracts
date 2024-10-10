@@ -7,6 +7,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import { console2 } from "forge-std/console2.sol";
 import { WalletConnectConfig } from "./WalletConnectConfig.sol";
 import { StakeWeight } from "./StakeWeight.sol";
 import { Math128 } from "./library/Math128.sol";
@@ -53,9 +54,7 @@ contract StakingRewardDistributor is Initializable, OwnableUpgradeable, Reentran
         address indexed _user, address indexed _recipient, uint256 _amount, uint256 _claimEpoch, uint256 _maxEpoch
     );
     event Killed();
-    event UpdateRecipient(
-        address _owner, address indexed _user, address indexed _oldRecipient, address indexed _newRecipient
-    );
+    event UpdateRecipient(address indexed _user, address indexed _oldRecipient, address indexed _newRecipient);
 
     /// @dev Custom Errors
     error ContractKilled();
@@ -148,6 +147,20 @@ contract StakingRewardDistributor is Initializable, OwnableUpgradeable, Reentran
     }
 
     /// @notice Record token distribution checkpoint
+    /**
+     * @dev Checkpoints and distributes tokens across weeks since the last checkpoint.
+     *
+     * Key points:
+     * - Distribution starts from lastTokenTimestamp and goes up to current block.timestamp
+     * - Tokens are distributed proportionally across all affected weeks
+     * - Handles partial weeks at the start and end of the distribution period
+     * - Total distributed always matches input amount, regardless of time elapsed (considering rounding errors)
+     *
+     * Key variables:
+     * _timeCursor: Tracks current position in time during week iterations
+     * _deltaSinceLastTimestamp: Total time since last checkpoint, used for proportions
+     * _thisWeekCursor: Start of the current week being processed
+     */
     function _checkpointToken() internal {
         // Find out how many tokens to be distributed
         uint256 _rewardTokenBalance = IERC20(config.getL2wct()).balanceOf(address(this));
@@ -524,16 +537,10 @@ contract StakingRewardDistributor is Initializable, OwnableUpgradeable, Reentran
     }
 
     /// @notice Set recipient address
-    /// @dev If the user address is not EOA, You can set recipient once , then owner will lose permission to set
-    /// recipient for the user
-    /// @param _user User address
     /// @param _recipient Recipient address
-    function setRecipient(address _user, address _recipient) external {
-        if (msg.sender != _user) {
-            revert Unauthorized();
-        }
-        address oldRecipient = recipient[_user];
-        recipient[_user] = _recipient;
-        emit UpdateRecipient(msg.sender, _user, oldRecipient, _recipient);
+    function setRecipient(address _recipient) external {
+        address oldRecipient = recipient[msg.sender];
+        recipient[msg.sender] = _recipient;
+        emit UpdateRecipient(msg.sender, oldRecipient, _recipient);
     }
 }

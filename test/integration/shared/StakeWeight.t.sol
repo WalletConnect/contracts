@@ -26,6 +26,13 @@ abstract contract StakeWeight_Integration_Shared_Test is Integration_Test {
         vm.stopPrank();
     }
 
+    function _increaseLockAmountForUser(address user, uint256 amount) internal {
+        vm.startPrank(user);
+        l2wct.approve(address(stakeWeight), amount);
+        stakeWeight.increaseLockAmount(amount);
+        vm.stopPrank();
+    }
+
     function _pause() internal {
         vm.prank(users.pauser);
         pauser.setIsStakeWeightPaused(true);

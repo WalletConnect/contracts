@@ -1,0 +1,22 @@
+checkpointToken.t.sol
+├── given there are no new tokens to distribute
+│   ├── it should not change the lastTokenBalance
+│   ├── it should not change the totalDistributed
+│   ├── it should not update any tokensPerWeek
+│   └── it should emit a CheckpointToken event with 0 amount
+└── given there are new tokens to distribute
+    ├── it should update the lastTokenBalance
+    ├── it should increase the totalDistributed
+    ├── when the time since last checkpoint is 0
+    │   ├── when block.timestamp equals lastTokenTimestamp
+    │   │   └── it should add all tokens to the current week
+    │   └── when block.timestamp is in a new week
+    │       └── it should add all tokens to the new week
+    ├── when the time since last checkpoint is greater than 0
+    │   ├── when the distribution spans multiple weeks
+    │   │   ├── it should distribute tokens proportionally across weeks
+    │   │   └── it should update tokensPerWeek for each affected week
+    │   └── when the distribution is within the same week
+    │       └── it should add all tokens to the current week
+    ├── it should update lastTokenTimestamp to block.timestamp
+    └── it should emit a CheckpointToken event with the distributed amount

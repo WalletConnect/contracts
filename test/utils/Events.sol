@@ -62,6 +62,16 @@ abstract contract Events {
     event Withdraw(address indexed provider, uint256 value, uint256 timestamp);
     event Supply(uint256 previousSupply, uint256 newSupply);
     /*//////////////////////////////////////////////////////////////////////////
+                                STAKING-REWARD-DISTRIBUTOR
+    //////////////////////////////////////////////////////////////////////////*/
+    event UpdateRecipient(address indexed _user, address indexed _oldRecipient, address indexed _newRecipient);
+    event Claimed(
+        address indexed _user, address indexed _recipient, uint256 _amount, uint256 _claimEpoch, uint256 _maxEpoch
+    );
+    event CheckpointToken(uint256 _timestamp, uint256 _tokens);
+    event Feed(uint256 _amount);
+
+    /*//////////////////////////////////////////////////////////////////////////
                                 MOCK-BRIDGE
     //////////////////////////////////////////////////////////////////////////*/
     event ERC20BridgeInitiated(

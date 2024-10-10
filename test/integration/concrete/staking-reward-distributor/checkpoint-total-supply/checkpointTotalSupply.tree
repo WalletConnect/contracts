@@ -1,0 +1,21 @@
+checkpointTotalSupply.t.sol
+├── when _checkpointTotalSupply is executed
+│   ├── it should call checkpoint on the StakeWeight contract
+│   ├── when weekCursor is less than or equal to rounded current timestamp
+│   │   ├── it should iterate through weeks (up to 52 times)
+│   │   └── for each iteration
+│   │       ├── it should find the timestamp epoch
+│   │       ├── it should get the point history for the epoch
+│   │       ├── when weekCursor is greater than point timestamp
+│   │       │   └── it should calculate time delta
+│   │       ├── it should calculate bias
+│   │       ├── when bias is negative
+│   │       │   └── it should set totalSupplyAt for the week to 0
+│   │       ├── when bias is not negative
+│   │       │   └── it should set totalSupplyAt for the week to the calculated bias
+│   │       └── it should increment weekCursor by 1 week
+│   ├── when weekCursor becomes greater than rounded current timestamp
+│   │   └── it should break the loop
+│   └── it should update the contract's weekCursor to the new value
+└── when StakeWeight contract is not set in config
+    └── it should revert
