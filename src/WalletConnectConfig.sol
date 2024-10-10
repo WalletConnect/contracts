@@ -25,8 +25,6 @@ contract WalletConnectConfig is Initializable, AccessControlUpgradeable {
     event AccountSet(bytes32 indexed key, address val);
 
     /// @notice Role for administrative actions
-    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
-
     /// @notice Configuration for contract initialization
     struct Init {
         address admin;
@@ -49,7 +47,7 @@ contract WalletConnectConfig is Initializable, AccessControlUpgradeable {
     /// @param init Initialization parameters
     function initialize(Init memory init) public initializer {
         __AccessControl_init();
-        _grantRole(ADMIN_ROLE, init.admin);
+        _grantRole(DEFAULT_ADMIN_ROLE, init.admin);
     }
 
     /// @notice Gets the WCT token address
@@ -96,43 +94,43 @@ contract WalletConnectConfig is Initializable, AccessControlUpgradeable {
 
     /// @notice Updates the WCT token address
     /// @param wct The new WCT token address
-    function updateWCT(address wct) external onlyRole(ADMIN_ROLE) {
+    function updateWCT(address wct) external onlyRole(DEFAULT_ADMIN_ROLE) {
         _setContract({ key: WCT_TOKEN, val: wct });
     }
 
     /// @notice Updates the L2WCT token address
     /// @param l2wct The new L2WCT token address
-    function updateL2wct(address l2wct) external onlyRole(ADMIN_ROLE) {
+    function updateL2wct(address l2wct) external onlyRole(DEFAULT_ADMIN_ROLE) {
         _setContract({ key: L2WCT_TOKEN, val: l2wct });
     }
 
     /// @notice Updates the Pauser address
     /// @param pauser The new Pauser address
-    function updatePauser(address pauser) external onlyRole(ADMIN_ROLE) {
+    function updatePauser(address pauser) external onlyRole(DEFAULT_ADMIN_ROLE) {
         _setContract({ key: PAUSER, val: pauser });
     }
 
     /// @notice Updates the Permissioned Node Registry address
     /// @param permissionedNodeRegistry The new Permissioned Node Registry address
-    function updatePermissionedNodeRegistry(address permissionedNodeRegistry) external onlyRole(ADMIN_ROLE) {
+    function updatePermissionedNodeRegistry(address permissionedNodeRegistry) external onlyRole(DEFAULT_ADMIN_ROLE) {
         _setContract({ key: PERMISSIONED_NODE_REGISTRY, val: permissionedNodeRegistry });
     }
 
     /// @notice Updates the Reward Manager address
     /// @param rewardManager The new Reward Manager address
-    function updateRewardManager(address rewardManager) external onlyRole(ADMIN_ROLE) {
+    function updateRewardManager(address rewardManager) external onlyRole(DEFAULT_ADMIN_ROLE) {
         _setContract({ key: REWARD_MANAGER, val: rewardManager });
     }
 
     /// @notice Updates the StakeWeight address
     /// @param stakeWeight The new StakeWeight address
-    function updateStakeWeight(address stakeWeight) external onlyRole(ADMIN_ROLE) {
+    function updateStakeWeight(address stakeWeight) external onlyRole(DEFAULT_ADMIN_ROLE) {
         _setContract({ key: STAKE_WEIGHT, val: stakeWeight });
     }
 
     /// @notice Updates the WalletConnect Rewards Vault address
     /// @param walletConnectRewardsVault The new WalletConnect Rewards Vault address
-    function updateWalletConnectRewardsVault(address walletConnectRewardsVault) external onlyRole(ADMIN_ROLE) {
+    function updateWalletConnectRewardsVault(address walletConnectRewardsVault) external onlyRole(DEFAULT_ADMIN_ROLE) {
         _setAccount({ key: WALLETCONNECT_REWARDS_VAULT, val: walletConnectRewardsVault });
     }
 
