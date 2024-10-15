@@ -35,7 +35,7 @@ contract Initialize_StakeWeight_Unit_Concrete_Test is Base_Test {
         assertEq(stakeWeight.supply(), 0);
 
         // Verify constants
-        assertEq(stakeWeight.MAX_LOCK(), 209 weeks - 1);
+        assertEq(stakeWeight.maxLock(), 105 weeks - 1);
         assertEq(stakeWeight.MULTIPLIER(), 1e18);
     }
 

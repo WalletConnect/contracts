@@ -23,7 +23,7 @@ contract BalanceOfAt_StakeWeight_Integration_Concrete_Test is Base_Test {
     }
 
     modifier givenUserHasLockedTokensForMaxLock() {
-        lockTime = block.timestamp + stakeWeight.MAX_LOCK();
+        lockTime = block.timestamp + stakeWeight.maxLock();
         _createLockForAlice();
         _;
     }
@@ -42,7 +42,7 @@ contract BalanceOfAt_StakeWeight_Integration_Concrete_Test is Base_Test {
     }
 
     function test_BalanceShortlyAfterLock_MaxLock() external givenUserHasLockedTokensForMaxLock {
-        vm.warp(lockTime - (stakeWeight.MAX_LOCK() * 9 / 10));
+        vm.warp(lockTime - (stakeWeight.maxLock() * 9 / 10));
         vm.roll(lockBlock + 100);
         uint256 balanceAfterLock = stakeWeight.balanceOfAt(users.alice, block.number);
         assertGe(balanceAfterLock, LOCK_AMOUNT * 875 / 1000, "Balance should be at least 87.5% of locked amount");
@@ -50,7 +50,7 @@ contract BalanceOfAt_StakeWeight_Integration_Concrete_Test is Base_Test {
     }
 
     function test_BalanceMidwayThroughLockPeriod_MaxLock() external givenUserHasLockedTokensForMaxLock {
-        vm.warp(lockTime - (stakeWeight.MAX_LOCK() / 2));
+        vm.warp(lockTime - (stakeWeight.maxLock() / 2));
         vm.roll(lockBlock + 5000);
         uint256 balanceMidway = stakeWeight.balanceOfAt(users.alice, block.number);
         assertGe(balanceMidway, LOCK_AMOUNT * 450 / 1000, "Balance should be at least 45% of locked amount");
@@ -58,7 +58,7 @@ contract BalanceOfAt_StakeWeight_Integration_Concrete_Test is Base_Test {
     }
 
     function test_BalanceNearEndOfLockPeriod_MaxLock() external givenUserHasLockedTokensForMaxLock {
-        vm.warp(lockTime - (stakeWeight.MAX_LOCK() / 10));
+        vm.warp(lockTime - (stakeWeight.maxLock() / 10));
         vm.roll(lockBlock + 9000);
         uint256 balanceNearEnd = stakeWeight.balanceOfAt(users.alice, block.number);
         assertGe(balanceNearEnd, LOCK_AMOUNT * 50 / 1000, "Balance should be at least 5% of locked amount");
@@ -73,7 +73,7 @@ contract BalanceOfAt_StakeWeight_Integration_Concrete_Test is Base_Test {
     }
 
     modifier givenUserHasLockedTokensForHalfMaxLock() {
-        lockTime = _timestampToFloorWeek(block.timestamp) + stakeWeight.MAX_LOCK() / 2;
+        lockTime = _timestampToFloorWeek(block.timestamp) + stakeWeight.maxLock() / 2;
         _createLockForAlice();
         _;
     }

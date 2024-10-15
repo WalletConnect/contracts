@@ -41,7 +41,7 @@ contract IncreaseUnlockTime_StakeWeight_Integration_Concrete_Test is StakeWeight
     }
 
     function test_RevertWhen_NewUnlockTimeExceedsMaxLock() external {
-        uint256 maxLock = stakeWeight.MAX_LOCK();
+        uint256 maxLock = stakeWeight.maxLock();
         vm.startPrank(users.alice);
         vm.expectRevert(StakeWeight.VotingLockMaxExceeded.selector);
         stakeWeight.increaseUnlockTime(block.timestamp + maxLock + 1 weeks);

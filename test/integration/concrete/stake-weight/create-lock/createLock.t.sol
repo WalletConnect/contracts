@@ -6,7 +6,6 @@ import { StakeWeight } from "src/StakeWeight.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract CreateLock_StakeWeight_Unit_Concrete_Test is StakeWeight_Integration_Shared_Test {
-
     function test_RevertWhen_ContractIsPaused() external {
         _pause();
 
@@ -58,7 +57,7 @@ contract CreateLock_StakeWeight_Unit_Concrete_Test is StakeWeight_Integration_Sh
     }
 
     function test_RevertWhen_UnlockTimeTooFarInFuture() external whenContractIsNotPaused givenUserDoesNotHaveALock {
-        uint256 maxLock = stakeWeight.MAX_LOCK();
+        uint256 maxLock = stakeWeight.maxLock();
         vm.expectRevert(abi.encodeWithSelector(StakeWeight.VotingLockMaxExceeded.selector));
         stakeWeight.createLock(1 ether, block.timestamp + maxLock + 2 weeks);
     }
@@ -113,7 +112,7 @@ contract CreateLock_StakeWeight_Unit_Concrete_Test is StakeWeight_Integration_Sh
 
     function test_WhenValidParameters_And_MaxLock() external whenContractIsNotPaused givenUserDoesNotHaveALock {
         uint256 amount = 100 ether;
-        uint256 unlockTime = block.timestamp + stakeWeight.MAX_LOCK();
+        uint256 unlockTime = block.timestamp + stakeWeight.maxLock();
 
         // Deal tokens to Alice and start pranking as Alice
         deal(address(l2wct), users.alice, amount);

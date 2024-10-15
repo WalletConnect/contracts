@@ -40,7 +40,7 @@ contract StakeWeightHandler is BaseHandler {
             deal(address(l2wct), user, amount);
         }
 
-        unlockTime = bound(unlockTime, block.timestamp + 1 weeks, block.timestamp + stakeWeight.MAX_LOCK());
+        unlockTime = bound(unlockTime, block.timestamp + 1 weeks, block.timestamp + stakeWeight.maxLock());
 
         uint256 previousBalance = stakeWeight.balanceOf(user);
         (, uint256 previousEndTime) = stakeWeight.locks(user);
@@ -85,7 +85,7 @@ contract StakeWeightHandler is BaseHandler {
     function increaseUnlockTime(uint256 unlockTime) public instrument("increaseUnlockTime") {
         address user = store.getRandomAddressWithLock();
         (, uint256 currentEndTime) = stakeWeight.locks(user);
-        unlockTime = bound(unlockTime, currentEndTime + 1, block.timestamp + stakeWeight.MAX_LOCK());
+        unlockTime = bound(unlockTime, currentEndTime + 1, block.timestamp + stakeWeight.maxLock());
 
         uint256 previousBalance = stakeWeight.balanceOf(user);
         (, uint256 previousEndTime) = stakeWeight.locks(user);

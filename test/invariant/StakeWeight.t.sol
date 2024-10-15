@@ -49,7 +49,7 @@ contract StakeWeight_Invariant_Test is Invariant_Test {
         for (uint256 i = 0; i < users.length; i++) {
             (int128 amount, uint256 end) = stakeWeight.locks(users[i]);
             if (amount > 0) {
-                assertLe(end, block.timestamp + stakeWeight.MAX_LOCK(), "Lock time should never exceed MAXTIME");
+                assertLe(end, block.timestamp + stakeWeight.maxLock(), "Lock time should never exceed MAXTIME");
             }
         }
     }

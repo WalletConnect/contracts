@@ -61,6 +61,7 @@ abstract contract Events {
     event Deposit(address indexed provider, uint256 value, uint256 locktime, uint256 type_, uint256 timestamp);
     event Withdraw(address indexed provider, uint256 value, uint256 timestamp);
     event Supply(uint256 previousSupply, uint256 newSupply);
+    event MaxLockUpdated(uint256 previousMaxLock, uint256 newMaxLock);
     /*//////////////////////////////////////////////////////////////////////////
                                 STAKING-REWARD-DISTRIBUTOR
     //////////////////////////////////////////////////////////////////////////*/
@@ -70,7 +71,6 @@ abstract contract Events {
     );
     event CheckpointToken(uint256 _timestamp, uint256 _tokens);
     event Feed(uint256 _amount);
-
     /*//////////////////////////////////////////////////////////////////////////
                                 MOCK-BRIDGE
     //////////////////////////////////////////////////////////////////////////*/

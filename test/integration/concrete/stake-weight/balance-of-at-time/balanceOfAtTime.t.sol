@@ -19,7 +19,7 @@ contract BalanceOfAtTime_StakeWeight_Integration_Concrete_Test is Base_Test {
 
     modifier givenUserHasLockedTokensForMaxLock() {
         lockTime = block.timestamp;
-        unlockTime = lockTime + stakeWeight.MAX_LOCK();
+        unlockTime = lockTime + stakeWeight.maxLock();
         _createLockForAlice(unlockTime);
         _;
     }
@@ -43,7 +43,7 @@ contract BalanceOfAtTime_StakeWeight_Integration_Concrete_Test is Base_Test {
     }
 
     function test_BalanceMidwayThroughLockPeriod_MaxLock() external givenUserHasLockedTokensForMaxLock {
-        uint256 midwayLockTime = lockTime + (stakeWeight.MAX_LOCK() / 2);
+        uint256 midwayLockTime = lockTime + (stakeWeight.maxLock() / 2);
         uint256 balanceMidway = stakeWeight.balanceOfAtTime(users.alice, midwayLockTime);
         assertGt(balanceMidway, 0, "Balance should be greater than 0");
         assertLt(balanceMidway, LOCK_AMOUNT, "Balance should be less than locked amount");
@@ -63,7 +63,7 @@ contract BalanceOfAtTime_StakeWeight_Integration_Concrete_Test is Base_Test {
 
     modifier givenUserHasLockedTokensForHalfMaxLock() {
         lockTime = block.timestamp;
-        unlockTime = lockTime + (stakeWeight.MAX_LOCK() / 2);
+        unlockTime = lockTime + (stakeWeight.maxLock() / 2);
         _createLockForAlice(unlockTime);
         _;
     }

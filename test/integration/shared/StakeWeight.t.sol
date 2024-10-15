@@ -50,7 +50,7 @@ abstract contract StakeWeight_Integration_Shared_Test is Integration_Test {
         console2.log("  amount:", amount);
         console2.log("  lockTime:", lockTime);
         console2.log("  currentTime:", currentTime);
-        uint256 maxLock = stakeWeight.MAX_LOCK();
+        uint256 maxLock = stakeWeight.maxLock();
         uint256 slope = amount / maxLock;
         uint256 bias = slope * (lockTime - currentTime);
 

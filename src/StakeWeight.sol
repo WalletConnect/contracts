@@ -45,8 +45,6 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
                                     CONSTANTS
     //////////////////////////////////////////////////////////////////////////*/
 
-    // MAX_LOCK 209 weeks - 1 seconds
-    uint256 public constant MAX_LOCK = (209 weeks) - 1;
     uint256 public constant MULTIPLIER = 1e18;
 
     /*//////////////////////////////////////////////////////////////////////////
@@ -61,6 +59,8 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
         WalletConnectConfig config;
         // Total supply of WCT locked
         uint256 supply;
+        // Maximum lock duration
+        uint256 maxLock;
         // Mapping (user => LockedBalance) to keep locking information for each user
         mapping(address => LockedBalance) locks;
         // A global point of time
@@ -89,6 +89,7 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
     event Deposit(address indexed provider, uint256 value, uint256 locktime, uint256 type_, uint256 timestamp);
     event Withdraw(address indexed provider, uint256 value, uint256 timestamp);
     event Supply(uint256 previousSupply, uint256 newSupply);
+    event MaxLockUpdated(uint256 previousMaxLock, uint256 newMaxLock);
 
     /*//////////////////////////////////////////////////////////////////////////
                                     ERRORS
@@ -99,6 +100,7 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
     error InvalidAddress();
     error InvalidLockState();
     error InvalidUnlockTime(uint256 unlockTime);
+    error InvalidMaxLock(uint256 maxLock);
     error ExpiredLock(uint256 currentTime, uint256 lockEndTime);
     error VotingLockMaxExceeded();
     error CanOnlyIncreaseLockDuration();
@@ -123,7 +125,7 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
 
         StakeWeightStorage storage s = _getStakeWeightStorage();
         s.config = WalletConnectConfig(init.config);
-
+        s.maxLock = 105 weeks - 1;
         s.pointHistory.push(Point({ bias: 0, slope: 0, timestamp: block.timestamp, blockNumber: block.number }));
     }
 
@@ -234,18 +236,18 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
         // if not 0x0, then update user's point
         if (_address != address(0)) {
             // Calculate slopes and biases according to linear decay graph
-            // slope = lockedAmount / MAX_LOCK => Get the slope of a linear decay graph
+            // slope = lockedAmount / maxLock => Get the slope of a linear decay graph
             // bias = slope * (lockedEnd - currentTimestamp) => Get the voting weight at a given time
             // Kept at zero when they have to
             if (_prevLocked.end > block.timestamp && _prevLocked.amount > 0) {
                 // Calculate slope and bias for the prev point
-                _userPrevPoint.slope = _prevLocked.amount / SafeCast.toInt128(int256(MAX_LOCK));
+                _userPrevPoint.slope = _prevLocked.amount / SafeCast.toInt128(int256(s.maxLock));
                 _userPrevPoint.bias =
                     _userPrevPoint.slope * SafeCast.toInt128(int256(_prevLocked.end - block.timestamp));
             }
             if (_newLocked.end > block.timestamp && _newLocked.amount > 0) {
                 // Calculate slope and bias for the new point
-                _userNewPoint.slope = _newLocked.amount / SafeCast.toInt128(int256(MAX_LOCK));
+                _userNewPoint.slope = _newLocked.amount / SafeCast.toInt128(int256(s.maxLock));
                 _userNewPoint.bias = _userNewPoint.slope * SafeCast.toInt128(int256(_newLocked.end - block.timestamp));
             }
 
@@ -426,7 +428,7 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
         if (_amount <= 0) revert InvalidAmount(_amount);
         if (_locked.amount != 0) revert InvalidLockState();
         if (_unlockTime <= block.timestamp) revert InvalidUnlockTime(_unlockTime);
-        if (_unlockTime > block.timestamp + MAX_LOCK) revert VotingLockMaxExceeded();
+        if (_unlockTime > block.timestamp + s.maxLock) revert VotingLockMaxExceeded();
 
         _depositFor(msg.sender, _amount, _unlockTime, _locked, ACTION_CREATE_LOCK);
     }
@@ -553,7 +555,7 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
         if (_locked.amount == 0) revert InvalidLockState();
         if (_locked.end <= block.timestamp) revert ExpiredLock(block.timestamp, _locked.end);
         if (_newUnlockTime <= _locked.end) revert CanOnlyIncreaseLockDuration();
-        if (_newUnlockTime > block.timestamp + MAX_LOCK) revert VotingLockMaxExceeded();
+        if (_newUnlockTime > block.timestamp + s.maxLock) revert VotingLockMaxExceeded();
         _depositFor(msg.sender, 0, _newUnlockTime, _locked, ACTION_INCREASE_UNLOCK_TIME);
     }
 
@@ -643,8 +645,8 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
     /// @notice Withdraw all WCT when lock has expired.
     function withdrawAll() external nonReentrant {
         StakeWeightStorage storage s = _getStakeWeightStorage();
-        WalletConnectConfig config = s.config;
-        if (Pauser(config.getPauser()).isStakeWeightPaused()) revert Paused();
+        WalletConnectConfig wcConfig = s.config;
+        if (Pauser(wcConfig.getPauser()).isStakeWeightPaused()) revert Paused();
         LockedBalance memory _lock = s.locks[msg.sender];
         if (_lock.amount == 0) revert InvalidLockState();
         if (_lock.end > block.timestamp) revert InvalidLockState();
@@ -653,7 +655,7 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
 
         _unlock(msg.sender, _lock, _amount);
 
-        IERC20(config.getL2wct()).safeTransfer(msg.sender, _amount);
+        IERC20(wcConfig.getL2wct()).safeTransfer(msg.sender, _amount);
 
         emit Withdraw(msg.sender, _amount, block.timestamp);
     }
@@ -683,7 +685,25 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
         emit Supply(_supplyBefore, s.supply);
     }
 
+    /// @notice Set the maximum lock duration
+    /// @param _maxLock The maximum lock duration in seconds
+    /// @dev The maximum lock duration is 209 weeks (4 years)
+    /// @dev The maximum lock duration cannot be less than the current max lock duration to prevent bricking existing
+    /// locks
+    function setMaxLock(uint256 _maxLock) external onlyOwner {
+        StakeWeightStorage storage s = _getStakeWeightStorage();
+        if (_maxLock > (209 weeks) - 1) revert InvalidMaxLock(_maxLock);
+        if (_maxLock < s.maxLock) revert InvalidMaxLock(_maxLock);
+        emit MaxLockUpdated(s.maxLock, _maxLock);
+        s.maxLock = _maxLock;
+    }
+
     // Getters
+
+    function maxLock() external view returns (uint256) {
+        StakeWeightStorage storage s = _getStakeWeightStorage();
+        return s.maxLock;
+    }
 
     function epoch() external view returns (uint256) {
         StakeWeightStorage storage s = _getStakeWeightStorage();

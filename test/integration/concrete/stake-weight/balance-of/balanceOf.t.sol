@@ -23,7 +23,7 @@ contract BalanceOf_StakeWeight_Integration_Concrete_Test is StakeWeight_Integrat
     }
 
     modifier givenUserHasLockedTokens() {
-        lockTime = block.timestamp + stakeWeight.MAX_LOCK();
+        lockTime = block.timestamp + stakeWeight.maxLock();
         _createLockForAlice();
         _;
     }
@@ -39,7 +39,7 @@ contract BalanceOf_StakeWeight_Integration_Concrete_Test is StakeWeight_Integrat
     }
 
     function test_BalanceSomeTimeAfterLock() external givenUserHasLockedTokens {
-        vm.warp(block.timestamp + stakeWeight.MAX_LOCK() / 2);
+        vm.warp(block.timestamp + stakeWeight.maxLock() / 2);
         uint256 balanceSomeTimeAfter = stakeWeight.balanceOf(users.alice);
         assertLt(
             balanceSomeTimeAfter, LOCK_AMOUNT, "Balance some time after lock should be less than the locked amount"
@@ -65,8 +65,8 @@ contract BalanceOf_StakeWeight_Integration_Concrete_Test is StakeWeight_Integrat
     }
 
     function test_BalanceComparisonForDifferentDurations() external {
-        uint256 shortLockTime = block.timestamp + stakeWeight.MAX_LOCK() / 2;
-        uint256 longLockTime = block.timestamp + stakeWeight.MAX_LOCK();
+        uint256 shortLockTime = block.timestamp + stakeWeight.maxLock() / 2;
+        uint256 longLockTime = block.timestamp + stakeWeight.maxLock();
 
         _createLockForUser(users.alice, LOCK_AMOUNT, shortLockTime);
         _createLockForUser(users.bob, LOCK_AMOUNT, longLockTime);
