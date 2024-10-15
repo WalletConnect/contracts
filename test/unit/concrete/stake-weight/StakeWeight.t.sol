@@ -45,16 +45,18 @@ contract StakeWeightHarness is StakeWeight {
     }
 
     function createPointHistory(uint256 blockNumber, uint256 value) external {
+        StakeWeightStorage storage s = _getStakeWeightStorage();
         Point memory newPoint =
             Point({ bias: int128(int256(value)), slope: 0, timestamp: block.timestamp, blockNumber: blockNumber });
-        pointHistory.push(newPoint);
-        epoch += 1;
+        s.pointHistory.push(newPoint);
+        s.epoch += 1;
     }
 
     function createUserPointHistory(address user, uint256 blockNumber, uint256 value) external {
+        StakeWeightStorage storage s = _getStakeWeightStorage();
         Point memory newPoint =
             Point({ bias: int128(int256(value)), slope: 0, timestamp: block.timestamp, blockNumber: blockNumber });
-        userPointHistory[user].push(newPoint);
-        userPointEpoch[user] += 1;
+        s.userPointHistory[user].push(newPoint);
+        s.userPointEpoch[user] += 1;
     }
 }

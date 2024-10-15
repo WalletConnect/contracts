@@ -10,6 +10,7 @@ import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { WalletConnectConfig } from "./WalletConnectConfig.sol";
 import { Pauser } from "./Pauser.sol";
+import { StorageSlot } from "@openzeppelin/contracts/utils/StorageSlot.sol";
 
 /**
  * @dev This contract was inspired by Curve's veCRV and PancakeSwap's veCake implementations.
@@ -52,22 +53,34 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
                                     STORAGE
     //////////////////////////////////////////////////////////////////////////*/
 
-    WalletConnectConfig public config;
-    // Total supply of WCT locked
-    uint256 public supply;
-    // Mapping (user => LockedBalance) to keep locking information for each user
-    mapping(address => LockedBalance) public locks;
+    // Define the storage namespace
+    bytes32 constant STAKE_WEIGHT_STORAGE_POSITION = keccak256("com.walletconnect.stakeweight.storage");
 
-    // A global point of time.
-    uint256 public epoch;
-    // An array of points (global).
-    Point[] public pointHistory;
-    // Mapping (user => Point) to keep track of user point of a given epoch (index of Point is epoch)
-    mapping(address => Point[]) public userPointHistory;
-    // Mapping (user => epoch) to keep track which epoch user at
-    mapping(address => uint256) public userPointEpoch;
-    // Mapping (round off timestamp to week => slopeDelta) to keep track slope changes over epoch
-    mapping(uint256 => int128) public slopeChanges;
+    struct StakeWeightStorage {
+        // Configuration for WalletConnect
+        WalletConnectConfig config;
+        // Total supply of WCT locked
+        uint256 supply;
+        // Mapping (user => LockedBalance) to keep locking information for each user
+        mapping(address => LockedBalance) locks;
+        // A global point of time
+        uint256 epoch;
+        // An array of points (global)
+        Point[] pointHistory;
+        // Mapping (user => Point[]) to keep track of user point of a given epoch (index of Point is epoch)
+        mapping(address => Point[]) userPointHistory;
+        // Mapping (user => epoch) to keep track which epoch user is at
+        mapping(address => uint256) userPointEpoch;
+        // Mapping (round off timestamp to week => slopeDelta) to keep track of slope changes over epoch
+        mapping(uint256 => int128) slopeChanges;
+    }
+
+    function _getStakeWeightStorage() internal pure returns (StakeWeightStorage storage s) {
+        bytes32 position = STAKE_WEIGHT_STORAGE_POSITION;
+        assembly {
+            s.slot := position
+        }
+    }
 
     /*//////////////////////////////////////////////////////////////////////////
                                     EVENTS
@@ -108,9 +121,10 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
         __ReentrancyGuard_init();
         if (init.config == address(0)) revert InvalidInput();
 
-        config = WalletConnectConfig(init.config);
+        StakeWeightStorage storage s = _getStakeWeightStorage();
+        s.config = WalletConnectConfig(init.config);
 
-        pointHistory.push(Point({ bias: 0, slope: 0, timestamp: block.timestamp, blockNumber: block.number }));
+        s.pointHistory.push(Point({ bias: 0, slope: 0, timestamp: block.timestamp, blockNumber: block.number }));
     }
 
     /*//////////////////////////////////////////////////////////////////////////
@@ -125,22 +139,23 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
     }
 
     function _balanceOfAt(address _user, uint256 _blockNumber) internal view returns (uint256) {
+        StakeWeightStorage storage s = _getStakeWeightStorage();
         // Get most recent user Point to block
         uint256 _userEpoch = _findUserBlockEpoch(_user, _blockNumber);
         if (_userEpoch == 0) {
             return 0;
         }
-        Point memory _userPoint = userPointHistory[_user][_userEpoch];
+        Point memory _userPoint = s.userPointHistory[_user][_userEpoch];
 
         // Get most recent global point to block
-        uint256 _maxEpoch = epoch;
+        uint256 _maxEpoch = s.epoch;
         uint256 _epoch = _findBlockEpoch(_blockNumber, _maxEpoch);
-        Point memory _point0 = pointHistory[_epoch];
+        Point memory _point0 = s.pointHistory[_epoch];
 
         uint256 _blockDelta = 0;
         uint256 _timeDelta = 0;
         if (_epoch < _maxEpoch) {
-            Point memory _point1 = pointHistory[_epoch + 1];
+            Point memory _point1 = s.pointHistory[_epoch + 1];
             _blockDelta = _point1.blockNumber - _point0.blockNumber;
             _timeDelta = _point1.timestamp - _point0.timestamp;
         } else {
@@ -183,11 +198,12 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
     }
 
     function _balanceOf(address _user, uint256 _timestamp) internal view returns (uint256) {
-        uint256 _epoch = userPointEpoch[_user];
+        StakeWeightStorage storage s = _getStakeWeightStorage();
+        uint256 _epoch = s.userPointEpoch[_user];
         if (_epoch == 0) {
             return 0;
         }
-        Point memory _lastPoint = userPointHistory[_user][_epoch];
+        Point memory _lastPoint = s.userPointHistory[_user][_epoch];
         _lastPoint.bias =
             _lastPoint.bias - (_lastPoint.slope * SafeCast.toInt128(int256(_timestamp - _lastPoint.timestamp)));
         if (_lastPoint.bias < 0) {
@@ -207,12 +223,13 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
     )
         internal
     {
+        StakeWeightStorage storage s = _getStakeWeightStorage();
         Point memory _userPrevPoint = Point({ slope: 0, bias: 0, timestamp: 0, blockNumber: 0 });
         Point memory _userNewPoint = Point({ slope: 0, bias: 0, timestamp: 0, blockNumber: 0 });
 
         int128 _prevSlopeDelta = 0;
         int128 _newSlopeDelta = 0;
-        uint256 _epoch = epoch;
+        uint256 _epoch = s.epoch;
 
         // if not 0x0, then update user's point
         if (_address != address(0)) {
@@ -234,24 +251,24 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
 
             // Handle user history here
             // Do it here to prevent stack overflow
-            uint256 _userEpoch = userPointEpoch[_address];
+            uint256 _userEpoch = s.userPointEpoch[_address];
             // If user never ever has any point history, push it here for him.
             if (_userEpoch == 0) {
-                userPointHistory[_address].push(_userPrevPoint);
+                s.userPointHistory[_address].push(_userPrevPoint);
             }
 
             // Shift user's epoch by 1 as we are writing a new point for a user
-            userPointEpoch[_address] = _userEpoch + 1;
+            s.userPointEpoch[_address] = _userEpoch + 1;
 
             // Update timestamp & block number then push new point to user's history
             _userNewPoint.timestamp = block.timestamp;
             _userNewPoint.blockNumber = block.number;
-            userPointHistory[_address].push(_userNewPoint);
+            s.userPointHistory[_address].push(_userNewPoint);
 
             // Read values of scheduled changes in the slope
             // _prevLocked.end can be in the past and in the future
             // _newLocked.end can ONLY be in the FUTURE unless everything expired (anything more than zeros)
-            _prevSlopeDelta = slopeChanges[_prevLocked.end];
+            _prevSlopeDelta = s.slopeChanges[_prevLocked.end];
             if (_newLocked.end != 0) {
                 // Handle when _newLocked.end != 0
                 if (_newLocked.end == _prevLocked.end) {
@@ -260,7 +277,7 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
                     _newSlopeDelta = _prevSlopeDelta;
                 } else {
                     // This will happen when user increase lock
-                    _newSlopeDelta = slopeChanges[_newLocked.end];
+                    _newSlopeDelta = s.slopeChanges[_newLocked.end];
                 }
             }
         }
@@ -271,7 +288,7 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
             // If _epoch > 0, then there is some history written
             // Hence, _lastPoint should be pointHistory[_epoch]
             // else _lastPoint should an empty point
-            _lastPoint = pointHistory[_epoch];
+            _lastPoint = s.pointHistory[_epoch];
         }
         // _lastCheckpoint => timestamp of the latest point
         // if no history, _lastCheckpoint should be block.timestamp
@@ -309,7 +326,7 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
                 // If the given _weekCursor is behind block.timestamp
                 // We take _slopeDelta from the recorded slopeChanges
                 // We can use _weekCursor directly because key of slopeChanges is timestamp round off to week
-                _slopeDelta = slopeChanges[_weekCursor];
+                _slopeDelta = s.slopeChanges[_weekCursor];
             }
             // Calculate _biasDelta = _lastPoint.slope * (_weekCursor - _lastCheckpoint)
             int128 _biasDelta = _lastPoint.slope * SafeCast.toInt128(int256((_weekCursor - _lastCheckpoint)));
@@ -337,12 +354,12 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
                 _lastPoint.blockNumber = block.number;
                 break;
             } else {
-                pointHistory.push(_lastPoint);
+                s.pointHistory.push(_lastPoint);
             }
         }
         // Now, each week pointHistory has been filled until current timestamp (round off by week)
         // Update epoch to be the latest state
-        epoch = _epoch;
+        s.epoch = _epoch;
 
         if (_address != address(0)) {
             // If the last point was in the block, the slope change should have been applied already
@@ -359,7 +376,7 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
 
         // Record the new point to pointHistory
         // This would be the latest point for global epoch
-        pointHistory.push(_lastPoint);
+        s.pointHistory.push(_lastPoint);
 
         if (_address != address(0)) {
             // Schedule the slope changes (slope is going downward)
@@ -372,13 +389,13 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
                     // Handle the new deposit. Not increasing lock.
                     _prevSlopeDelta = _prevSlopeDelta - _userNewPoint.slope;
                 }
-                slopeChanges[_prevLocked.end] = _prevSlopeDelta;
+                s.slopeChanges[_prevLocked.end] = _prevSlopeDelta;
             }
             if (_newLocked.end > block.timestamp) {
                 if (_newLocked.end > _prevLocked.end) {
                     // At this line, the old slope should gone
                     _newSlopeDelta = _newSlopeDelta - _userNewPoint.slope;
-                    slopeChanges[_newLocked.end] = _newSlopeDelta;
+                    s.slopeChanges[_newLocked.end] = _newSlopeDelta;
                 }
             }
         }
@@ -396,13 +413,15 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
     /// @param _unlockTime the timestamp when WCT get unlocked, it will be
     /// floored down to whole weeks
     function createLock(uint256 _amount, uint256 _unlockTime) external nonReentrant {
-        if (Pauser(config.getPauser()).isStakeWeightPaused()) revert Paused();
+        StakeWeightStorage storage s = _getStakeWeightStorage();
+        if (Pauser(s.config.getPauser()).isStakeWeightPaused()) revert Paused();
         _createLock(_amount, _unlockTime);
     }
 
     function _createLock(uint256 _amount, uint256 _unlockTime) internal {
         _unlockTime = _timestampToFloorWeek(_unlockTime);
-        LockedBalance memory _locked = locks[msg.sender];
+        StakeWeightStorage storage s = _getStakeWeightStorage();
+        LockedBalance memory _locked = s.locks[msg.sender];
 
         if (_amount <= 0) revert InvalidAmount(_amount);
         if (_locked.amount != 0) revert InvalidLockState();
@@ -417,8 +436,9 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
     /// @param _amount The amount that user wishes to deposit
 
     function depositFor(address _for, uint256 _amount) external nonReentrant {
-        if (Pauser(config.getPauser()).isStakeWeightPaused()) revert Paused();
-        LockedBalance memory _lock = LockedBalance({ amount: locks[_for].amount, end: locks[_for].end });
+        StakeWeightStorage storage s = _getStakeWeightStorage();
+        if (Pauser(s.config.getPauser()).isStakeWeightPaused()) revert Paused();
+        LockedBalance memory _lock = LockedBalance({ amount: s.locks[_for].amount, end: s.locks[_for].end });
 
         if (_for == address(0)) revert InvalidAddress();
         if (_amount == 0) revert InvalidAmount(_amount);
@@ -443,9 +463,10 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
     )
         internal
     {
+        StakeWeightStorage storage s = _getStakeWeightStorage();
         // Initiate _supplyBefore & update supply
-        uint256 _supplyBefore = supply;
-        supply = _supplyBefore + _amount;
+        uint256 _supplyBefore = s.supply;
+        s.supply = _supplyBefore + _amount;
 
         // Store _prevLocked
         LockedBalance memory _newLocked = LockedBalance({ amount: _prevLocked.amount, end: _prevLocked.end });
@@ -456,21 +477,22 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
         if (_unlockTime != 0) {
             _newLocked.end = _unlockTime;
         }
-        locks[_for] = _newLocked;
+        s.locks[_for] = _newLocked;
 
         // Handling checkpoint here
         _checkpoint(_for, _prevLocked, _newLocked);
 
-        IERC20(config.getL2wct()).safeTransferFrom(msg.sender, address(this), _amount);
+        IERC20(s.config.getL2wct()).safeTransferFrom(msg.sender, address(this), _amount);
 
         emit Deposit(_for, _amount, _newLocked.end, _actionType, block.timestamp);
-        emit Supply(_supplyBefore, supply);
+        emit Supply(_supplyBefore, s.supply);
     }
 
     /// @notice Do Binary Search to find out block timestamp for block number
     /// @param _blockNumber The block number to find timestamp
     /// @param _maxEpoch No beyond this timestamp
     function _findBlockEpoch(uint256 _blockNumber, uint256 _maxEpoch) internal view returns (uint256) {
+        StakeWeightStorage storage s = _getStakeWeightStorage();
         uint256 _min = 0;
         uint256 _max = _maxEpoch;
         // Loop for 128 times -> enough for 128-bit numbers
@@ -479,7 +501,7 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
                 break;
             }
             uint256 _mid = (_min + _max + 1) / 2;
-            if (pointHistory[_mid].blockNumber <= _blockNumber) {
+            if (s.pointHistory[_mid].blockNumber <= _blockNumber) {
                 _min = _mid;
             } else {
                 _max = _mid - 1;
@@ -492,14 +514,15 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
     /// @param _user The address of user to find
     /// @param _blockNumber Find the most recent point history before this block number
     function _findUserBlockEpoch(address _user, uint256 _blockNumber) internal view returns (uint256) {
+        StakeWeightStorage storage s = _getStakeWeightStorage();
         uint256 _min = 0;
-        uint256 _max = userPointEpoch[_user];
+        uint256 _max = s.userPointEpoch[_user];
         for (uint256 i = 0; i < 128; i++) {
             if (_min >= _max) {
                 break;
             }
             uint256 _mid = (_min + _max + 1) / 2;
-            if (userPointHistory[_user][_mid].blockNumber <= _blockNumber) {
+            if (s.userPointHistory[_user][_mid].blockNumber <= _blockNumber) {
                 _min = _mid;
             } else {
                 _max = _mid - 1;
@@ -511,8 +534,9 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
     /// @notice Increase lock amount without increase "end"
     /// @param _amount The amount of WCT to be added to the lock
     function increaseLockAmount(uint256 _amount) external nonReentrant {
-        if (Pauser(config.getPauser()).isStakeWeightPaused()) revert Paused();
-        LockedBalance memory _lock = locks[msg.sender];
+        StakeWeightStorage storage s = _getStakeWeightStorage();
+        if (Pauser(s.config.getPauser()).isStakeWeightPaused()) revert Paused();
+        LockedBalance memory _lock = s.locks[msg.sender];
         if (_amount == 0) revert InvalidAmount(_amount);
         if (_lock.amount == 0) revert InvalidLockState();
         if (_lock.end <= block.timestamp) revert ExpiredLock(block.timestamp, _lock.end);
@@ -522,8 +546,9 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
     /// @notice Increase unlock time without changing locked amount
     /// @param _newUnlockTime The new unlock time to be updated
     function increaseUnlockTime(uint256 _newUnlockTime) external nonReentrant {
-        if (Pauser(config.getPauser()).isStakeWeightPaused()) revert Paused();
-        LockedBalance memory _locked = locks[msg.sender];
+        StakeWeightStorage storage s = _getStakeWeightStorage();
+        if (Pauser(s.config.getPauser()).isStakeWeightPaused()) revert Paused();
+        LockedBalance memory _locked = s.locks[msg.sender];
         _newUnlockTime = _timestampToFloorWeek(_newUnlockTime);
         if (_locked.amount == 0) revert InvalidLockState();
         if (_locked.end <= block.timestamp) revert ExpiredLock(block.timestamp, _locked.end);
@@ -540,26 +565,29 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
 
     /// @notice Calculate total supply of Stake Weight
     function totalSupply() external view returns (uint256) {
-        return _totalSupplyAt(pointHistory[epoch], block.timestamp);
+        StakeWeightStorage storage s = _getStakeWeightStorage();
+        return _totalSupplyAt(s.pointHistory[s.epoch], block.timestamp);
     }
 
     /// @notice Calculate total supply of Stake Weight at at specific timestamp
     /// @param _timestamp The specific timestamp to calculate totalSupply
     function totalSupplyAtTime(uint256 _timestamp) external view returns (uint256) {
-        return _totalSupplyAt(pointHistory[epoch], _timestamp);
+        StakeWeightStorage storage s = _getStakeWeightStorage();
+        return _totalSupplyAt(s.pointHistory[s.epoch], _timestamp);
     }
 
     /// @notice Calculate total supply of Stake Weight at specific block
     /// @param _blockNumber The specific block number to calculate totalSupply
     function totalSupplyAt(uint256 _blockNumber) external view returns (uint256) {
         if (_blockNumber > block.number) revert BadBlockNumber(_blockNumber);
-        uint256 _epoch = epoch;
+        StakeWeightStorage storage s = _getStakeWeightStorage();
+        uint256 _epoch = s.epoch;
         uint256 _targetEpoch = _findBlockEpoch(_blockNumber, _epoch);
 
-        Point memory _point = pointHistory[_targetEpoch];
+        Point memory _point = s.pointHistory[_targetEpoch];
         uint256 _timeDelta = 0;
         if (_targetEpoch < _epoch) {
-            Point memory _nextPoint = pointHistory[_targetEpoch + 1];
+            Point memory _nextPoint = s.pointHistory[_targetEpoch + 1];
             if (_point.blockNumber != _nextPoint.blockNumber) {
                 _timeDelta = ((_blockNumber - _point.blockNumber) * (_nextPoint.timestamp - _point.timestamp))
                     / (_nextPoint.blockNumber - _point.blockNumber);
@@ -578,6 +606,7 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
     /// @param _point The point to start to search from
     /// @param _timestamp The timestamp to calculate the total voting power at
     function _totalSupplyAt(Point memory _point, uint256 _timestamp) internal view returns (uint256) {
+        StakeWeightStorage storage s = _getStakeWeightStorage();
         Point memory _lastPoint = _point;
         uint256 _weekCursor = _timestampToFloorWeek(_point.timestamp);
         // Iterate through weeks to take slopChanges into the account
@@ -591,7 +620,7 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
             } else {
                 // If _weekCursor still behind _timestamp, then _slopeDelta
                 // should be taken into the account.
-                _slopeDelta = slopeChanges[_weekCursor];
+                _slopeDelta = s.slopeChanges[_weekCursor];
             }
             // Update bias at _weekCursor
             _lastPoint.bias =
@@ -613,8 +642,10 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
 
     /// @notice Withdraw all WCT when lock has expired.
     function withdrawAll() external nonReentrant {
+        StakeWeightStorage storage s = _getStakeWeightStorage();
+        WalletConnectConfig config = s.config;
         if (Pauser(config.getPauser()).isStakeWeightPaused()) revert Paused();
-        LockedBalance memory _lock = locks[msg.sender];
+        LockedBalance memory _lock = s.locks[msg.sender];
         if (_lock.amount == 0) revert InvalidLockState();
         if (_lock.end > block.timestamp) revert InvalidLockState();
 
@@ -628,6 +659,7 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
     }
 
     function _unlock(address _user, LockedBalance memory _lock, uint256 _withdrawAmount) internal {
+        StakeWeightStorage storage s = _getStakeWeightStorage();
         // Cast here for readability
         uint256 _lockedAmount = SafeCast.toUint256(_lock.amount);
         if (_withdrawAmount > _lockedAmount) {
@@ -638,16 +670,61 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
         //_lock.end should remain the same if we do partially withdraw
         _lock.end = _lockedAmount == _withdrawAmount ? 0 : _lock.end;
         _lock.amount = SafeCast.toInt128(int256(_lockedAmount - _withdrawAmount));
-        locks[_user] = _lock;
+        s.locks[_user] = _lock;
 
-        uint256 _supplyBefore = supply;
-        supply = _supplyBefore - _withdrawAmount;
+        uint256 _supplyBefore = s.supply;
+        s.supply = _supplyBefore - _withdrawAmount;
 
         // _prevLock can have either block.timstamp >= _lock.end or zero end
         // _lock has only 0 end
         // Both can have >= 0 amount
         _checkpoint(_user, _prevLock, _lock);
 
-        emit Supply(_supplyBefore, supply);
+        emit Supply(_supplyBefore, s.supply);
+    }
+
+    // Getters
+
+    function epoch() external view returns (uint256) {
+        StakeWeightStorage storage s = _getStakeWeightStorage();
+        return s.epoch;
+    }
+
+    function pointHistory(uint256 _epoch) external view returns (int128, int128, uint256, uint256) {
+        StakeWeightStorage storage s = _getStakeWeightStorage();
+        Point memory point = s.pointHistory[_epoch];
+        return (point.bias, point.slope, point.timestamp, point.blockNumber);
+    }
+
+    function userPointHistory(address _user, uint256 _epoch) external view returns (int128, int128, uint256, uint256) {
+        StakeWeightStorage storage s = _getStakeWeightStorage();
+        Point memory point = s.userPointHistory[_user][_epoch];
+        return (point.bias, point.slope, point.timestamp, point.blockNumber);
+    }
+
+    function locks(address _user) external view returns (int128, uint256) {
+        StakeWeightStorage storage s = _getStakeWeightStorage();
+        LockedBalance memory lock = s.locks[_user];
+        return (lock.amount, lock.end);
+    }
+
+    function userPointEpoch(address _user) external view returns (uint256) {
+        StakeWeightStorage storage s = _getStakeWeightStorage();
+        return s.userPointEpoch[_user];
+    }
+
+    function slopeChanges(uint256 _timestamp) external view returns (int128) {
+        StakeWeightStorage storage s = _getStakeWeightStorage();
+        return s.slopeChanges[_timestamp];
+    }
+
+    function supply() external view returns (uint256) {
+        StakeWeightStorage storage s = _getStakeWeightStorage();
+        return s.supply;
+    }
+
+    function config() external view returns (WalletConnectConfig) {
+        StakeWeightStorage storage s = _getStakeWeightStorage();
+        return s.config;
     }
 }
