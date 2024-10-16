@@ -9,9 +9,11 @@ import { WalletConnectConfig } from "src/WalletConnectConfig.sol";
 import { Pauser } from "src/Pauser.sol";
 import { RewardManager } from "src/RewardManager.sol";
 import { Staking } from "src/Staking.sol";
+import { StakeWeight } from "src/StakeWeight.sol";
+import { StakingRewardDistributor } from "src/StakingRewardDistributor.sol";
 
 function newWCT(address initialOwner, WCT.Init memory init) returns (WCT) {
-    bytes32 salt = bytes32("walletconnect.wct");
+    bytes32 salt = keccak256(abi.encodePacked("walletconnect.wct"));
 
     WCT impl = new WCT{ salt: salt }();
     TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy{ salt: salt }({
@@ -24,7 +26,7 @@ function newWCT(address initialOwner, WCT.Init memory init) returns (WCT) {
 }
 
 function newL2WCT(address initialOwner, L2WCT.Init memory init) returns (L2WCT) {
-    bytes32 salt = bytes32("walletconnect.l2wct");
+    bytes32 salt = keccak256(abi.encodePacked("walletconnect.l2wct"));
 
     L2WCT impl = new L2WCT{ salt: salt }();
     TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy{ salt: salt }({
@@ -42,7 +44,7 @@ function newWalletConnectConfig(
 )
     returns (WalletConnectConfig)
 {
-    bytes32 salt = bytes32("walletconnect.config");
+    bytes32 salt = keccak256(abi.encodePacked("walletconnect.config"));
 
     WalletConnectConfig impl = new WalletConnectConfig{ salt: salt }();
     TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy{ salt: salt }({
@@ -55,7 +57,7 @@ function newWalletConnectConfig(
 }
 
 function newPauser(address initialOwner, Pauser.Init memory init) returns (Pauser) {
-    bytes32 salt = bytes32("walletconnect.pauser");
+    bytes32 salt = keccak256(abi.encodePacked("walletconnect.pauser"));
 
     Pauser impl = new Pauser{ salt: salt }();
     TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy{ salt: salt }({
@@ -68,7 +70,7 @@ function newPauser(address initialOwner, Pauser.Init memory init) returns (Pause
 }
 
 function newRewardManager(address initialOwner, RewardManager.Init memory init) returns (RewardManager) {
-    bytes32 salt = bytes32("walletconnect.rewardmanager");
+    bytes32 salt = keccak256(abi.encodePacked("walletconnect.rewardmanager"));
 
     RewardManager impl = new RewardManager{ salt: salt }();
     TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy{ salt: salt }({
@@ -81,7 +83,7 @@ function newRewardManager(address initialOwner, RewardManager.Init memory init) 
 }
 
 function newStaking(address initialOwner, Staking.Init memory init) returns (Staking) {
-    bytes32 salt = bytes32("walletconnect.staking");
+    bytes32 salt = keccak256(abi.encodePacked("walletconnect.staking"));
 
     Staking impl = new Staking{ salt: salt }();
     TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy{ salt: salt }({
@@ -91,4 +93,35 @@ function newStaking(address initialOwner, Staking.Init memory init) returns (Sta
     });
 
     return Staking(address(proxy));
+}
+
+function newStakingRewardDistributor(
+    address initialOwner,
+    StakingRewardDistributor.Init memory init
+)
+    returns (StakingRewardDistributor)
+{
+    bytes32 salt = keccak256(abi.encodePacked("walletconnect.stakingrewarddistributor"));
+
+    StakingRewardDistributor impl = new StakingRewardDistributor{ salt: salt }();
+    TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy{ salt: salt }({
+        _logic: address(impl),
+        initialOwner: address(initialOwner),
+        _data: abi.encodeCall(StakingRewardDistributor.initialize, init)
+    });
+
+    return StakingRewardDistributor(address(proxy));
+}
+
+function newStakeWeight(address initialOwner, StakeWeight.Init memory init) returns (StakeWeight) {
+    bytes32 salt = keccak256(abi.encodePacked("walletconnect.stakeweight"));
+
+    StakeWeight impl = new StakeWeight{ salt: salt }();
+    TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy{ salt: salt }({
+        _logic: address(impl),
+        initialOwner: address(initialOwner),
+        _data: abi.encodeCall(StakeWeight.initialize, init)
+    });
+
+    return StakeWeight(address(proxy));
 }

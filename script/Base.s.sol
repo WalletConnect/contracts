@@ -6,6 +6,8 @@ import { Script } from "forge-std/Script.sol";
 import { WCT } from "src/WCT.sol";
 import { L2WCT } from "src/L2WCT.sol";
 import { Timelock } from "src/Timelock.sol";
+import { Eip1967Logger } from "script/utils/Eip1967Logger.sol";
+import { StdCheats } from "forge-std/StdCheats.sol";
 
 struct EthereumDeployments {
     WCT wct;
@@ -18,7 +20,7 @@ struct OptimismDeployments {
     Timelock managerTimelock;
 }
 
-abstract contract BaseScript is Script {
+abstract contract BaseScript is Script, StdCheats {
     /// @dev Included to enable compilation of the script without a $MNEMONIC environment variable.
     string internal constant TEST_MNEMONIC = "test test test test test test test test test test test junk";
 
@@ -111,22 +113,5 @@ abstract contract BaseScript is Script {
         address[] memory arr = new address[](1);
         arr[0] = addr;
         return arr;
-    }
-
-    function logEip1967(string memory name, address proxy) public view {
-        console2.log("%s:", name, proxy);
-        bytes32 ADMIN_SLOT = bytes32(uint256(keccak256("eip1967.proxy.admin")) - 1);
-        address admin = slotToAddress(proxy, ADMIN_SLOT);
-        if (admin == address(0)) {
-            return console2.log("No admin found. Are you sure %s is a proxy?", name);
-        }
-        console2.log("%s Admin:", name, admin);
-        bytes32 IMPLEMENTATION_SLOT = bytes32(uint256(keccak256("eip1967.proxy.implementation")) - 1);
-        address implementation = slotToAddress(proxy, IMPLEMENTATION_SLOT);
-        console2.log("%s Implementation:", name, implementation);
-    }
-
-    function slotToAddress(address proxy, bytes32 slot) public view returns (address) {
-        return address(uint160(uint256(vm.load(proxy, slot))));
     }
 }

@@ -25,8 +25,6 @@ contract WalletConnectConfig is Initializable, AccessControlUpgradeable {
     event AccountSet(bytes32 indexed key, address val);
 
     /// @notice Role for administrative actions
-    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
-
     /// @notice Configuration for contract initialization
     struct Init {
         address admin;
@@ -36,12 +34,12 @@ contract WalletConnectConfig is Initializable, AccessControlUpgradeable {
     mapping(bytes32 => address) private _accountsMap;
     mapping(bytes32 => address) private _contractsMap;
 
-    bytes32 public constant BAKERSSYNDICATE_REWARDS_VAULT = keccak256("BAKERSSYNDICATE_REWARDS_VAULT");
+    bytes32 public constant WALLETCONNECT_REWARDS_VAULT = keccak256("WALLETCONNECT_REWARDS_VAULT");
     bytes32 public constant WCT_TOKEN = keccak256("WCT_TOKEN");
     bytes32 public constant L2WCT_TOKEN = keccak256("L2WCT_TOKEN");
     bytes32 public constant PERMISSIONED_NODE_REGISTRY = keccak256("PERMISSIONED_NODE_REGISTRY");
     bytes32 public constant REWARD_MANAGER = keccak256("REWARD_MANAGER");
-    bytes32 public constant STAKING = keccak256("STAKING");
+    bytes32 public constant STAKE_WEIGHT = keccak256("STAKE_WEIGHT");
     bytes32 public constant PAUSER = keccak256("PAUSER");
 
     /// @notice Initializes the contract
@@ -49,7 +47,7 @@ contract WalletConnectConfig is Initializable, AccessControlUpgradeable {
     /// @param init Initialization parameters
     function initialize(Init memory init) public initializer {
         __AccessControl_init();
-        _grantRole(ADMIN_ROLE, init.admin);
+        _grantRole(DEFAULT_ADMIN_ROLE, init.admin);
     }
 
     /// @notice Gets the WCT token address
@@ -82,58 +80,58 @@ contract WalletConnectConfig is Initializable, AccessControlUpgradeable {
         return _contractsMap[REWARD_MANAGER];
     }
 
-    /// @notice Gets the Staking address
-    /// @return The address of the Staking contract
-    function getStaking() external view returns (address) {
-        return _contractsMap[STAKING];
+    /// @notice Gets the StakeWeight address
+    /// @return The address of the StakeWeight contract
+    function getStakeWeight() external view returns (address) {
+        return _contractsMap[STAKE_WEIGHT];
     }
 
     /// @notice Gets the WalletConnect Rewards Vault address
     /// @return The address of the WalletConnect Rewards Vault
     function getWalletConnectRewardsVault() external view returns (address) {
-        return _accountsMap[BAKERSSYNDICATE_REWARDS_VAULT];
+        return _accountsMap[WALLETCONNECT_REWARDS_VAULT];
     }
 
     /// @notice Updates the WCT token address
     /// @param wct The new WCT token address
-    function updateWCT(address wct) external onlyRole(ADMIN_ROLE) {
+    function updateWCT(address wct) external onlyRole(DEFAULT_ADMIN_ROLE) {
         _setContract({ key: WCT_TOKEN, val: wct });
     }
 
     /// @notice Updates the L2WCT token address
     /// @param l2wct The new L2WCT token address
-    function updateL2wct(address l2wct) external onlyRole(ADMIN_ROLE) {
+    function updateL2wct(address l2wct) external onlyRole(DEFAULT_ADMIN_ROLE) {
         _setContract({ key: L2WCT_TOKEN, val: l2wct });
     }
 
     /// @notice Updates the Pauser address
     /// @param pauser The new Pauser address
-    function updatePauser(address pauser) external onlyRole(ADMIN_ROLE) {
+    function updatePauser(address pauser) external onlyRole(DEFAULT_ADMIN_ROLE) {
         _setContract({ key: PAUSER, val: pauser });
     }
 
     /// @notice Updates the Permissioned Node Registry address
     /// @param permissionedNodeRegistry The new Permissioned Node Registry address
-    function updatePermissionedNodeRegistry(address permissionedNodeRegistry) external onlyRole(ADMIN_ROLE) {
+    function updatePermissionedNodeRegistry(address permissionedNodeRegistry) external onlyRole(DEFAULT_ADMIN_ROLE) {
         _setContract({ key: PERMISSIONED_NODE_REGISTRY, val: permissionedNodeRegistry });
     }
 
     /// @notice Updates the Reward Manager address
     /// @param rewardManager The new Reward Manager address
-    function updateRewardManager(address rewardManager) external onlyRole(ADMIN_ROLE) {
+    function updateRewardManager(address rewardManager) external onlyRole(DEFAULT_ADMIN_ROLE) {
         _setContract({ key: REWARD_MANAGER, val: rewardManager });
     }
 
-    /// @notice Updates the Staking address
-    /// @param staking The new Staking address
-    function updateStaking(address staking) external onlyRole(ADMIN_ROLE) {
-        _setContract({ key: STAKING, val: staking });
+    /// @notice Updates the StakeWeight address
+    /// @param stakeWeight The new StakeWeight address
+    function updateStakeWeight(address stakeWeight) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _setContract({ key: STAKE_WEIGHT, val: stakeWeight });
     }
 
     /// @notice Updates the WalletConnect Rewards Vault address
-    /// @param bakersSyndicateRewardsVault The new WalletConnect Rewards Vault address
-    function updateWalletConnectRewardsVault(address bakersSyndicateRewardsVault) external onlyRole(ADMIN_ROLE) {
-        _setAccount({ key: BAKERSSYNDICATE_REWARDS_VAULT, val: bakersSyndicateRewardsVault });
+    /// @param walletConnectRewardsVault The new WalletConnect Rewards Vault address
+    function updateWalletConnectRewardsVault(address walletConnectRewardsVault) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _setAccount({ key: WALLETCONNECT_REWARDS_VAULT, val: walletConnectRewardsVault });
     }
 
     /// @notice Checks if the given address is a recognized WalletConnect contract

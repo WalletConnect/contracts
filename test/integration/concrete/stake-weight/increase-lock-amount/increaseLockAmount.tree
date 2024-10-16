@@ -1,0 +1,20 @@
+increaseLockAmount.t.sol
+├── given contract is paused
+│   └── it should revert
+└── given contract is not paused
+    ├── when user has no existing lock
+    │   └── it should revert with InvalidLockState
+    └── when user has an existing lock
+        ├── when lock has expired
+        │   └── it should revert with ExpiredLock
+        ├── when amount is zero
+        │   └── it should revert with InvalidAmount
+        └── when amount is greater than zero
+            ├── when amount exceeds user's balance
+            │   └── it should revert
+            └── when amount is within user's balance
+                ├── it should increase the lock amount
+                ├── it should update the supply
+                ├── it should transfer tokens from the user
+                ├── it should emit a Deposit event
+                └── it should emit a Supply event

@@ -1,0 +1,30 @@
+balanceOfAt.t.sol
+├── given a user has locked tokens for MAX_LOCK time
+│   ├── when querying balance at a block before lock
+│   │   └── it should return zero
+│   ├── when querying balance at the lock block
+│   │   └── it should return between 99% and 100% of the locked amount
+│   ├── when querying balance shortly after lock (10% of lock time passed)
+│   │   └── it should return between 87.5% and 92.5% of the locked amount
+│   ├── when querying balance midway through lock period (50% of lock time passed)
+│   │   └── it should return between 45% and 55% of the locked amount
+│   ├── when querying balance near the end of lock period (90% of lock time passed)
+│   │   └── it should return between 5% and 15% of the locked amount
+│   └── when querying balance after expiry
+│       └── it should return zero
+├── given a user has locked tokens for half of MAX_LOCK time
+│   ├── when querying balance at a block before lock
+│   │   └── it should return zero
+│   ├── when querying balance at the lock block
+│   │   └── it should return between 47.5% and 50% of the locked amount
+│   ├── when querying balance shortly after lock (10% of lock time passed)
+│   │   └── it should return between 42.5% and 47.5% of the locked amount
+│   ├── when querying balance midway through lock period (50% of lock time passed)
+│   │   └── it should return between 22.5% and 27.5% of the locked amount
+│   ├── when querying balance near the end of lock period (90% of lock time passed)
+│   │   └── it should return between 2.5% and 7.5% of the locked amount
+│   └── when querying balance after expiry
+│       └── it should return zero
+└── given a user has not locked tokens
+    └── when querying balance at any block
+        └── it should return zero

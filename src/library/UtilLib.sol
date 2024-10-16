@@ -15,13 +15,13 @@ library UtilLib {
     //checks if caller is a WalletConnect contract address
     function onlyWalletConnectContract(
         address addr,
-        WalletConnectConfig bakersSyndicateConfig,
+        WalletConnectConfig walletConnectConfig,
         bytes32 contractName
     )
         internal
         view
     {
-        if (!bakersSyndicateConfig.isWalletConnectContract(addr, contractName)) {
+        if (!walletConnectConfig.isWalletConnectContract(addr, contractName)) {
             revert CallerNotWalletConnectContract();
         }
     }

@@ -1,0 +1,9 @@
+_timestampToFloorWeek.t.sol
+├── when timestamp is exactly on a week boundary
+│   └── it should return the same timestamp
+├── when timestamp is in the middle of a week
+│   └── it should return the timestamp of the start of that week
+├── when timestamp is zero
+│   └── it should return zero
+└── when timestamp is very large
+    └── it should correctly round down to the nearest week
