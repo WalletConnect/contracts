@@ -2,6 +2,7 @@
 
 import { Base_Test } from "test/Base.t.sol";
 import { L2WCT } from "src/L2WCT.sol";
+import { Eip1967Logger } from "script/utils/Eip1967Logger.sol";
 
 pragma solidity >=0.8.25 <0.9.0;
 
@@ -26,7 +27,13 @@ contract Transfer_L2WCT_Unit_Fuzz_Test is Base_Test {
         assertEq(l2wct.balanceOf(to), 500);
     }
 
-    function testFuzz_NotAllowedFromCannotSendIfNoAllowedTos(address from, address to) public {
+    function testFuzz_NotAllowedFromCannotSendIfNoAllowedTos(
+        address from,
+        address to
+    )
+        public
+        notFromProxyAdmin(from, address(l2wct))
+    {
         vm.assume(from != address(0) && from != users.alice && from != address(mockBridge));
         vm.assume(to != address(0) && to != users.alice && to != address(mockBridge));
         vm.assume(from != to);
@@ -39,7 +46,13 @@ contract Transfer_L2WCT_Unit_Fuzz_Test is Base_Test {
         l2wct.transfer(to, 500);
     }
 
-    function testFuzz_DisableTransferRestrictions(address from, address to) public {
+    function testFuzz_DisableTransferRestrictions(
+        address from,
+        address to
+    )
+        public
+        notFromProxyAdmin(from, address(l2wct))
+    {
         vm.assume(from != address(0) && from != users.alice && from != address(mockBridge));
         vm.assume(to != address(0) && to != users.alice && to != address(mockBridge));
         vm.assume(from != to);

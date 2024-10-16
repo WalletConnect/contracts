@@ -5,6 +5,7 @@ import { console2 } from "forge-std/console2.sol";
 import { Timelock } from "src/Timelock.sol";
 import { L2WCT } from "src/L2WCT.sol";
 import { OptimismDeployments, BaseScript } from "script/Base.s.sol";
+import { Eip1967Logger } from "script/utils/Eip1967Logger.sol";
 import { newL2WCT } from "script/helpers/Proxy.sol";
 
 struct OptimismDeploymentParams {
@@ -32,7 +33,7 @@ contract OptimismDeploy is BaseScript {
 
     function logDeployments() public {
         OptimismDeployments memory deps = readOptimismDeployments(block.chainid);
-        logEip1967("L2WCT", address(deps.l2wct));
+        Eip1967Logger.logEip1967(vm, "L2WCT", address(deps.l2wct));
         console2.log("Admin Timelock:", address(deps.adminTimelock));
         console2.log("Manager Timelock:", address(deps.managerTimelock));
     }

@@ -22,6 +22,7 @@ import {
     newStakeWeight,
     newStakingRewardDistributor
 } from "script/helpers/Proxy.sol";
+import { Eip1967Logger } from "script/utils/Eip1967Logger.sol";
 
 import { Test } from "forge-std/Test.sol";
 
@@ -185,5 +186,11 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
     function disableTransferRestrictions() internal {
         vm.prank(users.admin);
         l2wct.disableTransferRestrictions();
+    }
+
+    modifier notFromProxyAdmin(address msgSender, address proxy) {
+        address admin = Eip1967Logger.getAdmin(vm, proxy);
+        vm.assume(admin != msgSender);
+        _;
     }
 }

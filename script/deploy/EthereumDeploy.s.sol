@@ -6,6 +6,7 @@ import { WCT } from "src/WCT.sol";
 import { Timelock } from "src/Timelock.sol";
 import { EthereumDeployments, BaseScript } from "script/Base.s.sol";
 import { newWCT } from "script/helpers/Proxy.sol";
+import { Eip1967Logger } from "script/utils/Eip1967Logger.sol";
 
 struct EthereumDeploymentParams {
     address admin;
@@ -38,7 +39,7 @@ contract EthereumDeploy is BaseScript {
 
     function logDeployments() public {
         EthereumDeployments memory deps = readEthereumDeployments(block.chainid);
-        logEip1967("WCT", address(deps.wct));
+        Eip1967Logger.logEip1967(vm, "WCT", address(deps.wct));
         console2.log("Timelock", address(deps.timelock));
     }
 
