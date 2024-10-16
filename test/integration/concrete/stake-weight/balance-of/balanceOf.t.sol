@@ -13,8 +13,6 @@ contract BalanceOf_StakeWeight_Integration_Concrete_Test is StakeWeight_Integrat
 
     function setUp() public override {
         super.setUp();
-        deployCoreConditionally();
-        disableTransferRestrictions();
     }
 
     function test_BalanceForUserWithoutLock() external view {

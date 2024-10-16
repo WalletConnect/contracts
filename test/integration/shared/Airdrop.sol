@@ -41,9 +41,6 @@ abstract contract Airdrop_Test is Integration_Test {
     function setUp() public virtual override {
         super.setUp();
 
-        // Deploy Core.
-        deployCoreConditionally();
-
         // Disable transfer restrictions.
         vm.prank(address(users.admin));
         l2wct.disableTransferRestrictions();
