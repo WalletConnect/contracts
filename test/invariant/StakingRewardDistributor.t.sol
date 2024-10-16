@@ -4,7 +4,6 @@ pragma solidity >=0.8.25 <0.9.0;
 import { Invariant_Test } from "./Invariant.t.sol";
 import { StakingRewardDistributorHandler } from "./handlers/StakingRewardDistributorHandler.sol";
 import { StakingRewardDistributorStore } from "./stores/StakingRewardDistributorStore.sol";
-import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { console2 } from "forge-std/console2.sol";
 
 contract StakingRewardDistributor_Invariant_Test is Invariant_Test {
@@ -196,7 +195,7 @@ contract StakingRewardDistributor_Invariant_Test is Invariant_Test {
         assertEq(
             stakingRewardDistributor.weekCursor() - 1 weeks,
             _timestampToFloorWeek(stakingRewardDistributor.lastTokenTimestamp()),
-            "weekCursor should be one week ahead the floored lastTokenTimestamp, as it points the start of the processingweek"
+            "weekCursor should be one week ahead the floored lastTokenTimestamp, at the start of the week to process"
         );
 
         console2.log("afterInvariant checks completed successfully");

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.25 <0.9.0;
 
-import { Airdrop } from "src/Airdrop.sol";
 import { AirdropHandler } from "./handlers/AirdropHandler.sol";
 import { AirdropStore } from "./stores/AirdropStore.sol";
 import { Airdrop_Test } from "test/integration/shared/Airdrop.sol";
