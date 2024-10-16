@@ -4,7 +4,6 @@ pragma solidity >=0.8.25 <0.9.0;
 import { console2 } from "forge-std/console2.sol";
 import { WCT } from "src/WCT.sol";
 import { Timelock } from "src/Timelock.sol";
-import { Upgrades } from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import { EthereumDeployments, BaseScript } from "script/Base.s.sol";
 import { newWCT } from "script/helpers/Proxy.sol";
 
