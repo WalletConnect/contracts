@@ -9,8 +9,19 @@ import { PermissionedNodeRegistry } from "src/PermissionedNodeRegistry.sol";
 import { WalletConnectConfig } from "src/WalletConnectConfig.sol";
 import { RewardManager } from "src/RewardManager.sol";
 import { StakeWeight } from "src/StakeWeight.sol";
+import { Staking } from "src/Staking.sol";
 import { StakingRewardDistributor } from "src/StakingRewardDistributor.sol";
 import { MockBridge } from "./mocks/MockBridge.sol";
+import {
+    newPauser,
+    newStaking,
+    newRewardManager,
+    newWalletConnectConfig,
+    newWCT,
+    newL2WCT,
+    newStakeWeight,
+    newStakingRewardDistributor
+} from "script/helpers/Proxy.sol";
 
 import { Test } from "forge-std/Test.sol";
 
@@ -39,6 +50,7 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
     PermissionedNodeRegistry internal permissionedNodeRegistry;
     WalletConnectConfig internal walletConnectConfig;
     RewardManager internal rewardManager;
+    Staking internal staking;
     StakeWeight internal stakeWeight;
     StakingRewardDistributor internal stakingRewardDistributor;
     /*//////////////////////////////////////////////////////////////////////////
@@ -93,7 +105,8 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
             init: WalletConnectConfig.Init({ admin: users.admin })
         });
 
-        pauser = newPauser({ initialOwner: users.admin, init: Pauser.Init({ admin: users.admin }) });
+        pauser =
+            newPauser({ initialOwner: users.admin, init: Pauser.Init({ admin: users.admin, pauser: users.pauser }) });
 
         rewardManager = newRewardManager({
             initialOwner: users.admin,
@@ -109,12 +122,7 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
 
         staking = newStaking({
             initialOwner: users.admin,
-            init: Staking.Init({
-                owner: users.admin,
-                minStakeAmount: defaults.MIN_STAKE(),
-                isStakingAllowlist: true,
-                walletConnectConfig: walletConnectConfig
-            })
+            init: Staking.Init({ admin: users.admin, config: walletConnectConfig, duration: stakeWeight.maxLock() })
         });
 
         wct = newWCT({ initialOwner: users.admin, init: WCT.Init({ initialOwner: users.admin }) });
@@ -136,10 +144,9 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
             initialOwner: users.admin,
             init: StakingRewardDistributor.Init({
                 admin: users.admin,
-                stakeWeight: address(stakeWeight),
-                l2wct: address(l2wct),
                 startTime: block.timestamp,
-                emergencyHolder: users.emergencyHolder
+                emergencyReturn: users.emergencyHolder,
+                config: address(walletConnectConfig)
             })
         });
 
