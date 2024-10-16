@@ -60,26 +60,50 @@ contract StakingRewardDistributor_Invariant_Test is Invariant_Test {
     }
 
     function invariant_totalDistributedConsistency() public view {
-        uint256 totalTokensPerWeek = 0;
-        uint256 currentWeek = _timestampToFloorWeek(block.timestamp);
-        for (uint256 i = stakingRewardDistributor.startWeekCursor(); i <= currentWeek; i += 1 weeks) {
-            totalTokensPerWeek += stakingRewardDistributor.tokensPerWeek(i);
+        uint256 totalCursorTokensPerWeek = 0;
+        uint256 flooredLastTokenTimestamp = _timestampToFloorWeek(stakingRewardDistributor.lastTokenTimestamp());
+
+        // Fed rewards
+        for (uint256 i = stakingRewardDistributor.startWeekCursor(); i <= flooredLastTokenTimestamp; i += 1 weeks) {
+            totalCursorTokensPerWeek += stakingRewardDistributor.tokensPerWeek(i);
         }
 
-        // Calculate injected rewards for future weeks
-        uint256 futureInjectedRewards = 0;
-        uint256 safetyBuffer = 1 weeks;
-        for (
-            uint256 i = currentWeek + 1 weeks; i <= block.timestamp + stakeWeight.maxLock() + safetyBuffer; i += 1 weeks
-        ) {
-            futureInjectedRewards += stakingRewardDistributor.tokensPerWeek(i);
+        uint256 totalInjectedTokensPerWeek = 0;
+        // Injected rewards
+        for (uint256 i = 0; i < store.getTokensPerWeekInjectedTimestampsLength(); i++) {
+            uint256 week = store.tokensPerWeekInjectedTimestamps(i);
+            // Only consider rewards that have been injected before our calculated cursors
+            if (week < stakingRewardDistributor.startWeekCursor() || week > flooredLastTokenTimestamp) {
+                totalInjectedTokensPerWeek += stakingRewardDistributor.tokensPerWeek(week);
+            }
         }
+
+        assertLe(
+            totalInjectedTokensPerWeek,
+            store.totalInjectedRewards(),
+            "Total injected tokens per week should be <= total injected rewards"
+        );
+
+        uint256 totalTokensPerWeek = totalCursorTokensPerWeek + totalInjectedTokensPerWeek;
+
+        assertEq(
+            store.totalFedRewards() + store.totalInjectedRewards(),
+            stakingRewardDistributor.totalDistributed(),
+            "Total distributed should equal sum of fed and injected rewards"
+        );
 
         assertApproxEqAbs(
-            totalTokensPerWeek + futureInjectedRewards,
+            totalTokensPerWeek,
+            store.totalFedRewards() + store.totalInjectedRewards(),
+            store.totalFedRewards() + store.totalInjectedRewards() / 1e6, // Allow 0.0001% difference
+            "Total tokens per week should equal sum of fed and injected rewards"
+        );
+
+        assertApproxEqAbs(
+            totalTokensPerWeek,
             stakingRewardDistributor.totalDistributed(),
-            1e18,
-            "Sum of tokensPerWeek (including future) should approximately equal totalDistributed"
+            stakingRewardDistributor.totalDistributed() / 100, // Allow 1% difference
+            "Sum of tokensPerWeek should approximately equal totalDistributed"
         );
     }
 

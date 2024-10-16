@@ -70,7 +70,7 @@ contract StakingRewardDistributorHandler is BaseHandler {
         deal(address(l2wct), admin, amount);
         l2wct.approve(address(stakingRewardDistributor), amount);
         stakingRewardDistributor.injectReward({ _timestamp: time, _amount: amount });
-        store.updateTotalInjectedRewards(amount);
+        store.updateTotalInjectedRewards(amount, (time / 1 weeks) * 1 weeks);
     }
 
     function feed(uint256 amount, uint256 seed) public useNewSender(admin) adjustTimestamp(seed) instrument("feed") {
@@ -81,6 +81,7 @@ contract StakingRewardDistributorHandler is BaseHandler {
         deal(address(l2wct), admin, amount);
         l2wct.approve(address(stakingRewardDistributor), amount);
         stakingRewardDistributor.feed(amount);
+        store.updateTotalFedRewards(amount);
     }
 
     function createLock(address user, uint256 amount, uint256 unlockTime) public instrument("createLock") {

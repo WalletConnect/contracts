@@ -14,7 +14,9 @@ contract StakingRewardDistributorStore {
     address[] public users;
     mapping(address => bool) public isUser;
     uint256 public firstLockCreatedAt;
+    uint256 public totalFedRewards;
     uint256 public totalInjectedRewards;
+    uint256[] public tokensPerWeekInjectedTimestamps;
 
     function addUser(address user) public {
         if (!isUser[user]) {
@@ -108,8 +110,13 @@ contract StakingRewardDistributorStore {
         addUser(user);
     }
 
-    function updateTotalInjectedRewards(uint256 amount) public {
+    function updateTotalInjectedRewards(uint256 amount, uint256 timestamp) public {
         totalInjectedRewards += amount;
+        _updateTokensPerWeekInjectedTimestamps(timestamp);
+    }
+
+    function updateTotalFedRewards(uint256 amount) public {
+        totalFedRewards += amount;
     }
 
     function getLockedAmount(address user) public view returns (uint256) {
@@ -118,5 +125,19 @@ contract StakingRewardDistributorStore {
 
     function getUnlockTime(address user) public view returns (uint256) {
         return userInfo[user].unlockTime;
+    }
+
+    function getTokensPerWeekInjectedTimestampsLength() public view returns (uint256) {
+        return tokensPerWeekInjectedTimestamps.length;
+    }
+
+    function _updateTokensPerWeekInjectedTimestamps(uint256 timestamp) internal {
+        // check if the timestamp is already in the array
+        for (uint256 i = 0; i < tokensPerWeekInjectedTimestamps.length; i++) {
+            if (tokensPerWeekInjectedTimestamps[i] == timestamp) {
+                return;
+            }
+        }
+        tokensPerWeekInjectedTimestamps.push(timestamp);
     }
 }
