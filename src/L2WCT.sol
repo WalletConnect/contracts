@@ -1,17 +1,26 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import { ERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
-import { ERC20Votes } from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
-import { Nonces } from "@openzeppelin/contracts/utils/Nonces.sol";
+import { ERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
+import { ERC20PermitUpgradeable } from
+    "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
+import { ERC20VotesUpgradeable } from
+    "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20VotesUpgradeable.sol";
+import { NoncesUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/NoncesUpgradeable.sol";
 import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import { IOptimismMintableERC20, ILegacyMintableERC20 } from "src/interfaces/IOptimismMintableERC20.sol";
-import { AccessControl } from "@openzeppelin/contracts/access/AccessControl.sol";
+import { AccessControlUpgradeable } from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { ISemver } from "src/interfaces/ISemver.sol";
 
-contract L2WCT is IOptimismMintableERC20, ILegacyMintableERC20, ERC20Permit, ERC20Votes, AccessControl, ISemver {
+contract L2WCT is
+    IOptimismMintableERC20,
+    ILegacyMintableERC20,
+    ERC20PermitUpgradeable,
+    ERC20VotesUpgradeable,
+    AccessControlUpgradeable,
+    ISemver
+{
     /// @notice The timestamp after which transfer restrictions are disabled
     uint256 public transferRestrictionsDisabledAfter;
     /// @notice Mapping of addresses that are allowed to transfer tokens to any address
@@ -27,10 +36,10 @@ contract L2WCT is IOptimismMintableERC20, ILegacyMintableERC20, ERC20Permit, ERC
     event TransferRestrictionsDisabled();
 
     /// @notice Address of the corresponding version of this token on the remote chain
-    address public immutable REMOTE_TOKEN;
+    address public REMOTE_TOKEN;
 
     /// @notice Address of the StandardBridge on this network
-    address public immutable BRIDGE;
+    address public BRIDGE;
 
     /// @notice Emitted whenever tokens are minted for an account
     /// @param account Address of the account tokens are being minted for
@@ -61,30 +70,41 @@ contract L2WCT is IOptimismMintableERC20, ILegacyMintableERC20, ERC20Permit, ERC
     /// @notice Role for managing allowed addresses
     bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
 
-    /// @param initialAdmin Address of the initial admin of the contract
-    /// @param initialManager Address of the initial manager of the contract
-    /// @param _bridge Address of the L2 standard bridge
-    /// @param _remoteToken Address of the corresponding L1 token
-    constructor(
-        address initialAdmin,
-        address initialManager,
-        address _bridge,
-        address _remoteToken
-    )
-        ERC20("WalletConnect", "WCT")
-        ERC20Permit("WalletConnect")
-    {
-        if (_remoteToken == address(0)) revert InvalidAddress();
-        if (_bridge == address(0)) revert InvalidAddress();
-        if (initialAdmin == address(0)) revert InvalidAddress();
-        if (initialManager == address(0)) revert InvalidAddress();
-        REMOTE_TOKEN = _remoteToken;
-        BRIDGE = _bridge;
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    /// @notice Initialization data for the contract
+    struct Init {
+        /// @dev The address that will be the initial admin of the contract
+        address initialAdmin;
+        /// @dev The address that will be the initial manager of the contract
+        address initialManager;
+        /// @dev Address of the L2 standard bridge
+        address bridge;
+        /// @dev Address of the corresponding L1 token
+        address remoteToken;
+    }
+
+    /// @notice Initializes the L2WCT token
+    function initialize(Init memory init) public initializer {
+        __ERC20_init({ name_: "WalletConnect", symbol_: "WCT" });
+        __ERC20Permit_init("WalletConnect");
+        __ERC20Votes_init();
+        __AccessControl_init();
+
+        if (init.remoteToken == address(0)) revert InvalidAddress();
+        if (init.bridge == address(0)) revert InvalidAddress();
+        if (init.initialAdmin == address(0)) revert InvalidAddress();
+        if (init.initialManager == address(0)) revert InvalidAddress();
+        REMOTE_TOKEN = init.remoteToken;
+        BRIDGE = init.bridge;
         // Set transfer restrictions to be disabled at type(uint256).max to be set down later
         transferRestrictionsDisabledAfter = type(uint256).max;
 
-        _grantRole(DEFAULT_ADMIN_ROLE, initialAdmin);
-        _grantRole(MANAGER_ROLE, initialManager);
+        _grantRole(DEFAULT_ADMIN_ROLE, init.initialAdmin);
+        _grantRole(MANAGER_ROLE, init.initialManager);
     }
 
     /// @custom:legacy
@@ -114,7 +134,12 @@ contract L2WCT is IOptimismMintableERC20, ILegacyMintableERC20, ERC20Permit, ERC
     /// @notice ERC165 interface check function
     /// @param interfaceId Interface ID to check
     /// @return Whether or not the interface is supported by this contract
-    function supportsInterface(bytes4 interfaceId) public view override(AccessControl, IERC165) returns (bool) {
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        override(AccessControlUpgradeable, IERC165)
+        returns (bool)
+    {
         return interfaceId == type(ILegacyMintableERC20).interfaceId
             || interfaceId == type(IOptimismMintableERC20).interfaceId || super.supportsInterface(interfaceId);
     }
@@ -202,7 +227,14 @@ contract L2WCT is IOptimismMintableERC20, ILegacyMintableERC20, ERC20Permit, ERC
     /// @param from The address tokens are being transferred from
     /// @param to The address tokens are being transferred to
     /// @param value The amount of tokens being transferred
-    function _update(address from, address to, uint256 value) internal override(ERC20, ERC20Votes) {
+    function _update(
+        address from,
+        address to,
+        uint256 value
+    )
+        internal
+        override(ERC20Upgradeable, ERC20VotesUpgradeable)
+    {
         // If transfer restrictions are enabled
         if (block.timestamp <= transferRestrictionsDisabledAfter) {
             // If both from and to are not whitelisted
@@ -215,7 +247,12 @@ contract L2WCT is IOptimismMintableERC20, ILegacyMintableERC20, ERC20Permit, ERC
 
     // The following functions are overrides required by Solidity.
 
-    function nonces(address nonceOwner) public view override(ERC20Permit, Nonces) returns (uint256) {
+    function nonces(address nonceOwner)
+        public
+        view
+        override(ERC20PermitUpgradeable, NoncesUpgradeable)
+        returns (uint256)
+    {
         return super.nonces(nonceOwner);
     }
 }

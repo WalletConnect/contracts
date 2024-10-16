@@ -9,7 +9,6 @@ contract Burn_L2WCT_Integration_Concrete_Test is Integration_Test {
 
     function setUp() public override {
         super.setUp();
-        deployCoreConditionally();
         // Mint 100 WCT to Alice
         vm.prank(address(mockBridge));
         l2wct.mint(users.alice, AMOUNT);

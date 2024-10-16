@@ -5,6 +5,7 @@ import { console2 } from "forge-std/console2.sol";
 import { Timelock } from "src/Timelock.sol";
 import { L2WCT } from "src/L2WCT.sol";
 import { OptimismDeployments, BaseScript } from "script/Base.s.sol";
+import { newL2WCT } from "script/helpers/Proxy.sol";
 
 struct OptimismDeploymentParams {
     address admin;
@@ -31,7 +32,7 @@ contract OptimismDeploy is BaseScript {
 
     function logDeployments() public {
         OptimismDeployments memory deps = readOptimismDeployments(block.chainid);
-        console2.log("L2WCT:", address(deps.l2wct));
+        logEip1967("L2WCT", address(deps.l2wct));
         console2.log("Admin Timelock:", address(deps.adminTimelock));
         console2.log("Manager Timelock:", address(deps.managerTimelock));
     }
@@ -41,7 +42,15 @@ contract OptimismDeploy is BaseScript {
             block.chainid == getChain("optimism").chainId ? getChain("mainnet").chainId : getChain("sepolia").chainId;
         address remoteToken = address(readEthereumDeployments(parentChainId).wct);
 
-        L2WCT l2wct = new L2WCT(params.admin, params.manager, address(params.opBridge), remoteToken);
+        L2WCT l2wct = newL2WCT({
+            initialOwner: params.admin,
+            init: L2WCT.Init({
+                initialAdmin: params.admin,
+                initialManager: params.manager,
+                bridge: address(params.opBridge),
+                remoteToken: remoteToken
+            })
+        });
 
         Timelock adminTimelock = new Timelock(
             1 weeks, _singleAddressArray(params.admin), _singleAddressArray(params.admin), params.timelockCanceller

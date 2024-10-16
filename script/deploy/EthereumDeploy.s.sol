@@ -4,8 +4,8 @@ pragma solidity >=0.8.25 <0.9.0;
 import { console2 } from "forge-std/console2.sol";
 import { WCT } from "src/WCT.sol";
 import { Timelock } from "src/Timelock.sol";
-import { Upgrades } from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import { EthereumDeployments, BaseScript } from "script/Base.s.sol";
+import { newWCT } from "script/helpers/Proxy.sol";
 
 struct EthereumDeploymentParams {
     address admin;
@@ -38,22 +38,16 @@ contract EthereumDeploy is BaseScript {
 
     function logDeployments() public {
         EthereumDeployments memory deps = readEthereumDeployments(block.chainid);
-        console2.log("WCT:", address(deps.wct));
+        logEip1967("WCT", address(deps.wct));
+        console2.log("Timelock", address(deps.timelock));
     }
 
     function _deployAll(EthereumDeploymentParams memory params) private returns (EthereumDeployments memory) {
-        WCT wct = WCT(
-            Upgrades.deployTransparentProxy(
-                // We deploy with broadcaster as owner to mint initial supply and bridge it
-                "WCT.sol:WCT",
-                broadcaster,
-                abi.encodeCall(WCT.initialize, WCT.Init({ initialOwner: broadcaster }))
-            )
-        );
-
         Timelock timelock = new Timelock(
             1 weeks, _singleAddressArray(params.admin), _singleAddressArray(params.admin), params.timelockCanceller
         );
+
+        WCT wct = newWCT({ initialOwner: broadcaster, init: WCT.Init({ initialOwner: params.admin }) });
 
         return EthereumDeployments({ wct: wct, timelock: timelock });
     }
