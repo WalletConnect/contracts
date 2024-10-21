@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.25 <0.9.0;
 
-import { StakingRewardDistributor, IStakeWeight } from "src/StakingRewardDistributor.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { console2 } from "forge-std/console2.sol";
+import { StakingRewardDistributor } from "src/StakingRewardDistributor.sol";
 import { StakeWeight_Integration_Shared_Test } from "../../../shared/StakeWeight.t.sol";
 
 contract Claim_StakingRewardDistributor_Integration_Concrete_Test is StakeWeight_Integration_Shared_Test {
@@ -27,7 +25,7 @@ contract Claim_StakingRewardDistributor_Integration_Concrete_Test is StakeWeight
 
         for (uint256 i = 0; i < WEEKS_IN_YEAR; i++) {
             uint256 weekTimestamp = currentWeek + (i * 1 weeks);
-            stakingRewardDistributor.injectReward({ _timestamp: weekTimestamp, _amount: weeklyAmount });
+            stakingRewardDistributor.injectReward({ timestamp: weekTimestamp, amount: weeklyAmount });
         }
 
         vm.stopPrank();
@@ -228,7 +226,7 @@ contract Claim_StakingRewardDistributor_Integration_Concrete_Test is StakeWeight
 
         vm.expectEmit(true, true, true, true);
         // First claim is always epoch 1
-        emit Claimed(users.alice, users.alice, expectedClaimAmount, 1, maxEpoch);
+        emit RewardsClaimed(users.alice, users.alice, expectedClaimAmount, 1, maxEpoch);
         stakingRewardDistributor.claim(users.alice);
     }
 

@@ -3,9 +3,9 @@ withdrawAll.t.sol
 │   └── it should revert with Paused error
 └── given contract is not paused
     ├── when user has no lock
-    │   └── it should revert with InvalidLockState error
+    │   └── it should revert with NonExistentLock error
     ├── when user has a lock but it hasn't expired
-    │   └── it should revert with InvalidLockState error
+    │   └── it should revert with LockStillActive error
     └── when user has an expired lock
         ├── it should transfer the full amount to the user
         ├── it should set the lock amount to zero

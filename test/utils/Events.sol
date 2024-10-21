@@ -65,12 +65,12 @@ abstract contract Events {
     /*//////////////////////////////////////////////////////////////////////////
                                 STAKING-REWARD-DISTRIBUTOR
     //////////////////////////////////////////////////////////////////////////*/
-    event UpdateRecipient(address indexed _user, address indexed _oldRecipient, address indexed _newRecipient);
-    event Claimed(
+    event RecipientUpdated(address indexed _user, address indexed _oldRecipient, address indexed _newRecipient);
+    event RewardsClaimed(
         address indexed _user, address indexed _recipient, uint256 _amount, uint256 _claimEpoch, uint256 _maxEpoch
     );
-    event CheckpointToken(uint256 _timestamp, uint256 _tokens);
-    event Feed(uint256 _amount);
+    event TokenCheckpointed(uint256 _timestamp, uint256 _tokens);
+    event Fed(uint256 _amount);
     /*//////////////////////////////////////////////////////////////////////////
                                 MOCK-BRIDGE
     //////////////////////////////////////////////////////////////////////////*/

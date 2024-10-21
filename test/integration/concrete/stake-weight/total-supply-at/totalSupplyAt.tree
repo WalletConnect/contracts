@@ -19,4 +19,4 @@ totalSupplyAt.t.sol
 ├── when querying across epoch boundaries
 │   └── it should correctly interpolate values between epochs
 └── when querying a future block
-    └── it should revert with BadBlockNumber error
+    └── it should revert with FutureBlockNumber error

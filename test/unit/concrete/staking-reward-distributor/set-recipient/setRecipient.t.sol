@@ -21,7 +21,7 @@ contract SetRecipient_StakingRewardDistributor_Unit_Concrete_Test is Base_Test {
         address oldRecipient = stakingRewardDistributor.getRecipient(user);
 
         vm.expectEmit(true, true, true, true);
-        emit UpdateRecipient(user, address(0), oldRecipient);
+        emit RecipientUpdated(user, address(0), oldRecipient);
 
         stakingRewardDistributor.setRecipient(oldRecipient);
 
@@ -38,7 +38,7 @@ contract SetRecipient_StakingRewardDistributor_Unit_Concrete_Test is Base_Test {
         address oldRecipient = stakingRewardDistributor.getRecipient(user);
 
         vm.expectEmit(true, true, true, true);
-        emit UpdateRecipient(user, address(0), newRecipient);
+        emit RecipientUpdated(user, address(0), newRecipient);
 
         stakingRewardDistributor.setRecipient(newRecipient);
 
@@ -59,7 +59,7 @@ contract SetRecipient_StakingRewardDistributor_Unit_Concrete_Test is Base_Test {
         address finalRecipient = users.carol;
 
         vm.expectEmit(true, true, true, true);
-        emit UpdateRecipient(user, oldRecipient, finalRecipient);
+        emit RecipientUpdated(user, oldRecipient, finalRecipient);
 
         stakingRewardDistributor.setRecipient(finalRecipient);
 

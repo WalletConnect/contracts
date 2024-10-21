@@ -22,7 +22,7 @@ contract DepositFor_StakeWeight_Integration_Concrete_Test is StakeWeight_Integra
     }
 
     function test_RevertWhen_ForAddressIsZero() external whenContractIsNotPaused {
-        vm.expectRevert(StakeWeight.InvalidAddress.selector);
+        vm.expectRevert(abi.encodeWithSelector(StakeWeight.InvalidAddress.selector, address(0)));
         stakeWeight.depositFor(address(0), 100);
     }
 
@@ -33,7 +33,7 @@ contract DepositFor_StakeWeight_Integration_Concrete_Test is StakeWeight_Integra
     function test_WhenRecipientHasNoExistingLock() external whenContractIsNotPaused whenForAddressIsNotZero {
         address recipient = users.alice;
 
-        vm.expectRevert(StakeWeight.InvalidLockState.selector);
+        vm.expectRevert(StakeWeight.NonExistentLock.selector);
         stakeWeight.depositFor(recipient, amount);
     }
 

@@ -13,6 +13,10 @@ contract BalanceOf_StakeWeight_Integration_Concrete_Test is StakeWeight_Integrat
 
     function setUp() public override {
         super.setUp();
+        // make max lock the cap
+        uint256 newMaxLock = stakeWeight.MAX_LOCK_CAP();
+        vm.prank(users.admin);
+        stakeWeight.setMaxLock(newMaxLock);
     }
 
     function test_BalanceForUserWithoutLock() external view {

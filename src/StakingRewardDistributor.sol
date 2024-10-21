@@ -7,84 +7,96 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import { console2 } from "forge-std/console2.sol";
 import { WalletConnectConfig } from "./WalletConnectConfig.sol";
 import { StakeWeight } from "./StakeWeight.sol";
 import { Math128 } from "./library/Math128.sol";
 
-struct Point {
-    int128 bias;
-    int128 slope;
-    uint256 timestamp;
-    uint256 blockNumber;
-}
-
-interface IStakeWeight {
-    /// @notice Calculate total supply of Stake Weight
-    function totalSupply() external view returns (uint256);
-    /// @notice Calculate total supply of Stake Weight at at specific timestamp
-    function totalSupplyAtTime(uint256 _timestamp) external view returns (uint256);
-    /// @notice Calculate total supply of Stake Weight at specific block
-    function totalSupplyAt(uint256 _blockNumber) external view returns (uint256);
-    /// @notice Return the voting weight of a given user
-    function balanceOf(address _user) external view returns (uint256);
-    /// @notice Return the balance of Stake Weight at a given "_blockNumber"
-    function balanceOfAt(address _user, uint256 _blockNumber) external view returns (uint256);
-    /// @notice Return the balance of Stake Weight at a given timestamp
-    function balanceOfAtTime(address _user, uint256 _timestamp) external view returns (uint256);
-    /// @notice Trigger global checkpoint
-    function checkpoint() external;
-    /// @notice Get the current epoch for a user
-    function userPointEpoch(address _user) external view returns (uint256);
-    /// @notice Get the current global epoch
-    function epoch() external view returns (uint256);
-    /// @notice Get a specific point from a user's point history
-    function userPointHistory(address _user, uint256 _epoch) external view returns (StakeWeight.Point memory);
-    /// @notice Get a specific point from the global point history
-    function pointHistory(uint256 _epoch) external view returns (StakeWeight.Point memory);
-}
-
+/**
+ * @title StakingRewardDistributor
+ * @notice This contract manages the distribution of staking rewards for the WalletConnect token.
+ * @dev Implements a weekly reward distribution system based on user stake weights (inspired by Curve's FeeDistributor
+ * and PancakeSwap's RevenueSharingPool)
+ * @author WalletConnect
+ */
 contract StakingRewardDistributor is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20 for IERC20;
 
-    /// @dev Events
-    event Feed(uint256 _amount);
-    event CheckpointToken(uint256 _timestamp, uint256 _tokens);
-    event Claimed(
-        address indexed _user, address indexed _recipient, uint256 _amount, uint256 _claimEpoch, uint256 _maxEpoch
-    );
+    /// @notice Emitted when the contract is killed and emergency return is triggered
     event Killed();
-    event UpdateRecipient(address indexed _user, address indexed _oldRecipient, address indexed _newRecipient);
 
-    /// @dev Custom Errors
+    /// @notice Emitted when tokens are added to the contract
+    event Fed(uint256 amount);
+
+    /// @notice Emitted when a token checkpoint is created
+    event TokenCheckpointed(uint256 timestamp, uint256 tokens);
+
+    /// @notice Emitted when rewards are claimed
+    event RewardsClaimed(
+        address indexed user, address indexed recipient, uint256 amount, uint256 claimEpoch, uint256 maxEpoch
+    );
+
+    /// @notice Emitted when a user updates their recipient address
+    /// @param user The user who updated their recipient
+    /// @param oldRecipient The previous recipient address
+    /// @param newRecipient The new recipient address
+    event RecipientUpdated(address indexed user, address indexed oldRecipient, address indexed newRecipient);
+
+    /// @notice Thrown when attempting to interact with a killed contract
     error ContractKilled();
+
+    /// @notice Thrown when the number of users exceeds the maximum allowed
     error TooManyUsers();
+
+    /// @notice Thrown when an invalid user address is provided
     error InvalidUser();
+
+    /// @notice Thrown when an invalid configuration is provided
     error InvalidConfig();
+
+    /// @notice Thrown when an invalid emergency return address is provided
     error InvalidEmergencyReturn();
+
+    /// @notice Thrown when an unauthorized action is attempted
     error Unauthorized();
 
+    /// @notice The starting week cursor for the distribution
     uint256 public startWeekCursor;
+
+    /// @notice The current week cursor for the distribution
     uint256 public weekCursor;
-    mapping(address => uint256) public weekCursorOf;
-    mapping(address => uint256) public userEpochOf;
 
+    /// @notice Mapping of user addresses to their individual week cursors
+    mapping(address account => uint256 weekCursor) public weekCursorOf;
+
+    /// @notice Mapping of user addresses to their current epoch
+    mapping(address account => uint256 userEpoch) public userEpochOf;
+
+    /// @notice Timestamp of the last token distribution
     uint256 public lastTokenTimestamp;
-    mapping(uint256 => uint256) public tokensPerWeek;
 
+    /// @notice Mapping of weeks to the number of tokens distributed in that week
+    mapping(uint256 week => uint256 tokens) public tokensPerWeek;
+
+    /// @notice The WalletConnectConfig contract instance
     WalletConnectConfig public config;
+
+    /// @notice The balance of tokens at the last distribution
     uint256 public lastTokenBalance;
 
+    /// @notice The total number of tokens distributed so far
     uint256 public totalDistributed;
 
-    /// @dev StakeWeight supply at week bounds
+    /// @notice Mapping of weeks to the total StakeWeight supply at that week's bounds
     mapping(uint256 => uint256) public totalSupplyAt;
 
+    /// @notice Mapping of user addresses to their designated recipient addresses for claims
     /// @dev User can set recipient address for claim
     mapping(address => address) public recipient;
 
-    /// @dev address to get token when contract is emergency stop
+    /// @notice Flag indicating whether the contract has been killed
     bool public isKilled;
+
+    /// @notice Address to receive tokens when the contract is emergency stopped
     address public emergencyReturn;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -106,20 +118,20 @@ contract StakingRewardDistributor is Initializable, OwnableUpgradeable, Reentran
     }
 
     /// @notice Initializes the contract
-    /// @param _init Initialization parameters
-    function initialize(Init memory _init) public initializer {
-        __Ownable_init(_init.admin);
+    /// @param init Initialization parameters
+    function initialize(Init memory init) public initializer {
+        __Ownable_init(init.admin);
         __ReentrancyGuard_init();
 
-        if (_init.config == address(0)) revert InvalidConfig();
-        if (_init.emergencyReturn == address(0)) revert InvalidEmergencyReturn();
-        config = WalletConnectConfig(_init.config);
+        if (init.config == address(0)) revert InvalidConfig();
+        if (init.emergencyReturn == address(0)) revert InvalidEmergencyReturn();
+        config = WalletConnectConfig(init.config);
 
-        uint256 _startTimeFloorWeek = _timestampToFloorWeek(_init.startTime);
-        startWeekCursor = _startTimeFloorWeek;
-        lastTokenTimestamp = _startTimeFloorWeek;
-        weekCursor = _startTimeFloorWeek;
-        emergencyReturn = _init.emergencyReturn;
+        uint256 startTimeFloorWeek = _timestampToFloorWeek(init.startTime);
+        startWeekCursor = startTimeFloorWeek;
+        lastTokenTimestamp = startTimeFloorWeek;
+        weekCursor = startTimeFloorWeek;
+        emergencyReturn = init.emergencyReturn;
     }
 
     modifier onlyLive() {
@@ -127,23 +139,23 @@ contract StakingRewardDistributor is Initializable, OwnableUpgradeable, Reentran
         _;
     }
 
-    /// @notice Get StakeWeight balance of "_user" at "_timestamp"
-    /// @param _user The user address
-    /// @param _timestamp The timestamp to get user's balance
-    function balanceOfAt(address _user, uint256 _timestamp) external view returns (uint256) {
-        IStakeWeight stakeWeight = IStakeWeight(config.getStakeWeight());
-        uint256 _maxUserEpoch = stakeWeight.userPointEpoch(_user);
-        if (_maxUserEpoch == 0) {
+    /// @notice Get StakeWeight balance of "user" at "timestamp"
+    /// @param user The user address
+    /// @param timestamp The timestamp to get user's balance
+    function balanceOfAt(address user, uint256 timestamp) external view returns (uint256) {
+        StakeWeight stakeWeight = StakeWeight(config.getStakeWeight());
+        uint256 maxUserEpoch = stakeWeight.userPointEpoch(user);
+        if (maxUserEpoch == 0) {
             return 0;
         }
 
-        uint256 _epoch = _findTimestampUserEpoch(_user, _timestamp, _maxUserEpoch);
-        StakeWeight.Point memory _point = stakeWeight.userPointHistory(_user, _epoch);
-        int128 _bias = _point.bias - _point.slope * SafeCast.toInt128(int256(_timestamp - _point.timestamp));
-        if (_bias < 0) {
+        uint256 epoch = _findTimestampUserEpoch(user, timestamp, maxUserEpoch);
+        StakeWeight.Point memory point = stakeWeight.userPointHistory(user, epoch);
+        int128 bias = point.bias - point.slope * SafeCast.toInt128(int256(timestamp - point.timestamp));
+        if (bias < 0) {
             return 0;
         }
-        return SafeCast.toUint256(_bias);
+        return SafeCast.toUint256(bias);
     }
 
     /// @notice Record token distribution checkpoint
@@ -157,57 +169,57 @@ contract StakingRewardDistributor is Initializable, OwnableUpgradeable, Reentran
      * - Total distributed always matches input amount, regardless of time elapsed (considering rounding errors)
      *
      * Key variables:
-     * _timeCursor: Tracks current position in time during week iterations
-     * _deltaSinceLastTimestamp: Total time since last checkpoint, used for proportions
-     * _thisWeekCursor: Start of the current week being processed
+     * timeCursor: Tracks current position in time during week iterations
+     * deltaSinceLastTimestamp: Total time since last checkpoint, used for proportions
+     * thisWeekCursor: Start of the current week being processed
      */
     function _checkpointToken() internal {
         // Find out how many tokens to be distributed
-        uint256 _rewardTokenBalance = IERC20(config.getL2wct()).balanceOf(address(this));
-        uint256 _toDistribute = _rewardTokenBalance - lastTokenBalance;
-        lastTokenBalance = _rewardTokenBalance;
+        uint256 rewardTokenBalance = IERC20(config.getL2wct()).balanceOf(address(this));
+        uint256 toDistribute = rewardTokenBalance - lastTokenBalance;
+        lastTokenBalance = rewardTokenBalance;
 
-        totalDistributed += _toDistribute;
+        totalDistributed += toDistribute;
 
         // Prepare and update time-related variables
-        // 1. Setup _timeCursor to be the "lastTokenTimestamp"
+        // 1. Setup timeCursor to be the "lastTokenTimestamp"
         // 2. Find out how long from previous checkpoint
         // 3. Setup iterable cursor
         // 4. Update lastTokenTimestamp to be block.timestamp
-        uint256 _timeCursor = lastTokenTimestamp;
-        uint256 _deltaSinceLastTimestamp = block.timestamp - _timeCursor;
-        uint256 _thisWeekCursor = _timestampToFloorWeek(_timeCursor);
-        uint256 _nextWeekCursor = 0;
+        uint256 timeCursor = lastTokenTimestamp;
+        uint256 deltaSinceLastTimestamp = block.timestamp - timeCursor;
+        uint256 thisWeekCursor = _timestampToFloorWeek(timeCursor);
+        uint256 nextWeekCursor = 0;
         lastTokenTimestamp = block.timestamp;
 
         // Iterate through weeks to filled out missing tokensPerWeek (if any)
-        for (uint256 _i = 0; _i < 52; _i++) {
-            _nextWeekCursor = _thisWeekCursor + 1 weeks;
+        for (uint256 i = 0; i < 52; i++) {
+            nextWeekCursor = thisWeekCursor + 1 weeks;
 
-            // if block.timestamp < _nextWeekCursor, means _nextWeekCursor goes
+            // if block.timestamp < nextWeekCursor, means nextWeekCursor goes
             // beyond the actual block.timestamp, hence it is the last iteration
             // to fill out tokensPerWeek
-            if (block.timestamp < _nextWeekCursor) {
-                if (_deltaSinceLastTimestamp == 0 && block.timestamp == _timeCursor) {
-                    tokensPerWeek[_thisWeekCursor] = tokensPerWeek[_thisWeekCursor] + _toDistribute;
+            if (block.timestamp < nextWeekCursor) {
+                if (deltaSinceLastTimestamp == 0 && block.timestamp == timeCursor) {
+                    tokensPerWeek[thisWeekCursor] = tokensPerWeek[thisWeekCursor] + toDistribute;
                 } else {
-                    tokensPerWeek[_thisWeekCursor] = tokensPerWeek[_thisWeekCursor]
-                        + ((_toDistribute * (block.timestamp - _timeCursor)) / _deltaSinceLastTimestamp);
+                    tokensPerWeek[thisWeekCursor] = tokensPerWeek[thisWeekCursor]
+                        + ((toDistribute * (block.timestamp - timeCursor)) / deltaSinceLastTimestamp);
                 }
                 break;
             } else {
-                if (_deltaSinceLastTimestamp == 0 && _nextWeekCursor == _timeCursor) {
-                    tokensPerWeek[_thisWeekCursor] = tokensPerWeek[_thisWeekCursor] + _toDistribute;
+                if (deltaSinceLastTimestamp == 0 && nextWeekCursor == timeCursor) {
+                    tokensPerWeek[thisWeekCursor] = tokensPerWeek[thisWeekCursor] + toDistribute;
                 } else {
-                    tokensPerWeek[_thisWeekCursor] = tokensPerWeek[_thisWeekCursor]
-                        + ((_toDistribute * (_nextWeekCursor - _timeCursor)) / _deltaSinceLastTimestamp);
+                    tokensPerWeek[thisWeekCursor] = tokensPerWeek[thisWeekCursor]
+                        + ((toDistribute * (nextWeekCursor - timeCursor)) / deltaSinceLastTimestamp);
                 }
             }
-            _timeCursor = _nextWeekCursor;
-            _thisWeekCursor = _nextWeekCursor;
+            timeCursor = nextWeekCursor;
+            thisWeekCursor = nextWeekCursor;
         }
 
-        emit CheckpointToken(block.timestamp, _toDistribute);
+        emit TokenCheckpointed(block.timestamp, toDistribute);
     }
 
     /// @notice Update token checkpoint
@@ -218,33 +230,33 @@ contract StakingRewardDistributor is Initializable, OwnableUpgradeable, Reentran
 
     /// @notice Record StakeWeight total supply for each week
     function _checkpointTotalSupply() internal {
-        IStakeWeight stakeWeight = IStakeWeight(config.getStakeWeight());
-        uint256 _weekCursor = weekCursor;
-        uint256 _roundedTimestamp = _timestampToFloorWeek(block.timestamp);
+        StakeWeight stakeWeight = StakeWeight(config.getStakeWeight());
+        uint256 weekCursor_ = weekCursor;
+        uint256 roundedTimestamp = _timestampToFloorWeek(block.timestamp);
 
         stakeWeight.checkpoint();
 
-        for (uint256 _i = 0; _i < 52; _i++) {
-            if (_weekCursor > _roundedTimestamp) {
+        for (uint256 i = 0; i < 52; i++) {
+            if (weekCursor_ > roundedTimestamp) {
                 break;
             } else {
-                uint256 _epoch = _findTimestampEpoch(_weekCursor);
-                StakeWeight.Point memory _point = stakeWeight.pointHistory(_epoch);
-                int128 _timeDelta = 0;
-                if (_weekCursor > _point.timestamp) {
-                    _timeDelta = SafeCast.toInt128(int256(_weekCursor - _point.timestamp));
+                uint256 epoch = _findTimestampEpoch(weekCursor_);
+                StakeWeight.Point memory point = stakeWeight.pointHistory(epoch);
+                int128 timeDelta = 0;
+                if (weekCursor_ > point.timestamp) {
+                    timeDelta = SafeCast.toInt128(int256(weekCursor_ - point.timestamp));
                 }
-                int128 _bias = _point.bias - _point.slope * _timeDelta;
-                if (_bias < 0) {
-                    totalSupplyAt[_weekCursor] = 0;
+                int128 bias = point.bias - point.slope * timeDelta;
+                if (bias < 0) {
+                    totalSupplyAt[weekCursor_] = 0;
                 } else {
-                    totalSupplyAt[_weekCursor] = SafeCast.toUint256(_bias);
+                    totalSupplyAt[weekCursor_] = SafeCast.toUint256(bias);
                 }
             }
-            _weekCursor = _weekCursor + 1 weeks;
+            weekCursor_ = weekCursor_ + 1 weeks;
         }
 
-        weekCursor = _weekCursor;
+        weekCursor = weekCursor_;
     }
 
     /// @notice Update StakeWeight total supply checkpoint
@@ -256,251 +268,250 @@ contract StakingRewardDistributor is Initializable, OwnableUpgradeable, Reentran
 
     /// @notice Claim rewardToken
     /// @dev Perform claim rewardToken
-    function _claim(address _user, address _recipient, uint256 _maxClaimTimestamp) internal returns (uint256) {
-        IStakeWeight stakeWeight = IStakeWeight(config.getStakeWeight());
+    function _claim(address user, address recipient_, uint256 maxClaimTimestamp) internal returns (uint256) {
+        StakeWeight stakeWeight = StakeWeight(config.getStakeWeight());
 
-        uint256 _userEpoch = 0;
-        uint256 _toDistribute = 0;
+        uint256 userEpoch = 0;
+        uint256 toDistribute = 0;
 
-        uint256 _maxUserEpoch = stakeWeight.userPointEpoch(_user);
-        uint256 _startWeekCursor = startWeekCursor;
-
-        // _maxUserEpoch = 0, meaning no lock.
-        // Hence, no yield for _user
-        if (_maxUserEpoch == 0) {
+        uint256 maxUserEpoch = stakeWeight.userPointEpoch(user);
+        uint256 startWeekCursor_ = startWeekCursor;
+        // maxUserEpoch = 0, meaning no lock.
+        // Hence, no yield for user
+        if (maxUserEpoch == 0) {
             return 0;
         }
 
-        uint256 _userWeekCursor = weekCursorOf[_user];
-        if (_userWeekCursor == 0) {
-            // if _user has no _userWeekCursor with GrassHouse yet
+        uint256 userWeekCursor = weekCursorOf[user];
+        if (userWeekCursor == 0) {
+            // if user has no userWeekCursor with GrassHouse yet
             // then we need to perform binary search
-            _userEpoch = _findTimestampUserEpoch(_user, _startWeekCursor, _maxUserEpoch);
+            userEpoch = _findTimestampUserEpoch(user, startWeekCursor_, maxUserEpoch);
         } else {
-            // else, _user must has epoch with GrassHouse already
-            _userEpoch = userEpochOf[_user];
+            // else, user must has epoch with GrassHouse already
+            userEpoch = userEpochOf[user];
         }
 
-        if (_userEpoch == 0) {
-            _userEpoch = 1;
+        if (userEpoch == 0) {
+            userEpoch = 1;
         }
 
-        StakeWeight.Point memory _userPoint = stakeWeight.userPointHistory(_user, _userEpoch);
+        StakeWeight.Point memory userPoint = stakeWeight.userPointHistory(user, userEpoch);
 
-        if (_userWeekCursor == 0) {
-            _userWeekCursor = ((_userPoint.timestamp + 1 weeks - 1) / 1 weeks) * 1 weeks;
+        if (userWeekCursor == 0) {
+            userWeekCursor = ((userPoint.timestamp + 1 weeks - 1) / 1 weeks) * 1 weeks;
         }
 
-        // _userWeekCursor is already at/beyond _maxClaimTimestamp
+        // userWeekCursor is already at/beyond maxClaimTimestamp
         // meaning nothing to be claimed for this user.
         // This can be:
         // 1) User just lock their WCT less than 1 week
         // 2) User already claimed their rewards
-        if (_userWeekCursor >= _maxClaimTimestamp) {
+        if (userWeekCursor >= maxClaimTimestamp) {
             return 0;
         }
 
         // Handle when user lock WCT before StakeWeight started
-        // by assign _userWeekCursor to StakeWeight's _startWeekCursor
-        if (_userWeekCursor < _startWeekCursor) {
-            _userWeekCursor = _startWeekCursor;
+        // by assign userWeekCursor to StakeWeight's startWeekCursor_
+        if (userWeekCursor < startWeekCursor_) {
+            userWeekCursor = startWeekCursor_;
         }
-
-        StakeWeight.Point memory _prevUserPoint = StakeWeight.Point({ bias: 0, slope: 0, timestamp: 0, blockNumber: 0 });
+        StakeWeight.Point memory prevUserPoint = StakeWeight.Point({ bias: 0, slope: 0, timestamp: 0, blockNumber: 0 });
 
         // Go through weeks
-        for (uint256 _i = 0; _i < 52; _i++) {
-            // If _userWeekCursor is iterated to be at/beyond _maxClaimTimestamp
+        for (uint256 i = 0; i < 52; i++) {
+            // If userWeekCursor is iterated to be at/beyond maxClaimTimestamp
             // This means we went through all weeks that user subject to claim rewards already
-            if (_userWeekCursor >= _maxClaimTimestamp) {
+            if (userWeekCursor >= maxClaimTimestamp) {
                 break;
             }
             // Move to the new epoch if need to,
             // else calculate rewards that user should get.
-            if (_userWeekCursor >= _userPoint.timestamp && _userEpoch <= _maxUserEpoch) {
-                _userEpoch = _userEpoch + 1;
-                _prevUserPoint = StakeWeight.Point({
-                    bias: _userPoint.bias,
-                    slope: _userPoint.slope,
-                    timestamp: _userPoint.timestamp,
-                    blockNumber: _userPoint.blockNumber
+            if (userWeekCursor >= userPoint.timestamp && userEpoch <= maxUserEpoch) {
+                userEpoch = userEpoch + 1;
+                prevUserPoint = StakeWeight.Point({
+                    bias: userPoint.bias,
+                    slope: userPoint.slope,
+                    timestamp: userPoint.timestamp,
+                    blockNumber: userPoint.blockNumber
                 });
-                // When _userEpoch goes beyond _maxUserEpoch then there is no more Point,
-                // else take _userEpoch as a new Point
-                if (_userEpoch > _maxUserEpoch) {
-                    _userPoint = StakeWeight.Point({ bias: 0, slope: 0, timestamp: 0, blockNumber: 0 });
+                // When userEpoch goes beyond maxUserEpoch then there is no more Point,
+                // else take userEpoch as a new Point
+                if (userEpoch > maxUserEpoch) {
+                    userPoint = StakeWeight.Point({ bias: 0, slope: 0, timestamp: 0, blockNumber: 0 });
                 } else {
-                    _userPoint = stakeWeight.userPointHistory(_user, _userEpoch);
+                    userPoint = stakeWeight.userPointHistory(user, userEpoch);
                 }
             } else {
-                int128 _timeDelta = SafeCast.toInt128(int256(_userWeekCursor - _prevUserPoint.timestamp));
-                uint256 _balanceOf =
-                    SafeCast.toUint256(Math128.max(_prevUserPoint.bias - _timeDelta * _prevUserPoint.slope, 0));
-                if (_balanceOf == 0 && _userEpoch > _maxUserEpoch) {
+                int128 timeDelta = SafeCast.toInt128(int256(userWeekCursor - prevUserPoint.timestamp));
+                uint256 balanceOf =
+                    SafeCast.toUint256(Math128.max(prevUserPoint.bias - timeDelta * prevUserPoint.slope, 0));
+                if (balanceOf == 0 && userEpoch > maxUserEpoch) {
                     break;
                 }
-                if (_balanceOf > 0) {
-                    _toDistribute =
-                        _toDistribute + (_balanceOf * tokensPerWeek[_userWeekCursor]) / totalSupplyAt[_userWeekCursor];
+                if (balanceOf > 0) {
+                    toDistribute =
+                        toDistribute + (balanceOf * tokensPerWeek[userWeekCursor]) / totalSupplyAt[userWeekCursor];
                 }
-                _userWeekCursor = _userWeekCursor + 1 weeks;
+                userWeekCursor = userWeekCursor + 1 weeks;
             }
         }
 
-        _userEpoch = Math128.min(_maxUserEpoch, _userEpoch - 1);
-        userEpochOf[_user] = _userEpoch;
-        weekCursorOf[_user] = _userWeekCursor;
+        userEpoch = Math128.min(maxUserEpoch, userEpoch - 1);
+        userEpochOf[user] = userEpoch;
+        weekCursorOf[user] = userWeekCursor;
 
-        emit Claimed(_user, _recipient, _toDistribute, _userEpoch, _maxUserEpoch);
+        emit RewardsClaimed(user, recipient_, toDistribute, userEpoch, maxUserEpoch);
 
-        return _toDistribute;
+        return toDistribute;
     }
 
     /// @notice Get claim recipient address
-    /// @param _user The address to claim rewards for
-    function getRecipient(address _user) public view returns (address _recipient) {
-        _recipient = _user;
+    /// @param user The address to claim rewards for
+    function getRecipient(address user) public view returns (address recipient_) {
+        recipient_ = user;
 
-        address userRecipient = recipient[_recipient];
+        address userRecipient = recipient[recipient_];
         if (userRecipient != address(0)) {
-            _recipient = userRecipient;
+            recipient_ = userRecipient;
         }
     }
 
     /// @notice Claim rewardToken for user and user's recipient
     /// @dev Need owner permission
-    /// @param _recipient The recipient address will be claimed to
-    function claimTo(address _recipient) external nonReentrant onlyLive returns (uint256) {
-        return _claimWithCustomRecipient(msg.sender, _recipient);
+    /// @param recipient_ The recipient address will be claimed to
+    function claimTo(address recipient_) external nonReentrant onlyLive returns (uint256) {
+        return _claimWithCustomRecipient(msg.sender, recipient_);
     }
 
     /// @notice Claim rewardToken for user and user's recipient
     /// @dev Do not need owner permission
-    /// @param _user The address to claim rewards for
-    function claim(address _user) external nonReentrant onlyLive returns (uint256) {
-        return _claimWithCustomRecipient(_user, address(0));
+    /// @param user The address to claim rewards for
+    function claim(address user) external nonReentrant onlyLive returns (uint256) {
+        return _claimWithCustomRecipient(user, address(0));
     }
 
-    function _claimWithCustomRecipient(address _user, address _recipient) internal returns (uint256) {
+    function _claimWithCustomRecipient(address user, address recipient_) internal returns (uint256) {
         if (block.timestamp >= weekCursor) _checkpointTotalSupply();
 
-        uint256 _lastTokenTimestamp = lastTokenTimestamp;
+        uint256 lastTokenTimestamp_ = lastTokenTimestamp;
 
         _checkpointToken();
-        _lastTokenTimestamp = block.timestamp;
+        lastTokenTimestamp_ = block.timestamp;
 
-        _lastTokenTimestamp = _timestampToFloorWeek(_lastTokenTimestamp);
-        if (_recipient == address(0)) {
-            _recipient = getRecipient(_user);
+        lastTokenTimestamp_ = _timestampToFloorWeek(lastTokenTimestamp_);
+        if (recipient_ == address(0)) {
+            recipient_ = getRecipient(user);
         }
-        uint256 _total = _claim(_user, _recipient, _lastTokenTimestamp);
-        if (_total != 0) {
-            lastTokenBalance = lastTokenBalance - _total;
-            IERC20(config.getL2wct()).safeTransfer(_recipient, _total);
+        uint256 total = _claim(user, recipient_, lastTokenTimestamp_);
+        if (total != 0) {
+            lastTokenBalance = lastTokenBalance - total;
+            IERC20(config.getL2wct()).safeTransfer(recipient_, total);
         }
 
-        return _total;
+        return total;
     }
 
     /// @notice Claim rewardToken for multiple users
-    /// @param _users The array of addresses to claim reward for
-    function claimMany(address[] calldata _users) external nonReentrant onlyLive returns (bool) {
-        if (_users.length > 20) revert TooManyUsers();
+    /// @param users The array of addresses to claim reward for
+    function claimMany(address[] calldata users) external nonReentrant onlyLive returns (bool) {
+        if (users.length > 20) revert TooManyUsers();
 
         if (block.timestamp >= weekCursor) _checkpointTotalSupply();
 
-        uint256 _lastTokenTimestamp = lastTokenTimestamp;
+        uint256 lastTokenTimestamp_ = lastTokenTimestamp;
 
         _checkpointToken();
-        _lastTokenTimestamp = block.timestamp;
+        lastTokenTimestamp_ = block.timestamp;
 
-        _lastTokenTimestamp = _timestampToFloorWeek(_lastTokenTimestamp);
-        uint256 _total = 0;
+        lastTokenTimestamp_ = _timestampToFloorWeek(lastTokenTimestamp_);
+        uint256 total = 0;
 
-        for (uint256 i = 0; i < _users.length; i++) {
-            address _user = _users[i];
-            if (_user == address(0)) revert InvalidUser();
+        for (uint256 i = 0; i < users.length; i++) {
+            address user = users[i];
+            if (user == address(0)) revert InvalidUser();
 
-            address _recipient = getRecipient(_user);
-            uint256 _amount = _claim(_user, _recipient, _lastTokenTimestamp);
+            address recipient_ = getRecipient(user);
+            uint256 amount = _claim(user, recipient_, lastTokenTimestamp_);
 
-            if (_amount != 0) {
-                IERC20(config.getL2wct()).safeTransfer(_recipient, _amount);
-                _total = _total + _amount;
+            if (amount != 0) {
+                IERC20(config.getL2wct()).safeTransfer(recipient_, amount);
+                total = total + amount;
             }
         }
 
-        if (_total != 0) {
-            lastTokenBalance = lastTokenBalance - _total;
+        if (total != 0) {
+            lastTokenBalance = lastTokenBalance - total;
         }
 
         return true;
     }
 
     /// @notice Receive rewardTokens into the contract and trigger token checkpoint
-    function feed(uint256 _amount) external nonReentrant onlyLive returns (bool) {
-        IERC20(config.getL2wct()).safeTransferFrom(msg.sender, address(this), _amount);
+    function feed(uint256 amount) external nonReentrant onlyLive returns (bool) {
+        IERC20(config.getL2wct()).safeTransferFrom(msg.sender, address(this), amount);
 
         _checkpointToken();
 
-        emit Feed(_amount);
+        emit Fed(amount);
 
         return true;
     }
 
     /// @notice Do Binary Search to find out epoch from timestamp
-    /// @param _timestamp Timestamp to find epoch
-    function _findTimestampEpoch(uint256 _timestamp) internal view returns (uint256) {
-        IStakeWeight stakeWeight = IStakeWeight(config.getStakeWeight());
+    /// @param timestamp Timestamp to find epoch
+    function _findTimestampEpoch(uint256 timestamp) internal view returns (uint256) {
+        StakeWeight stakeWeight = StakeWeight(config.getStakeWeight());
 
-        uint256 _min = 0;
-        uint256 _max = stakeWeight.epoch();
+        uint256 min = 0;
+        uint256 max = stakeWeight.epoch();
         // Loop for 128 times -> enough for 128-bit numbers
         for (uint256 i = 0; i < 128; i++) {
-            if (_min >= _max) {
+            if (min >= max) {
                 break;
             }
-            uint256 _mid = (_min + _max + 1) / 2;
-            StakeWeight.Point memory _point = stakeWeight.pointHistory(_mid);
-            if (_point.timestamp <= _timestamp) {
-                _min = _mid;
+            uint256 mid = (min + max + 1) / 2;
+            StakeWeight.Point memory point = stakeWeight.pointHistory(mid);
+            if (point.timestamp <= timestamp) {
+                min = mid;
             } else {
-                _max = _mid - 1;
+                max = mid - 1;
             }
         }
-        return _min;
+        return min;
     }
 
     /// @notice Perform binary search to find out user's epoch from the given timestamp
-    /// @param _user The user address
-    /// @param _timestamp The timestamp that you wish to find out epoch
-    /// @param _maxUserEpoch Max epoch to find out the timestamp
+    /// @param user The user address
+    /// @param timestamp The timestamp that you wish to find out epoch
+    /// @param maxUserEpoch Max epoch to find out the timestamp
     function _findTimestampUserEpoch(
-        address _user,
-        uint256 _timestamp,
-        uint256 _maxUserEpoch
+        address user,
+        uint256 timestamp,
+        uint256 maxUserEpoch
     )
         internal
         view
         returns (uint256)
     {
-        uint256 _min = 0;
-        uint256 _max = _maxUserEpoch;
+        uint256 min = 0;
+        uint256 max = maxUserEpoch;
         for (uint256 i = 0; i < 128; i++) {
-            if (_min >= _max) {
+            if (min >= max) {
                 break;
             }
-            uint256 _mid = (_min + _max + 1) / 2;
-            StakeWeight.Point memory _point = IStakeWeight(config.getStakeWeight()).userPointHistory(_user, _mid);
-            if (_point.timestamp <= _timestamp) {
-                _min = _mid;
+            uint256 mid = (min + max + 1) / 2;
+            StakeWeight.Point memory point = StakeWeight(config.getStakeWeight()).userPointHistory(user, mid);
+            if (point.timestamp <= timestamp) {
+                min = mid;
             } else {
-                _max = _mid - 1;
+                max = mid - 1;
             }
         }
-        return _min;
+        return min;
     }
 
+    /// @notice Emergency stop the contract and transfer remaining tokens to the emergency return address
     function kill() external onlyOwner {
         IERC20 rewardToken = IERC20(config.getL2wct());
         isKilled = true;
@@ -510,37 +521,37 @@ contract StakingRewardDistributor is Initializable, OwnableUpgradeable, Reentran
     }
 
     /// @notice Round off random timestamp to week
-    /// @param _timestamp The timestamp to be rounded off
-    function _timestampToFloorWeek(uint256 _timestamp) internal pure returns (uint256) {
-        return (_timestamp / 1 weeks) * 1 weeks;
+    /// @param timestamp The timestamp to be rounded off
+    function _timestampToFloorWeek(uint256 timestamp) internal pure returns (uint256) {
+        return (timestamp / 1 weeks) * 1 weeks;
     }
 
     /// @notice Inject rewardToken into the contract
-    /// @param _timestamp The timestamp of the rewardToken to be distributed
-    /// @param _amount The amount of rewardToken to be distributed
-    function injectReward(uint256 _timestamp, uint256 _amount) external onlyOwner {
-        _injectReward(_timestamp, _amount);
+    /// @param timestamp The timestamp of the rewardToken to be distributed
+    /// @param amount The amount of rewardToken to be distributed
+    function injectReward(uint256 timestamp, uint256 amount) external onlyOwner {
+        _injectReward(timestamp, amount);
     }
 
     /// @notice Inject rewardToken for currect week into the contract
-    /// @param _amount The amount of rewardToken to be distributed
-    function injectRewardForCurrentWeek(uint256 _amount) external onlyOwner {
-        _injectReward(block.timestamp, _amount);
+    /// @param amount The amount of rewardToken to be distributed
+    function injectRewardForCurrentWeek(uint256 amount) external onlyOwner {
+        _injectReward(block.timestamp, amount);
     }
 
-    function _injectReward(uint256 _timestamp, uint256 _amount) internal {
-        IERC20(config.getL2wct()).safeTransferFrom(msg.sender, address(this), _amount);
-        lastTokenBalance += _amount;
-        totalDistributed += _amount;
-        uint256 weekTimestamp = _timestampToFloorWeek(_timestamp);
-        tokensPerWeek[weekTimestamp] += _amount;
+    function _injectReward(uint256 timestamp, uint256 amount) internal {
+        IERC20(config.getL2wct()).safeTransferFrom(msg.sender, address(this), amount);
+        lastTokenBalance += amount;
+        totalDistributed += amount;
+        uint256 weekTimestamp = _timestampToFloorWeek(timestamp);
+        tokensPerWeek[weekTimestamp] += amount;
     }
 
     /// @notice Set recipient address
-    /// @param _recipient Recipient address
-    function setRecipient(address _recipient) external {
+    /// @param recipient_ Recipient address
+    function setRecipient(address recipient_) external {
         address oldRecipient = recipient[msg.sender];
-        recipient[msg.sender] = _recipient;
-        emit UpdateRecipient(msg.sender, oldRecipient, _recipient);
+        recipient[msg.sender] = recipient_;
+        emit RecipientUpdated(msg.sender, oldRecipient, recipient_);
     }
 }

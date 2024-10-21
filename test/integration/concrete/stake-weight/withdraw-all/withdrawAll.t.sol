@@ -23,7 +23,7 @@ contract WithdrawAll_StakeWeight_Integration_Concrete_Test is StakeWeight_Integr
     }
 
     function test_RevertWhen_UserHasNoLock() external whenContractIsNotPaused {
-        vm.expectRevert(StakeWeight.InvalidLockState.selector);
+        vm.expectRevert(StakeWeight.NonExistentLock.selector);
         stakeWeight.withdrawAll();
     }
 
@@ -34,7 +34,11 @@ contract WithdrawAll_StakeWeight_Integration_Concrete_Test is StakeWeight_Integr
     }
 
     function test_RevertWhen_LockHasNotExpired() external whenContractIsNotPaused whenUserHasLock {
-        vm.expectRevert(StakeWeight.InvalidLockState.selector);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                StakeWeight.LockStillActive.selector, _timestampToFloorWeek(block.timestamp + LOCK_DURATION)
+            )
+        );
         stakeWeight.withdrawAll();
     }
 

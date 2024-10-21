@@ -22,11 +22,11 @@ contract Initialize_StakeWeight_Unit_Concrete_Test is Base_Test {
         assertEq(address(stakeWeight.config()), address(walletConnectConfig));
 
         // Check that the initial point history is set correctly
-        (int128 bias, int128 slope, uint256 timestamp, uint256 blockNumber) = stakeWeight.pointHistory(0);
-        assertEq(bias, 0);
-        assertEq(slope, 0);
-        assertEq(timestamp, block.timestamp);
-        assertEq(blockNumber, block.number);
+        StakeWeight.Point memory point = stakeWeight.pointHistory(0);
+        assertEq(point.bias, 0);
+        assertEq(point.slope, 0);
+        assertEq(point.timestamp, block.timestamp);
+        assertEq(point.blockNumber, block.number);
 
         // Check that the epoch is initialized to 0
         assertEq(stakeWeight.epoch(), 0);
@@ -42,7 +42,7 @@ contract Initialize_StakeWeight_Unit_Concrete_Test is Base_Test {
     function test_RevertsWhen_ZeroConfigAddress() public {
         StakeWeight implementation = new StakeWeight();
 
-        vm.expectRevert(StakeWeight.InvalidInput.selector);
+        vm.expectRevert(abi.encodeWithSelector(StakeWeight.InvalidAddress.selector, address(0)));
         new ERC1967Proxy(
             address(implementation),
             abi.encodeWithSelector(

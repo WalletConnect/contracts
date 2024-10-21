@@ -7,10 +7,10 @@ feed.t.sol
     └── when caller has sufficient balance
         ├── when amount is zero
         │   ├── it should call _checkpointToken
-        │   ├── it should emit a Feed event
+        │   ├── it should emit a Fed event
         │   └── it should return true
         └── when amount is greater than zero
             ├── it should transfer tokens from caller to contract
             ├── it should call _checkpointToken
-            ├── it should emit a Feed event
+            ├── it should emit a Fed event
             └── it should return true

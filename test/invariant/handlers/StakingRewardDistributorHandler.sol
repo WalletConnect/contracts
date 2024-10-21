@@ -69,7 +69,7 @@ contract StakingRewardDistributorHandler is BaseHandler {
         vm.assume(amount > 0);
         deal(address(l2wct), admin, amount);
         l2wct.approve(address(stakingRewardDistributor), amount);
-        stakingRewardDistributor.injectReward({ _timestamp: time, _amount: amount });
+        stakingRewardDistributor.injectReward({ timestamp: time, amount: amount });
         store.updateTotalInjectedRewards(amount, (time / 1 weeks) * 1 weeks);
     }
 
