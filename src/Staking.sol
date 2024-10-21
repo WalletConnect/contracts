@@ -1,0 +1,161 @@
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.25;
+
+import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import { L2WCT } from "./L2WCT.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { WalletConnectConfig } from "./WalletConnectConfig.sol";
+
+contract Staking is Initializable, OwnableUpgradeable {
+    using SafeERC20 for L2WCT;
+
+    WalletConnectConfig public config;
+
+    // Duration of rewards to be paid out (in seconds)
+    uint256 public duration;
+    // Timestamp of when the rewards finish
+    uint256 public finishAt;
+    // Minimum of last updated time and reward finish time
+    uint256 public updatedAt;
+    // Reward to be paid out per second
+    uint256 public rewardRate;
+    // Sum of (reward rate * dt * 1e18 / total supply)
+    uint256 public rewardPerTokenStored;
+    // User address => rewardPerTokenStored
+    mapping(address => uint256) public userRewardPerTokenPaid;
+    // User address => rewards to be claimed
+    mapping(address => uint256) public rewards;
+
+    // Total staked
+    uint256 public totalSupply;
+    // User address => staked amount
+    mapping(address => uint256) public balanceOf;
+
+    /*//////////////////////////////////////////////////////////////////////////
+                                    EVENTS
+    //////////////////////////////////////////////////////////////////////////*/
+
+    event RewardRateUpdated(uint256 oldRewardRate, uint256 newRewardRate);
+    event Staked(address indexed user, uint256 amount);
+    event Withdrawn(address indexed user, uint256 amount);
+    event RewardPaid(address indexed user, uint256 reward);
+
+    /*//////////////////////////////////////////////////////////////////////////
+                                    ERRORS
+    //////////////////////////////////////////////////////////////////////////*/
+    error InvalidInput();
+    error InvalidRewardRate();
+    error InsufficientRewardBalance();
+    error NoChange();
+    /*//////////////////////////////////////////////////////////////////////////
+                                    VARIABLES
+    //////////////////////////////////////////////////////////////////////////*/
+
+    /// @notice Configuration for contract initialization.
+    struct Init {
+        address admin;
+        WalletConnectConfig config;
+        uint256 duration;
+    }
+
+    /// @notice Initializes the contract.
+    /// @dev MUST be called during the contract upgrade to set up the proxies state.
+    function initialize(Init memory init) external initializer {
+        __Ownable_init(init.admin);
+        config = WalletConnectConfig(init.config);
+        duration = init.duration;
+    }
+
+    /*//////////////////////////////////////////////////////////////////////////
+                                    FUNCTIONS
+    //////////////////////////////////////////////////////////////////////////*/
+    modifier updateReward(address account) {
+        rewardPerTokenStored = rewardPerToken();
+        updatedAt = lastTimeRewardApplicable();
+
+        if (account != address(0)) {
+            rewards[account] = earned(account);
+            userRewardPerTokenPaid[account] = rewardPerTokenStored;
+        }
+        _;
+    }
+
+    function lastTimeRewardApplicable() public view returns (uint256) {
+        return _min(finishAt, block.timestamp);
+    }
+
+    function rewardPerToken() public view returns (uint256) {
+        if (totalSupply == 0) {
+            return rewardPerTokenStored;
+        }
+        return rewardPerTokenStored + (rewardRate * (lastTimeRewardApplicable() - updatedAt) * 1e18) / totalSupply;
+    }
+
+    /// @notice Interface for nodes to stake their CNKT with the protocol.
+    function stake(uint256 amount) external updateReward(msg.sender) {
+        L2WCT l2wct = L2WCT(config.getL2wct());
+        if (amount == 0) revert InvalidInput();
+        totalSupply += amount;
+        balanceOf[msg.sender] += amount;
+        l2wct.safeTransferFrom(msg.sender, address(this), amount);
+        emit Staked(msg.sender, amount);
+    }
+
+    /// @notice Interface for users to unstake their CNKT from the protocol.
+    function withdraw(uint256 amount) external updateReward(msg.sender) {
+        L2WCT l2wct = L2WCT(config.getL2wct());
+        if (amount == 0) revert InvalidInput();
+        totalSupply -= amount;
+        balanceOf[msg.sender] -= amount;
+        l2wct.safeTransfer(msg.sender, amount);
+        emit Withdrawn(msg.sender, amount);
+    }
+
+    function earned(address account) public view returns (uint256) {
+        return (balanceOf[account] * (rewardPerToken() - userRewardPerTokenPaid[account])) / 1e18 + rewards[account];
+    }
+
+    // Function for users to claim rewards
+    function getReward() external updateReward(msg.sender) {
+        L2WCT l2wct = L2WCT(config.getL2wct());
+        uint256 reward = rewards[msg.sender];
+        if (reward > 0) {
+            rewards[msg.sender] = 0;
+            l2wct.safeTransfer(msg.sender, reward);
+            emit RewardPaid(msg.sender, reward);
+        }
+    }
+
+    function setRewardsDuration(uint256 _duration) external onlyOwner {
+        require(finishAt < block.timestamp, "reward duration not finished");
+        duration = _duration;
+    }
+
+    function updateRewardRate(uint256 newRewardRate) external onlyOwner updateReward(address(0)) {
+        L2WCT l2wct = L2WCT(config.getL2wct());
+        uint256 oldRewardRate = rewardRate;
+        uint256 remainingRewards = 0;
+
+        if (block.timestamp < finishAt) {
+            remainingRewards = (finishAt - block.timestamp) * oldRewardRate;
+        }
+
+        if (newRewardRate == 0) revert InvalidRewardRate();
+
+        uint256 newRewardAmount = newRewardRate * duration;
+        if (newRewardAmount + remainingRewards > l2wct.balanceOf(address(this))) {
+            revert InsufficientRewardBalance();
+        }
+
+        rewardRate = newRewardRate;
+        finishAt = block.timestamp + duration;
+        updatedAt = block.timestamp;
+
+        emit RewardRateUpdated(oldRewardRate, newRewardRate);
+    }
+
+    function _min(uint256 x, uint256 y) private pure returns (uint256) {
+        return x <= y ? x : y;
+    }
+}

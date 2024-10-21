@@ -1,0 +1,22 @@
+injectReward.t.sol
+├── when caller is not owner
+│   └── it should revert
+└── when caller is owner
+    ├── when amount is greater than zero
+    │   ├── when timestamp is in the past
+    │   │   ├── it should transfer tokens from caller to contract
+    │   │   ├── it should increase lastTokenBalance
+    │   │   ├── it should increase totalDistributed
+    │   │   └── it should increase tokensPerWeek for the corresponding week
+    │   ├── when timestamp is in the future
+    │   │   ├── it should transfer tokens from caller to contract
+    │   │   ├── it should increase lastTokenBalance
+    │   │   ├── it should increase totalDistributed
+    │   │   └── it should increase tokensPerWeek for the corresponding week
+    │   └── when timestamp is current
+    │       ├── it should transfer tokens from caller to contract
+    │       ├── it should increase lastTokenBalance
+    │       ├── it should increase totalDistributed
+    │       └── it should increase tokensPerWeek for the current week
+    └── when caller doesn't have enough tokens
+        └── it should revert

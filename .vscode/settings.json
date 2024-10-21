@@ -1,0 +1,11 @@
+{
+  "[solidity]": {
+    "editor.defaultFormatter": "NomicFoundation.hardhat-solidity"
+  },
+  "[toml]": {
+    "editor.defaultFormatter": "tamasfe.even-better-toml"
+  },
+  "solidity.formatter": "forge",
+  "slither.solcPath": "",
+  "slither.hiddenDetectors": []
+}

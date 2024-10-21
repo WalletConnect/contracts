@@ -1,0 +1,16 @@
+balanceOfAt.t.sol
+├── when user has no epochs
+│   └── it should return 0
+└── when user has epochs
+    ├── when timestamp is before the first epoch
+    │   └── it should return 0
+    ├── when timestamp is within user's epoch range
+    │   ├── when calculated bias is negative
+    │   │   └── it should return 0
+    │   └── when calculated bias is positive
+    │       └── it should return the correct balance
+    └── when timestamp is after the last epoch
+        ├── when calculated bias is negative
+        │   └── it should return 0
+        └── when calculated bias is positive
+            └── it should return the correct balance

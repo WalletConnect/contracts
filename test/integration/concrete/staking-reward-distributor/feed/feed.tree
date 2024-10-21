@@ -1,0 +1,16 @@
+feed.t.sol
+├── when contract is not live
+│   └── it should revert
+└── when contract is live
+    ├── when caller has insufficient balance
+    │   └── it should revert
+    └── when caller has sufficient balance
+        ├── when amount is zero
+        │   ├── it should call _checkpointToken
+        │   ├── it should emit a Fed event
+        │   └── it should return true
+        └── when amount is greater than zero
+            ├── it should transfer tokens from caller to contract
+            ├── it should call _checkpointToken
+            ├── it should emit a Fed event
+            └── it should return true

@@ -1,0 +1,15 @@
+totalSupply.t.sol
+├── given no locks exist
+│   └── it should return zero
+├── given locks exist
+│   ├── it should return the sum of all active locks
+│   ├── it should be greater than zero
+│   └── it should not exceed the total locked amount
+├── given multiple users have locks
+│   ├── it should correctly sum all active locks
+│   └── it should handle different lock durations correctly
+├── after a lock expires
+│   ├── it should not include the expired lock in the total supply
+│   └── it should decrease the total supply accordingly
+└── given all locks expire
+    └── it should return to zero

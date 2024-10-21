@@ -1,0 +1,30 @@
+balanceOfAtTime.t.sol
+├── given a user has locked tokens for MAX_LOCK time
+│   ├── when querying balance at a time before last checkpoint
+│   │   └── it should revert due to underflow
+│   ├── when querying balance at the last checkpoint time
+│   │   └── it should return same as balanceOf
+│   ├── when querying balance shortly after last checkpoint
+│   │   └── it should return a projected balance based on current slope
+│   ├── when querying balance midway through remaining lock period
+│   │   └── it should return a projected balance based on current slope
+│   ├── when querying balance near the end of lock period
+│   │   └── it should return a projected balance based on current slope
+│   └── when querying balance after expiry
+│       └── it should return zero
+├── given a user has locked tokens for half of MAX_LOCK time
+│   ├── when querying balance at a time before last checkpoint
+│   │   └── it should revert due to underflow
+│   ├── when querying balance at the last checkpoint time
+│   │   └── it should return same as balanceOf
+│   ├── when querying balance shortly after last checkpoint
+│   │   └── it should return a projected balance based on current slope
+│   ├── when querying balance midway through remaining lock period
+│   │   └── it should return a projected balance based on current slope
+│   ├── when querying balance near the end of lock period
+│   │   └── it should return a projected balance based on current slope
+│   └── when querying balance after expiry
+│       └── it should return zero
+└── given a user has not locked tokens
+    └── when querying balance at any time
+        └── it should return zero

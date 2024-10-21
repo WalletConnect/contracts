@@ -1,0 +1,138 @@
+// SPDX-License-Identifier: MIT
+pragma solidity >=0.8.25 <0.9.0;
+
+import { StakingRewardDistributor } from "src/StakingRewardDistributor.sol";
+import { IERC20, IERC20Errors } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import { StakeWeight_Integration_Shared_Test } from "../../../shared/StakeWeight.t.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+
+contract InjectReward_StakingRewardDistributor_Integration_Concrete_Test is StakeWeight_Integration_Shared_Test {
+    uint256 constant INJECTION_AMOUNT = 1000 ether;
+
+    function setUp() public override {
+        super.setUp();
+        vm.warp(_timestampToFloorWeek(block.timestamp + 1 weeks));
+
+        vm.startPrank(users.admin);
+        l2wct.approve(address(stakingRewardDistributor), INJECTION_AMOUNT);
+        vm.stopPrank();
+    }
+
+    function test_RevertWhen_CallerIsNotOwner() external {
+        vm.prank(users.alice);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, users.alice));
+        stakingRewardDistributor.injectReward(block.timestamp, INJECTION_AMOUNT);
+    }
+
+    modifier whenCallerIsOwner() {
+        vm.startPrank(users.admin);
+        _;
+        vm.stopPrank();
+    }
+
+    function test_RevertWhen_CallerDoesntHaveEnoughTokens() external whenCallerIsOwner {
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IERC20Errors.ERC20InsufficientBalance.selector,
+                users.admin,
+                l2wct.balanceOf(users.admin),
+                INJECTION_AMOUNT
+            )
+        );
+        stakingRewardDistributor.injectReward(block.timestamp, INJECTION_AMOUNT);
+    }
+
+    modifier whenAmountIsGreaterThanZero() {
+        deal(address(l2wct), users.admin, INJECTION_AMOUNT);
+        _;
+    }
+
+    function test_InjectRewardInThePast() external whenCallerIsOwner whenAmountIsGreaterThanZero {
+        uint256 pastTimestamp = block.timestamp - 1 weeks;
+        uint256 initialBalance = l2wct.balanceOf(address(stakingRewardDistributor));
+        uint256 initialLastTokenBalance = stakingRewardDistributor.lastTokenBalance();
+        uint256 initialTotalDistributed = stakingRewardDistributor.totalDistributed();
+
+        stakingRewardDistributor.injectReward(pastTimestamp, INJECTION_AMOUNT);
+
+        assertEq(
+            l2wct.balanceOf(address(stakingRewardDistributor)),
+            initialBalance + INJECTION_AMOUNT,
+            "Should transfer tokens from caller to contract"
+        );
+        assertEq(
+            stakingRewardDistributor.lastTokenBalance(),
+            initialLastTokenBalance + INJECTION_AMOUNT,
+            "Should increase lastTokenBalance"
+        );
+        assertEq(
+            stakingRewardDistributor.totalDistributed(),
+            initialTotalDistributed + INJECTION_AMOUNT,
+            "Should increase totalDistributed"
+        );
+        assertEq(
+            stakingRewardDistributor.tokensPerWeek(_timestampToFloorWeek(pastTimestamp)),
+            INJECTION_AMOUNT,
+            "Should increase tokensPerWeek for the corresponding week"
+        );
+    }
+
+    function test_InjectRewardInTheFuture() external whenCallerIsOwner whenAmountIsGreaterThanZero {
+        uint256 futureTimestamp = block.timestamp + 1 weeks;
+        uint256 initialBalance = l2wct.balanceOf(address(stakingRewardDistributor));
+        uint256 initialLastTokenBalance = stakingRewardDistributor.lastTokenBalance();
+        uint256 initialTotalDistributed = stakingRewardDistributor.totalDistributed();
+
+        stakingRewardDistributor.injectReward(futureTimestamp, INJECTION_AMOUNT);
+
+        assertEq(
+            l2wct.balanceOf(address(stakingRewardDistributor)),
+            initialBalance + INJECTION_AMOUNT,
+            "Should transfer tokens from caller to contract"
+        );
+        assertEq(
+            stakingRewardDistributor.lastTokenBalance(),
+            initialLastTokenBalance + INJECTION_AMOUNT,
+            "Should increase lastTokenBalance"
+        );
+        assertEq(
+            stakingRewardDistributor.totalDistributed(),
+            initialTotalDistributed + INJECTION_AMOUNT,
+            "Should increase totalDistributed"
+        );
+        assertEq(
+            stakingRewardDistributor.tokensPerWeek(_timestampToFloorWeek(futureTimestamp)),
+            INJECTION_AMOUNT,
+            "Should increase tokensPerWeek for the corresponding week"
+        );
+    }
+
+    function test_InjectRewardForCurrentWeek() external whenCallerIsOwner whenAmountIsGreaterThanZero {
+        uint256 initialBalance = l2wct.balanceOf(address(stakingRewardDistributor));
+        uint256 initialLastTokenBalance = stakingRewardDistributor.lastTokenBalance();
+        uint256 initialTotalDistributed = stakingRewardDistributor.totalDistributed();
+
+        stakingRewardDistributor.injectReward(block.timestamp, INJECTION_AMOUNT);
+
+        assertEq(
+            l2wct.balanceOf(address(stakingRewardDistributor)),
+            initialBalance + INJECTION_AMOUNT,
+            "Should transfer tokens from caller to contract"
+        );
+        assertEq(
+            stakingRewardDistributor.lastTokenBalance(),
+            initialLastTokenBalance + INJECTION_AMOUNT,
+            "Should increase lastTokenBalance"
+        );
+        assertEq(
+            stakingRewardDistributor.totalDistributed(),
+            initialTotalDistributed + INJECTION_AMOUNT,
+            "Should increase totalDistributed"
+        );
+        assertEq(
+            stakingRewardDistributor.tokensPerWeek(_timestampToFloorWeek(block.timestamp)),
+            INJECTION_AMOUNT,
+            "Should increase tokensPerWeek for the current week"
+        );
+    }
+}

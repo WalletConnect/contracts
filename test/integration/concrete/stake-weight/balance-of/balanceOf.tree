@@ -1,0 +1,18 @@
+balanceOf.t.sol
+├── given a user has locked tokens
+│   ├── when lock has just been created
+│   │   └── it should return close to the full locked amount
+│   ├── when some time has passed since locking
+│   │   ├── it should return less than the locked amount
+│   │   └── it should return more than zero
+│   ├── when lock is close to expiry
+│   │   └── it should return a small fraction of the locked amount
+│   └── when lock has expired
+│       └── it should return zero
+├── given a user has locked tokens for different durations
+│   ├── when querying balance for a longer lock
+│   │   └── it should return a higher balance than a shorter lock of the same amount
+│   └── when querying balance for a shorter lock
+│       └── it should return a lower balance than a longer lock of the same amount
+└── given a user has not locked tokens
+    └── it should return zero
