@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.25 <0.9.0;
 
-import { StakingRewardDistributor, IStakeWeight } from "src/StakingRewardDistributor.sol";
+import { StakingRewardDistributor } from "src/StakingRewardDistributor.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { console2 } from "forge-std/console2.sol";
 import { StakeWeight_Integration_Shared_Test } from "../../../shared/StakeWeight.t.sol";
 
 contract CheckpointToken_StakingRewardDistributor_Integration_Concrete_Test is StakeWeight_Integration_Shared_Test {
@@ -17,7 +16,7 @@ contract CheckpointToken_StakingRewardDistributor_Integration_Concrete_Test is S
         uint256 initialTokensPerWeek = stakingRewardDistributor.tokensPerWeek(_timestampToFloorWeek(block.timestamp));
 
         vm.expectEmit(true, true, true, true);
-        emit CheckpointToken(block.timestamp, 0);
+        emit TokenCheckpointed(block.timestamp, 0);
         stakingRewardDistributor.checkpointToken();
 
         assertEq(
@@ -41,7 +40,7 @@ contract CheckpointToken_StakingRewardDistributor_Integration_Concrete_Test is S
         uint256 initialTotalDistributed = stakingRewardDistributor.totalDistributed();
 
         vm.expectEmit(true, true, true, true);
-        emit CheckpointToken(block.timestamp, distributionAmount);
+        emit TokenCheckpointed(block.timestamp, distributionAmount);
         stakingRewardDistributor.checkpointToken();
 
         assertEq(

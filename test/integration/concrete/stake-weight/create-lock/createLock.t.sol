@@ -32,7 +32,7 @@ contract CreateLock_StakeWeight_Unit_Concrete_Test is StakeWeight_Integration_Sh
         stakeWeight.createLock(amount, unlockTime);
 
         // Attempt to create another lock
-        vm.expectRevert(abi.encodeWithSelector(StakeWeight.InvalidLockState.selector));
+        vm.expectRevert(StakeWeight.AlreadyCreatedLock.selector);
         stakeWeight.createLock(amount, unlockTime);
 
         vm.stopPrank();
@@ -58,7 +58,14 @@ contract CreateLock_StakeWeight_Unit_Concrete_Test is StakeWeight_Integration_Sh
 
     function test_RevertWhen_UnlockTimeTooFarInFuture() external whenContractIsNotPaused givenUserDoesNotHaveALock {
         uint256 maxLock = stakeWeight.maxLock();
-        vm.expectRevert(abi.encodeWithSelector(StakeWeight.VotingLockMaxExceeded.selector));
+        // revert LockMaxDurationExceeded(unlockTime, block.timestamp + s.maxLock);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                StakeWeight.LockMaxDurationExceeded.selector,
+                _timestampToFloorWeek(block.timestamp + maxLock + 2 weeks),
+                block.timestamp + maxLock
+            )
+        );
         stakeWeight.createLock(1 ether, block.timestamp + maxLock + 2 weeks);
     }
 
@@ -89,15 +96,15 @@ contract CreateLock_StakeWeight_Unit_Concrete_Test is StakeWeight_Integration_Sh
 
         // Check point history
         uint256 currentEpoch = stakeWeight.epoch();
-        (,, uint256 timestamp, uint256 blockNumber) = stakeWeight.pointHistory(currentEpoch);
-        assertEq(timestamp, block.timestamp, "Last point timestamp should match current timestamp");
-        assertEq(blockNumber, block.number, "Last point block number should match current block number");
+        StakeWeight.Point memory point = stakeWeight.pointHistory(currentEpoch);
+        assertEq(point.timestamp, block.timestamp, "Last point timestamp should match current timestamp");
+        assertEq(point.blockNumber, block.number, "Last point block number should match current block number");
 
         // Check user point history
         uint256 userEpoch = stakeWeight.userPointEpoch(users.alice);
-        (,, uint256 userTimestamp, uint256 userBlockNumber) = stakeWeight.userPointHistory(users.alice, userEpoch);
-        assertEq(userTimestamp, block.timestamp, "User point timestamp should match current timestamp");
-        assertEq(userBlockNumber, block.number, "User point block number should match current block number");
+        StakeWeight.Point memory userPoint = stakeWeight.userPointHistory(users.alice, userEpoch);
+        assertEq(userPoint.timestamp, block.timestamp, "User point timestamp should match current timestamp");
+        assertEq(userPoint.blockNumber, block.number, "User point block number should match current block number");
 
         // Check slope changes
         int128 slopeChange = stakeWeight.slopeChanges(lockEnd);

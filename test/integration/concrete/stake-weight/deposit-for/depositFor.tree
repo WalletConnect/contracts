@@ -6,7 +6,7 @@ depositFor.t.sol
     │   └── it should revert
     └── when _for address is not zero
         ├── given recipient has no existing lock
-        │   └── it should revert with InvalidLockState
+        │   └── it should revert with NonExistentLock
         └── given recipient has an expired lock
         │   └── it should revert with ExpiredLock
         └── given recipient has an existing lock

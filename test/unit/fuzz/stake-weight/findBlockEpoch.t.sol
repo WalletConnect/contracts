@@ -2,6 +2,7 @@
 
 pragma solidity >=0.8.25 <0.9.0;
 
+import { StakeWeight } from "src/StakeWeight.sol";
 import { StakeWeight_Concrete_Test } from "test/unit/concrete/stake-weight/StakeWeight.t.sol";
 
 contract FindBlockEpoch_StakeWeight_Unit_Fuzz_Test is StakeWeight_Concrete_Test {
@@ -23,17 +24,21 @@ contract FindBlockEpoch_StakeWeight_Unit_Fuzz_Test is StakeWeight_Concrete_Test 
         // Verify the result
         assertTrue(result <= maxEpoch, "Result should not exceed maxEpoch");
 
-        (,,, uint256 resultBlockNumber) = stakeWeightHarness.pointHistory(result);
+        StakeWeight.Point memory resultPoint = stakeWeightHarness.pointHistory(result);
 
         if (blockNumber < 1) {
             // For block numbers less than the first point, it should return the first epoch (0)
             assertEq(result, 0, "Should return first epoch for block numbers less than the first point");
         } else {
-            assertTrue(resultBlockNumber <= blockNumber, "Result epoch's block number should be <= input block number");
+            assertTrue(
+                resultPoint.blockNumber <= blockNumber, "Result epoch's block number should be <= input block number"
+            );
 
             if (result < maxEpoch) {
-                (,,, uint256 nextBlockNumber) = stakeWeightHarness.pointHistory(result + 1);
-                assertTrue(nextBlockNumber > blockNumber, "Next epoch's block number should be > input block number");
+                StakeWeight.Point memory nextPoint = stakeWeightHarness.pointHistory(result + 1);
+                assertTrue(
+                    nextPoint.blockNumber > blockNumber, "Next epoch's block number should be > input block number"
+                );
             }
         }
     }

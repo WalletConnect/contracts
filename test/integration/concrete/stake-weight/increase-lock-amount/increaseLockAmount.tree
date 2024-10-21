@@ -3,7 +3,7 @@ increaseLockAmount.t.sol
 │   └── it should revert
 └── given contract is not paused
     ├── when user has no existing lock
-    │   └── it should revert with InvalidLockState
+    │   └── it should revert with NonExistentLock
     └── when user has an existing lock
         ├── when lock has expired
         │   └── it should revert with ExpiredLock

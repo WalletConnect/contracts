@@ -20,12 +20,12 @@ contract Checkpoint_StakeWeight_Integration_Concrete_Test is StakeWeight_Integra
 
         _checkpointAndCount();
 
-        (int128 bias, int128 slope, uint256 timestamp,) = stakeWeight.pointHistory(stakeWeight.epoch());
+        StakeWeight.Point memory point = stakeWeight.pointHistory(stakeWeight.epoch());
 
         assertEq(stakeWeight.epoch(), initialEpoch + checkpointCallCount, "Epoch should be incremented");
-        assertEq(timestamp, block.timestamp, "Point timestamp should be current block timestamp");
-        assertEq(bias, 0, "Point bias should be zero");
-        assertEq(slope, 0, "Point slope should be zero");
+        assertEq(point.timestamp, block.timestamp, "Point timestamp should be current block timestamp");
+        assertEq(point.bias, 0, "Point bias should be zero");
+        assertEq(point.slope, 0, "Point slope should be zero");
         assertEq(stakeWeight.totalSupply(), initialSupply, "Total supply should not change");
     }
 
@@ -41,8 +41,8 @@ contract Checkpoint_StakeWeight_Integration_Concrete_Test is StakeWeight_Integra
         assertEq(stakeWeight.epoch(), initialEpoch + checkpointCallCount, "Epoch should be incremented");
         assertEq(stakeWeight.totalSupply(), initialSupply, "Total supply should not change");
 
-        (,, uint256 latestTimestamp,) = stakeWeight.pointHistory(stakeWeight.epoch());
-        assertEq(latestTimestamp, block.timestamp, "Latest point timestamp should be current block timestamp");
+        StakeWeight.Point memory latestPoint = stakeWeight.pointHistory(stakeWeight.epoch());
+        assertEq(latestPoint.timestamp, block.timestamp, "Latest point timestamp should be current block timestamp");
     }
 
     function test_checkpoint_existingLocks_lessThanWeekPassed() public {
@@ -56,12 +56,12 @@ contract Checkpoint_StakeWeight_Integration_Concrete_Test is StakeWeight_Integra
 
         _checkpointAndCount();
 
-        (int128 bias, int128 slope, uint256 timestamp,) = stakeWeight.pointHistory(stakeWeight.epoch());
+        StakeWeight.Point memory point = stakeWeight.pointHistory(stakeWeight.epoch());
 
         assertEq(stakeWeight.epoch(), initialEpoch + checkpointCallCount, "Epoch should be incremented");
-        assertEq(timestamp, block.timestamp, "Point timestamp should be current block timestamp");
-        assertTrue(bias > 0, "Point bias should be positive");
-        assertTrue(slope > 0, "Point slope should be positive");
+        assertEq(point.timestamp, block.timestamp, "Point timestamp should be current block timestamp");
+        assertTrue(point.bias > 0, "Point bias should be positive");
+        assertTrue(point.slope > 0, "Point slope should be positive");
         assertTrue(stakeWeight.totalSupply() < initialSupply, "Total supply should decrease");
     }
 
@@ -74,8 +74,8 @@ contract Checkpoint_StakeWeight_Integration_Concrete_Test is StakeWeight_Integra
 
         uint256 initialTimestamp = block.timestamp;
 
-        (,, uint256 latestTimestamp,) = stakeWeight.pointHistory(stakeWeight.epoch());
-        assertEq(latestTimestamp, initialTimestamp, "Latest point timestamp should be initial timestamp");
+        StakeWeight.Point memory latestPoint = stakeWeight.pointHistory(stakeWeight.epoch());
+        assertEq(latestPoint.timestamp, initialTimestamp, "Latest point timestamp should be initial timestamp");
 
         uint256 weeksPassed = 3;
         vm.warp(initialTimestamp + weeksPassed * 1 weeks);
@@ -93,9 +93,9 @@ contract Checkpoint_StakeWeight_Integration_Concrete_Test is StakeWeight_Integra
         initialTimestamp = _timestampToFloorWeek(initialTimestamp);
 
         for (uint256 i = 1; i <= expectedEpochIncrease; i++) {
-            (int128 bias, int128 slope, uint256 timestamp,) = stakeWeight.pointHistory(initialEpoch + i);
-            assertTrue(bias > 0, "Point bias should be positive for each week");
-            assertTrue(slope > 0, "Point slope should be positive for each week");
+            StakeWeight.Point memory point = stakeWeight.pointHistory(initialEpoch + i);
+            assertTrue(point.bias > 0, "Point bias should be positive for each week");
+            assertTrue(point.slope > 0, "Point slope should be positive for each week");
 
             uint256 expectedTimestamp;
             if (i < expectedEpochIncrease) {
@@ -104,7 +104,7 @@ contract Checkpoint_StakeWeight_Integration_Concrete_Test is StakeWeight_Integra
                 expectedTimestamp = block.timestamp;
             }
 
-            assertEq(timestamp, expectedTimestamp, "Timestamp should be correct for each week");
+            assertEq(point.timestamp, expectedTimestamp, "Timestamp should be correct for each week");
         }
 
         assertLt(stakeWeight.totalSupply(), initialSupply, "Total supply should decrease because of the decay");
@@ -123,7 +123,7 @@ contract Checkpoint_StakeWeight_Integration_Concrete_Test is StakeWeight_Integra
 
         _checkpointAndCount();
 
-        (int128 bias, int128 slope, uint256 timestamp,) = stakeWeight.pointHistory(stakeWeight.epoch());
+        StakeWeight.Point memory point = stakeWeight.pointHistory(stakeWeight.epoch());
 
         uint256 finalBobBalance = stakeWeight.balanceOf(users.bob);
 
@@ -132,9 +132,9 @@ contract Checkpoint_StakeWeight_Integration_Concrete_Test is StakeWeight_Integra
             initialEpoch + numWeeksPassed + checkpointCallCount,
             "Epoch should be incremented by weeks passed"
         );
-        assertEq(timestamp, block.timestamp, "Point timestamp should be current block timestamp");
-        assertTrue(bias > 0, "Point bias should be positive");
-        assertTrue(slope > 0, "Point slope should be positive");
+        assertEq(point.timestamp, block.timestamp, "Point timestamp should be current block timestamp");
+        assertTrue(point.bias > 0, "Point bias should be positive");
+        assertTrue(point.slope > 0, "Point slope should be positive");
         assertEq(
             stakeWeight.totalSupply(),
             finalBobBalance,
@@ -154,16 +154,16 @@ contract Checkpoint_StakeWeight_Integration_Concrete_Test is StakeWeight_Integra
         vm.warp(block.timestamp + numWeeksPassed * 1 weeks);
 
         _checkpointAndCount();
-        (int128 bias, int128 slope, uint256 timestamp,) = stakeWeight.pointHistory(stakeWeight.epoch());
+        StakeWeight.Point memory point = stakeWeight.pointHistory(stakeWeight.epoch());
 
         assertEq(
             stakeWeight.epoch(),
             initialEpoch + numWeeksPassed + checkpointCallCount,
             "Epoch should be incremented by weeks passed"
         );
-        assertEq(timestamp, block.timestamp, "Point timestamp should be current block timestamp");
-        assertEq(bias, 0, "Point bias should be zero");
-        assertEq(slope, 0, "Point slope should be zero");
+        assertEq(point.timestamp, block.timestamp, "Point timestamp should be current block timestamp");
+        assertEq(point.bias, 0, "Point bias should be zero");
+        assertEq(point.slope, 0, "Point slope should be zero");
         assertEq(stakeWeight.totalSupply(), 0, "Total supply should be zero");
     }
 
@@ -172,15 +172,15 @@ contract Checkpoint_StakeWeight_Integration_Concrete_Test is StakeWeight_Integra
 
         stakeWeight.checkpoint();
         uint256 firstCallEpoch = stakeWeight.epoch();
-        (,, uint256 firstTimestamp,) = stakeWeight.pointHistory(firstCallEpoch);
+        StakeWeight.Point memory firstPoint = stakeWeight.pointHistory(firstCallEpoch);
 
         stakeWeight.checkpoint();
         uint256 secondCallEpoch = stakeWeight.epoch();
-        (,, uint256 secondTimestamp,) = stakeWeight.pointHistory(secondCallEpoch);
+        StakeWeight.Point memory secondPoint = stakeWeight.pointHistory(secondCallEpoch);
 
         assertEq(firstCallEpoch, initialEpoch + 1, "First call should increment epoch");
         assertEq(secondCallEpoch, firstCallEpoch + 1, "Second call should also increment epoch");
-        assertEq(firstTimestamp, secondTimestamp, "Both calls should use same timestamp");
+        assertEq(firstPoint.timestamp, secondPoint.timestamp, "Both calls should use same timestamp");
     }
 
     function _checkpointAndCount() internal {

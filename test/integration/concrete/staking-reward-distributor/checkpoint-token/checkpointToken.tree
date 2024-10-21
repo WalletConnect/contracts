@@ -3,7 +3,7 @@ checkpointToken.t.sol
 │   ├── it should not change the lastTokenBalance
 │   ├── it should not change the totalDistributed
 │   ├── it should not update any tokensPerWeek
-│   └── it should emit a CheckpointToken event with 0 amount
+│   └── it should emit a TokenCheckpointed event with 0 amount
 └── given there are new tokens to distribute
     ├── it should update the lastTokenBalance
     ├── it should increase the totalDistributed
@@ -19,4 +19,4 @@ checkpointToken.t.sol
     │   └── when the distribution is within the same week
     │       └── it should add all tokens to the current week
     ├── it should update lastTokenTimestamp to block.timestamp
-    └── it should emit a CheckpointToken event with the distributed amount
+    └── it should emit a TokenCheckpointed event with the distributed amount

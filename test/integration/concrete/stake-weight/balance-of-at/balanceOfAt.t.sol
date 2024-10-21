@@ -15,6 +15,10 @@ contract BalanceOfAt_StakeWeight_Integration_Concrete_Test is Base_Test {
         super.setUp();
         deployCoreConditionally();
         disableTransferRestrictions();
+        // make max lock 4 years
+        uint256 newMaxLock = stakeWeight.MAX_LOCK_CAP();
+        vm.prank(users.admin);
+        stakeWeight.setMaxLock(newMaxLock);
     }
 
     function test_BalanceForUserWithoutLock() external view {

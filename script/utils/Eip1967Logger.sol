@@ -2,7 +2,7 @@
 pragma solidity >=0.8.25 <0.9.0;
 
 import { console2 } from "forge-std/console2.sol";
-import { VmSafe, Vm } from "forge-std/Vm.sol";
+import { VmSafe } from "forge-std/Vm.sol";
 
 library Eip1967Logger {
     function logEip1967(VmSafe vm, string memory name, address proxy) internal view {

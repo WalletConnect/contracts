@@ -2,20 +2,23 @@
 pragma solidity 0.8.25;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import { WalletConnectConfig } from "./WalletConnectConfig.sol";
-import { Pauser } from "./Pauser.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { StorageSlot } from "@openzeppelin/contracts/utils/StorageSlot.sol";
 
+import { Pauser } from "./Pauser.sol";
+import { WalletConnectConfig } from "./WalletConnectConfig.sol";
+
 /**
+ * @title StakeWeight
+ * @notice This contract implements a vote-escrowed token model for WCT (WalletConnect Token)
+ * to create a staking mechanism with time-weighted power.
  * @dev This contract was inspired by Curve's veCRV and PancakeSwap's veCake implementations.
- * It implements a vote-escrowed token model for WCT (WalletConnect Token) to create
- * a staking mechanism with time-weighted power.
+ * @author WalletConnect
  */
 contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20 for IERC20;
@@ -24,20 +27,31 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
                                     STRUCTS
     //////////////////////////////////////////////////////////////////////////*/
 
+    /// @notice A point in the linear decay graph
     struct Point {
+        /// @notice The bias of the point
         int128 bias;
+        /// @notice The slope of the point
         int128 slope;
+        /// @notice The timestamp of the point
         uint256 timestamp;
+        /// @notice The block number of the point
         uint256 blockNumber;
     }
 
+    /// @notice A struct representing a locked balance
     struct LockedBalance {
+        /// @notice The amount of locked tokens
         int128 amount;
+        /// @notice The end time of the lock
         uint256 end;
     }
 
+    /// @notice Initialization parameters for the StakeWeight contract
     struct Init {
+        /// @notice The address of the admin
         address admin;
+        /// @notice The address of the WalletConnectConfig contract
         address config;
     }
 
@@ -45,34 +59,43 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
                                     CONSTANTS
     //////////////////////////////////////////////////////////////////////////*/
 
+    // Define the storage namespace
+    bytes32 constant STAKE_WEIGHT_STORAGE_POSITION = keccak256("com.walletconnect.stakeweight.storage");
+    // Max lock duration
+    uint256 public constant MAX_LOCK_CAP = (209 weeks) - 1;
+    // Multiplier for the slope calculation
     uint256 public constant MULTIPLIER = 1e18;
+    // Action Types
+    uint256 public constant ACTION_DEPOSIT_FOR = 0;
+    uint256 public constant ACTION_CREATE_LOCK = 1;
+    uint256 public constant ACTION_INCREASE_LOCK_AMOUNT = 2;
+    uint256 public constant ACTION_INCREASE_UNLOCK_TIME = 3;
 
     /*//////////////////////////////////////////////////////////////////////////
                                     STORAGE
     //////////////////////////////////////////////////////////////////////////*/
 
-    // Define the storage namespace
-    bytes32 constant STAKE_WEIGHT_STORAGE_POSITION = keccak256("com.walletconnect.stakeweight.storage");
-
+    /// @dev Storage structure for StakeWeight
+    /// @custom:storage-location erc7201:com.walletconnect.stakeweight.storage
     struct StakeWeightStorage {
-        // Configuration for WalletConnect
+        /// @notice Configuration for WalletConnect
         WalletConnectConfig config;
-        // Total supply of WCT locked
+        /// @notice Total supply of WCT locked
         uint256 supply;
-        // Maximum lock duration
+        /// @notice Maximum lock duration
         uint256 maxLock;
-        // Mapping (user => LockedBalance) to keep locking information for each user
-        mapping(address => LockedBalance) locks;
-        // A global point of time
+        /// @notice Mapping (user => LockedBalance) to keep locking information for each user
+        mapping(address user => LockedBalance lock) locks;
+        /// @notice A global point of time
         uint256 epoch;
-        // An array of points (global)
+        /// @notice An array of points (global)
         Point[] pointHistory;
-        // Mapping (user => Point[]) to keep track of user point of a given epoch (index of Point is epoch)
-        mapping(address => Point[]) userPointHistory;
-        // Mapping (user => epoch) to keep track which epoch user is at
-        mapping(address => uint256) userPointEpoch;
-        // Mapping (round off timestamp to week => slopeDelta) to keep track of slope changes over epoch
-        mapping(uint256 => int128) slopeChanges;
+        /// @notice Mapping (user => Point[]) to keep track of user point of a given epoch (index of Point is epoch)
+        mapping(address user => Point[] points) userPointHistory;
+        /// @notice Mapping (user => epoch) to keep track which epoch user is at
+        mapping(address user => uint256 epoch) userPointEpoch;
+        /// @notice Mapping (round off timestamp to week => slopeDelta) to keep track of slope changes over epoch
+        mapping(uint256 timestamp => int128 slopeDelta) slopeChanges;
     }
 
     function _getStakeWeightStorage() internal pure returns (StakeWeightStorage storage s) {
@@ -95,24 +118,59 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
                                     ERRORS
     //////////////////////////////////////////////////////////////////////////*/
 
-    error InvalidInput();
+    /// @notice Thrown when an invalid amount is provided
+    /// @param amount The invalid amount
     error InvalidAmount(uint256 amount);
-    error InvalidAddress();
-    error InvalidLockState();
-    error InvalidUnlockTime(uint256 unlockTime);
-    error InvalidMaxLock(uint256 maxLock);
-    error ExpiredLock(uint256 currentTime, uint256 lockEndTime);
-    error VotingLockMaxExceeded();
-    error CanOnlyIncreaseLockDuration();
-    error AmountTooLarge(uint256 attemptedAmount, uint256 maxAllowedAmount);
-    error BadBlockNumber(uint256 blockNumber);
-    error InsufficientBalance(uint256 requiredBalance, uint256 actualBalance);
-    error Paused();
 
-    uint256 public constant ACTION_DEPOSIT_FOR = 0;
-    uint256 public constant ACTION_CREATE_LOCK = 1;
-    uint256 public constant ACTION_INCREASE_LOCK_AMOUNT = 2;
-    uint256 public constant ACTION_INCREASE_UNLOCK_TIME = 3;
+    /// @notice Thrown when an invalid address is provided
+    /// @param addr The invalid address
+    error InvalidAddress(address addr);
+
+    /// @notice Thrown when attempting to create a lock that already exists
+    error AlreadyCreatedLock();
+
+    /// @notice Thrown when attempting to operate on a non-existent lock
+    error NonExistentLock();
+
+    /// @notice Thrown when attempting to withdraw from an active lock
+    /// @param lockEndTime The time when the lock ends
+    error LockStillActive(uint256 lockEndTime);
+
+    /// @notice Thrown when an invalid unlock time is provided
+    /// @param unlockTime The invalid unlock time
+    error InvalidUnlockTime(uint256 unlockTime);
+
+    /// @notice Thrown when an invalid max lock duration is provided
+    /// @param maxLock The invalid max lock duration
+    error InvalidMaxLock(uint256 maxLock);
+
+    /// @notice Thrown when attempting to operate on an expired lock
+    /// @param currentTime The current time
+    /// @param lockEndTime The time when the lock ended
+    error ExpiredLock(uint256 currentTime, uint256 lockEndTime);
+
+    /// @notice Thrown when attempting to create a lock exceeding the maximum duration
+    /// @param attemptedDuration The attempted lock duration
+    /// @param maxDuration The maximum allowed lock duration
+    error LockMaxDurationExceeded(uint256 attemptedDuration, uint256 maxDuration);
+
+    /// @notice Thrown when attempting to increase lock time but new duration is not greater
+    /// @param currentDuration The current lock duration
+    /// @param attemptedDuration The attempted new lock duration
+    error LockTimeNotIncreased(uint256 currentDuration, uint256 attemptedDuration);
+
+    /// @notice Thrown when attempting to query a future block number
+    /// @param currentBlock The current block number
+    /// @param requestedBlock The requested future block number
+    error FutureBlockNumber(uint256 currentBlock, uint256 requestedBlock);
+
+    /// @notice Thrown when the locked amount is insufficient for an operation
+    /// @param actualLockedAmount The actual locked amount
+    /// @param requiredLockedAmount The required locked amount
+    error InsufficientLockedAmount(uint256 actualLockedAmount, uint256 requiredLockedAmount);
+
+    /// @notice Thrown when attempting to perform an action while the contract is paused
+    error Paused();
 
     /*//////////////////////////////////////////////////////////////////////////
                                 INITIALIZER
@@ -121,10 +179,11 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
     function initialize(Init memory init) external initializer {
         __Ownable_init(init.admin);
         __ReentrancyGuard_init();
-        if (init.config == address(0)) revert InvalidInput();
+        if (init.config == address(0)) revert InvalidAddress(init.config);
 
         StakeWeightStorage storage s = _getStakeWeightStorage();
         s.config = WalletConnectConfig(init.config);
+        // Around 2 years in seconds (based on weeks)
         s.maxLock = 105 weeks - 1;
         s.pointHistory.push(Point({ bias: 0, slope: 0, timestamp: block.timestamp, blockNumber: block.number }));
     }
@@ -133,55 +192,55 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
                                     FUNCTIONS
     //////////////////////////////////////////////////////////////////////////*/
 
-    /// @notice Return the balance of Stake Weight at a given "_blockNumber"
-    /// @param _user The address to get a balance of Stake Weight
-    /// @param _blockNumber The specific block number that you want to check the balance of Stake Weight
-    function balanceOfAt(address _user, uint256 _blockNumber) external view returns (uint256) {
-        return _balanceOfAt(_user, _blockNumber);
+    /// @notice Return the balance of Stake Weight at a given "blockNumber"
+    /// @param user The address to get a balance of Stake Weight
+    /// @param blockNumber The specific block number that you want to check the balance of Stake Weight
+    function balanceOfAt(address user, uint256 blockNumber) external view returns (uint256) {
+        return _balanceOfAt(user, blockNumber);
     }
 
-    function _balanceOfAt(address _user, uint256 _blockNumber) internal view returns (uint256) {
+    function _balanceOfAt(address user, uint256 blockNumber) internal view returns (uint256) {
         StakeWeightStorage storage s = _getStakeWeightStorage();
         // Get most recent user Point to block
-        uint256 _userEpoch = _findUserBlockEpoch(_user, _blockNumber);
-        if (_userEpoch == 0) {
+        uint256 userEpoch = _findUserBlockEpoch(user, blockNumber);
+        if (userEpoch == 0) {
             return 0;
         }
-        Point memory _userPoint = s.userPointHistory[_user][_userEpoch];
+        Point memory userPoint = s.userPointHistory[user][userEpoch];
 
         // Get most recent global point to block
-        uint256 _maxEpoch = s.epoch;
-        uint256 _epoch = _findBlockEpoch(_blockNumber, _maxEpoch);
-        Point memory _point0 = s.pointHistory[_epoch];
+        uint256 maxEpoch = s.epoch;
+        uint256 epoch_ = _findBlockEpoch(blockNumber, maxEpoch);
+        Point memory point0 = s.pointHistory[epoch_];
 
-        uint256 _blockDelta = 0;
-        uint256 _timeDelta = 0;
-        if (_epoch < _maxEpoch) {
-            Point memory _point1 = s.pointHistory[_epoch + 1];
-            _blockDelta = _point1.blockNumber - _point0.blockNumber;
-            _timeDelta = _point1.timestamp - _point0.timestamp;
+        uint256 blockDelta = 0;
+        uint256 timeDelta = 0;
+        if (epoch_ < maxEpoch) {
+            Point memory point1 = s.pointHistory[epoch_ + 1];
+            blockDelta = point1.blockNumber - point0.blockNumber;
+            timeDelta = point1.timestamp - point0.timestamp;
         } else {
-            _blockDelta = block.number - _point0.blockNumber;
-            _timeDelta = block.timestamp - _point0.timestamp;
+            blockDelta = block.number - point0.blockNumber;
+            timeDelta = block.timestamp - point0.timestamp;
         }
-        uint256 _blockTime = _point0.timestamp;
-        if (_blockDelta != 0) {
-            _blockTime += (_timeDelta * (_blockNumber - _point0.blockNumber)) / _blockDelta;
+        uint256 blockTime = point0.timestamp;
+        if (blockDelta != 0) {
+            blockTime += (timeDelta * (blockNumber - point0.blockNumber)) / blockDelta;
         }
 
-        _userPoint.bias -= (_userPoint.slope * SafeCast.toInt128(int256(_blockTime - _userPoint.timestamp)));
+        userPoint.bias -= (userPoint.slope * SafeCast.toInt128(int256(blockTime - userPoint.timestamp)));
 
-        if (_userPoint.bias < 0) {
+        if (userPoint.bias < 0) {
             return 0;
         }
 
-        return SafeCast.toUint256(_userPoint.bias);
+        return SafeCast.toUint256(userPoint.bias);
     }
 
     /// @notice Return the voting weight of a givne user
-    /// @param _user The address of a user
-    function balanceOf(address _user) external view returns (uint256) {
-        return _balanceOf(_user, block.timestamp);
+    /// @param user The address of a user
+    function balanceOf(address user) external view returns (uint256) {
+        return _balanceOf(user, block.timestamp);
     }
     /// @notice Calculate the stake weight of a user at a specific timestamp
     /// @dev This function is primarily designed for calculating future balances.
@@ -191,213 +250,204 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
     ///      - For timestamps == last checkpoint: Returns current balance
     ///      - For timestamps < last checkpoint: Reverts due to underflow
     ///      Use with care in contract interactions and consider implementing try/catch for calls to this function.
-    /// @param _user The address of the user to check
-    /// @param _timestamp The timestamp to check the stake weight at
+    /// @param user The address of the user to check
+    /// @param timestamp The timestamp to check the stake weight at
     /// @return The user's projected stake weight at the specified timestamp
 
-    function balanceOfAtTime(address _user, uint256 _timestamp) external view returns (uint256) {
-        return _balanceOf(_user, _timestamp);
+    function balanceOfAtTime(address user, uint256 timestamp) external view returns (uint256) {
+        return _balanceOf(user, timestamp);
     }
 
-    function _balanceOf(address _user, uint256 _timestamp) internal view returns (uint256) {
+    function _balanceOf(address user, uint256 timestamp) internal view returns (uint256) {
         StakeWeightStorage storage s = _getStakeWeightStorage();
-        uint256 _epoch = s.userPointEpoch[_user];
-        if (_epoch == 0) {
+        uint256 epoch_ = s.userPointEpoch[user];
+        if (epoch_ == 0) {
             return 0;
         }
-        Point memory _lastPoint = s.userPointHistory[_user][_epoch];
-        _lastPoint.bias =
-            _lastPoint.bias - (_lastPoint.slope * SafeCast.toInt128(int256(_timestamp - _lastPoint.timestamp)));
-        if (_lastPoint.bias < 0) {
-            _lastPoint.bias = 0;
+        Point memory lastPoint = s.userPointHistory[user][epoch_];
+        lastPoint.bias = lastPoint.bias - (lastPoint.slope * SafeCast.toInt128(int256(timestamp - lastPoint.timestamp)));
+        if (lastPoint.bias < 0) {
+            lastPoint.bias = 0;
         }
-        return SafeCast.toUint256(_lastPoint.bias);
+        return SafeCast.toUint256(lastPoint.bias);
     }
 
     /// @notice Record global and per-user slope to checkpoint
-    /// @param _address User's wallet address. Only global if 0x0
-    /// @param _prevLocked User's previous locked balance and end lock time
-    /// @param _newLocked User's new locked balance and end lock time
-    function _checkpoint(
-        address _address,
-        LockedBalance memory _prevLocked,
-        LockedBalance memory _newLocked
-    )
-        internal
-    {
+    /// @param address_ User's wallet address. Only global if 0x0
+    /// @param prevLocked User's previous locked balance and end lock time
+    /// @param newLocked User's new locked balance and end lock time
+    function _checkpoint(address address_, LockedBalance memory prevLocked, LockedBalance memory newLocked) internal {
         StakeWeightStorage storage s = _getStakeWeightStorage();
-        Point memory _userPrevPoint = Point({ slope: 0, bias: 0, timestamp: 0, blockNumber: 0 });
-        Point memory _userNewPoint = Point({ slope: 0, bias: 0, timestamp: 0, blockNumber: 0 });
+        Point memory userPrevPoint = Point({ slope: 0, bias: 0, timestamp: 0, blockNumber: 0 });
+        Point memory userNewPoint = Point({ slope: 0, bias: 0, timestamp: 0, blockNumber: 0 });
 
-        int128 _prevSlopeDelta = 0;
-        int128 _newSlopeDelta = 0;
-        uint256 _epoch = s.epoch;
+        int128 prevSlopeDelta = 0;
+        int128 newSlopeDelta = 0;
+        uint256 epoch_ = s.epoch;
 
         // if not 0x0, then update user's point
-        if (_address != address(0)) {
+        if (address_ != address(0)) {
             // Calculate slopes and biases according to linear decay graph
-            // slope = lockedAmount / maxLock => Get the slope of a linear decay graph
+            // slope = lockedAmount / MAX_LOCK_CAP => Get the slope of a linear decay graph
             // bias = slope * (lockedEnd - currentTimestamp) => Get the voting weight at a given time
             // Kept at zero when they have to
-            if (_prevLocked.end > block.timestamp && _prevLocked.amount > 0) {
+            if (prevLocked.end > block.timestamp && prevLocked.amount > 0) {
                 // Calculate slope and bias for the prev point
-                _userPrevPoint.slope = _prevLocked.amount / SafeCast.toInt128(int256(s.maxLock));
-                _userPrevPoint.bias =
-                    _userPrevPoint.slope * SafeCast.toInt128(int256(_prevLocked.end - block.timestamp));
+                userPrevPoint.slope = prevLocked.amount / SafeCast.toInt128(int256(MAX_LOCK_CAP));
+                userPrevPoint.bias = userPrevPoint.slope * SafeCast.toInt128(int256(prevLocked.end - block.timestamp));
             }
-            if (_newLocked.end > block.timestamp && _newLocked.amount > 0) {
+            if (newLocked.end > block.timestamp && newLocked.amount > 0) {
                 // Calculate slope and bias for the new point
-                _userNewPoint.slope = _newLocked.amount / SafeCast.toInt128(int256(s.maxLock));
-                _userNewPoint.bias = _userNewPoint.slope * SafeCast.toInt128(int256(_newLocked.end - block.timestamp));
+                userNewPoint.slope = newLocked.amount / SafeCast.toInt128(int256(MAX_LOCK_CAP));
+                userNewPoint.bias = userNewPoint.slope * SafeCast.toInt128(int256(newLocked.end - block.timestamp));
             }
 
             // Handle user history here
             // Do it here to prevent stack overflow
-            uint256 _userEpoch = s.userPointEpoch[_address];
+            uint256 userEpoch = s.userPointEpoch[address_];
             // If user never ever has any point history, push it here for him.
-            if (_userEpoch == 0) {
-                s.userPointHistory[_address].push(_userPrevPoint);
+            if (userEpoch == 0) {
+                s.userPointHistory[address_].push(userPrevPoint);
             }
 
             // Shift user's epoch by 1 as we are writing a new point for a user
-            s.userPointEpoch[_address] = _userEpoch + 1;
+            s.userPointEpoch[address_] = userEpoch + 1;
 
             // Update timestamp & block number then push new point to user's history
-            _userNewPoint.timestamp = block.timestamp;
-            _userNewPoint.blockNumber = block.number;
-            s.userPointHistory[_address].push(_userNewPoint);
+            userNewPoint.timestamp = block.timestamp;
+            userNewPoint.blockNumber = block.number;
+            s.userPointHistory[address_].push(userNewPoint);
 
             // Read values of scheduled changes in the slope
-            // _prevLocked.end can be in the past and in the future
-            // _newLocked.end can ONLY be in the FUTURE unless everything expired (anything more than zeros)
-            _prevSlopeDelta = s.slopeChanges[_prevLocked.end];
-            if (_newLocked.end != 0) {
-                // Handle when _newLocked.end != 0
-                if (_newLocked.end == _prevLocked.end) {
+            // prevLocked.end can be in the past and in the future
+            // newLocked.end can ONLY be in the FUTURE unless everything expired (anything more than zeros)
+            prevSlopeDelta = s.slopeChanges[prevLocked.end];
+            if (newLocked.end != 0) {
+                // Handle when newLocked.end != 0
+                if (newLocked.end == prevLocked.end) {
                     // This will happen when user adjust lock but end remains the same
                     // Possibly when user deposited more WCT to his locker
-                    _newSlopeDelta = _prevSlopeDelta;
+                    newSlopeDelta = prevSlopeDelta;
                 } else {
                     // This will happen when user increase lock
-                    _newSlopeDelta = s.slopeChanges[_newLocked.end];
+                    newSlopeDelta = s.slopeChanges[newLocked.end];
                 }
             }
         }
 
         // Handle global states here
-        Point memory _lastPoint = Point({ bias: 0, slope: 0, timestamp: block.timestamp, blockNumber: block.number });
-        if (_epoch > 0) {
-            // If _epoch > 0, then there is some history written
-            // Hence, _lastPoint should be pointHistory[_epoch]
-            // else _lastPoint should an empty point
-            _lastPoint = s.pointHistory[_epoch];
+        Point memory lastPoint = Point({ bias: 0, slope: 0, timestamp: block.timestamp, blockNumber: block.number });
+        if (epoch_ > 0) {
+            // If epoch_ > 0, then there is some history written
+            // Hence, lastPoint should be pointHistory[epoch_]
+            // else lastPoint should an empty point
+            lastPoint = s.pointHistory[epoch_];
         }
-        // _lastCheckpoint => timestamp of the latest point
-        // if no history, _lastCheckpoint should be block.timestamp
-        // else _lastCheckpoint should be the timestamp of latest pointHistory
-        uint256 _lastCheckpoint = _lastPoint.timestamp;
+        // lastCheckpoint => timestamp of the latest point
+        // if no history, lastCheckpoint should be block.timestamp
+        // else lastCheckpoint should be the timestamp of latest pointHistory
+        uint256 lastCheckpoint = lastPoint.timestamp;
 
         // initialLastPoint is used for extrapolation to calculate block number
         // (approximately, for xxxAt methods) and save them
         // as we cannot figure that out exactly from inside contract
-        Point memory _initialLastPoint =
-            Point({ bias: 0, slope: 0, timestamp: _lastPoint.timestamp, blockNumber: _lastPoint.blockNumber });
+        Point memory initialLastPoint =
+            Point({ bias: 0, slope: 0, timestamp: lastPoint.timestamp, blockNumber: lastPoint.blockNumber });
 
-        // If last point is already recorded in this block, _blockSlope=0
+        // If last point is already recorded in this block, blockSlope=0
         // That is ok because we know the block in such case
-        uint256 _blockSlope = 0;
-        if (block.timestamp > _lastPoint.timestamp) {
-            // Recalculate _blockSlope if _lastPoint.timestamp < block.timestamp
-            // Possiblity when epoch = 0 or _blockSlope hasn't get updated in this block
-            _blockSlope =
-                (MULTIPLIER * (block.number - _lastPoint.blockNumber)) / (block.timestamp - _lastPoint.timestamp);
+        uint256 blockSlope = 0;
+        if (block.timestamp > lastPoint.timestamp) {
+            // Recalculate blockSlope if lastPoint.timestamp < block.timestamp
+            // Possiblity when epoch = 0 or blockSlope hasn't get updated in this block
+            blockSlope = (MULTIPLIER * (block.number - lastPoint.blockNumber)) / (block.timestamp - lastPoint.timestamp);
         }
 
         // Go over weeks to fill history and calculate what the current point is
-        uint256 _weekCursor = _timestampToFloorWeek(_lastCheckpoint);
+        uint256 weekCursor = _timestampToFloorWeek(lastCheckpoint);
         for (uint256 i = 0; i < 255; i++) {
             // This logic will works for 5 years, if more than that vote power will be broken 😟
-            // Bump _weekCursor a week
-            _weekCursor = _weekCursor + 1 weeks;
-            int128 _slopeDelta = 0;
-            if (_weekCursor > block.timestamp) {
-                // If the given _weekCursor go beyond block.timestamp,
+            // Bump weekCursor a week
+            weekCursor = weekCursor + 1 weeks;
+            int128 slopeDelta = 0;
+            if (weekCursor > block.timestamp) {
+                // If the given weekCursor go beyond block.timestamp,
                 // We take block.timestamp as the cursor
-                _weekCursor = block.timestamp;
+                weekCursor = block.timestamp;
             } else {
-                // If the given _weekCursor is behind block.timestamp
-                // We take _slopeDelta from the recorded slopeChanges
-                // We can use _weekCursor directly because key of slopeChanges is timestamp round off to week
-                _slopeDelta = s.slopeChanges[_weekCursor];
+                // If the given weekCursor is behind block.timestamp
+                // We take slopeDelta from the recorded slopeChanges
+                // We can use weekCursor directly because key of slopeChanges is timestamp round off to week
+                slopeDelta = s.slopeChanges[weekCursor];
             }
-            // Calculate _biasDelta = _lastPoint.slope * (_weekCursor - _lastCheckpoint)
-            int128 _biasDelta = _lastPoint.slope * SafeCast.toInt128(int256((_weekCursor - _lastCheckpoint)));
-            _lastPoint.bias = _lastPoint.bias - _biasDelta;
-            _lastPoint.slope = _lastPoint.slope + _slopeDelta;
-            if (_lastPoint.bias < 0) {
+            // Calculate biasDelta = lastPoint.slope * (weekCursor - lastCheckpoint)
+            int128 biasDelta = lastPoint.slope * SafeCast.toInt128(int256((weekCursor - lastCheckpoint)));
+            lastPoint.bias = lastPoint.bias - biasDelta;
+            lastPoint.slope = lastPoint.slope + slopeDelta;
+            if (lastPoint.bias < 0) {
                 // This can happen
-                _lastPoint.bias = 0;
+                lastPoint.bias = 0;
             }
-            if (_lastPoint.slope < 0) {
+            if (lastPoint.slope < 0) {
                 // This cannot happen, just make sure
-                _lastPoint.slope = 0;
+                lastPoint.slope = 0;
             }
-            // Update _lastPoint to the new one
-            _lastCheckpoint = _weekCursor;
-            _lastPoint.timestamp = _weekCursor;
+            // Update lastPoint to the new one
+            lastCheckpoint = weekCursor;
+            lastPoint.timestamp = weekCursor;
             // As we cannot figure that out block timestamp -> block number exactly
             // when query states from xxxAt methods, we need to calculate block number
-            // based on _initalLastPoint
-            _lastPoint.blockNumber = _initialLastPoint.blockNumber
-                + ((_blockSlope * ((_weekCursor - _initialLastPoint.timestamp))) / MULTIPLIER);
-            _epoch = _epoch + 1;
-            if (_weekCursor == block.timestamp) {
+            // based on initalLastPoint
+            lastPoint.blockNumber =
+                initialLastPoint.blockNumber + ((blockSlope * ((weekCursor - initialLastPoint.timestamp))) / MULTIPLIER);
+            epoch_ = epoch_ + 1;
+            if (weekCursor == block.timestamp) {
                 // Hard to be happened, but better handling this case too
-                _lastPoint.blockNumber = block.number;
+                lastPoint.blockNumber = block.number;
                 break;
             } else {
-                s.pointHistory.push(_lastPoint);
+                s.pointHistory.push(lastPoint);
             }
         }
         // Now, each week pointHistory has been filled until current timestamp (round off by week)
         // Update epoch to be the latest state
-        s.epoch = _epoch;
+        s.epoch = epoch_;
 
-        if (_address != address(0)) {
+        if (address_ != address(0)) {
             // If the last point was in the block, the slope change should have been applied already
             // But in such case slope shall be 0
-            _lastPoint.slope = _lastPoint.slope + _userNewPoint.slope - _userPrevPoint.slope;
-            _lastPoint.bias = _lastPoint.bias + _userNewPoint.bias - _userPrevPoint.bias;
-            if (_lastPoint.slope < 0) {
-                _lastPoint.slope = 0;
+            lastPoint.slope = lastPoint.slope + userNewPoint.slope - userPrevPoint.slope;
+            lastPoint.bias = lastPoint.bias + userNewPoint.bias - userPrevPoint.bias;
+            if (lastPoint.slope < 0) {
+                lastPoint.slope = 0;
             }
-            if (_lastPoint.bias < 0) {
-                _lastPoint.bias = 0;
+            if (lastPoint.bias < 0) {
+                lastPoint.bias = 0;
             }
         }
 
         // Record the new point to pointHistory
         // This would be the latest point for global epoch
-        s.pointHistory.push(_lastPoint);
+        s.pointHistory.push(lastPoint);
 
-        if (_address != address(0)) {
+        if (address_ != address(0)) {
             // Schedule the slope changes (slope is going downward)
-            // We substract _newSlopeDelta from `_newLocked.end`
-            // and add _prevSlopeDelta to `_prevLocked.end`
-            if (_prevLocked.end > block.timestamp) {
-                // _prevSlopeDelta was <something> - _userPrevPoint.slope, so we offset that first
-                _prevSlopeDelta = _prevSlopeDelta + _userPrevPoint.slope;
-                if (_newLocked.end == _prevLocked.end) {
+            // We substract newSlopeDelta from `newLocked.end`
+            // and add prevSlopeDelta to `prevLocked.end`
+            if (prevLocked.end > block.timestamp) {
+                // prevSlopeDelta was <something> - userPrevPoint.slope, so we offset that first
+                prevSlopeDelta = prevSlopeDelta + userPrevPoint.slope;
+                if (newLocked.end == prevLocked.end) {
                     // Handle the new deposit. Not increasing lock.
-                    _prevSlopeDelta = _prevSlopeDelta - _userNewPoint.slope;
+                    prevSlopeDelta = prevSlopeDelta - userNewPoint.slope;
                 }
-                s.slopeChanges[_prevLocked.end] = _prevSlopeDelta;
+                s.slopeChanges[prevLocked.end] = prevSlopeDelta;
             }
-            if (_newLocked.end > block.timestamp) {
-                if (_newLocked.end > _prevLocked.end) {
+            if (newLocked.end > block.timestamp) {
+                if (newLocked.end > prevLocked.end) {
                     // At this line, the old slope should gone
-                    _newSlopeDelta = _newSlopeDelta - _userNewPoint.slope;
-                    s.slopeChanges[_newLocked.end] = _newSlopeDelta;
+                    newSlopeDelta = newSlopeDelta - userNewPoint.slope;
+                    s.slopeChanges[newLocked.end] = newSlopeDelta;
                 }
             }
         }
@@ -411,158 +461,162 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
 
     /// @notice Create a new lock.
     /// @dev This will crate a new lock and deposit WCT to Stake Weight Vault
-    /// @param _amount the amount that user wishes to deposit
-    /// @param _unlockTime the timestamp when WCT get unlocked, it will be
+    /// @param amount the amount that user wishes to deposit
+    /// @param unlockTime the timestamp when WCT get unlocked, it will be
     /// floored down to whole weeks
-    function createLock(uint256 _amount, uint256 _unlockTime) external nonReentrant {
+    function createLock(uint256 amount, uint256 unlockTime) external nonReentrant {
         StakeWeightStorage storage s = _getStakeWeightStorage();
         if (Pauser(s.config.getPauser()).isStakeWeightPaused()) revert Paused();
-        _createLock(_amount, _unlockTime);
+        _createLock(amount, unlockTime);
     }
 
-    function _createLock(uint256 _amount, uint256 _unlockTime) internal {
-        _unlockTime = _timestampToFloorWeek(_unlockTime);
+    function _createLock(uint256 amount, uint256 unlockTime) internal {
+        unlockTime = _timestampToFloorWeek(unlockTime);
         StakeWeightStorage storage s = _getStakeWeightStorage();
-        LockedBalance memory _locked = s.locks[msg.sender];
+        LockedBalance memory locked = s.locks[msg.sender];
 
-        if (_amount <= 0) revert InvalidAmount(_amount);
-        if (_locked.amount != 0) revert InvalidLockState();
-        if (_unlockTime <= block.timestamp) revert InvalidUnlockTime(_unlockTime);
-        if (_unlockTime > block.timestamp + s.maxLock) revert VotingLockMaxExceeded();
+        if (amount <= 0) revert InvalidAmount(amount);
+        if (locked.amount != 0) revert AlreadyCreatedLock();
+        if (unlockTime <= block.timestamp) revert InvalidUnlockTime(unlockTime);
+        if (unlockTime > block.timestamp + s.maxLock) {
+            revert LockMaxDurationExceeded(unlockTime, block.timestamp + s.maxLock);
+        }
 
-        _depositFor(msg.sender, _amount, _unlockTime, _locked, ACTION_CREATE_LOCK);
+        _depositFor(msg.sender, amount, unlockTime, locked, ACTION_CREATE_LOCK);
     }
-    /// @notice Deposit `_amount` tokens for `_for` and add to `locks[_for]`
+    /// @notice Deposit `amount` tokens for `for_` and add to `locks[for_]`
     /// @dev This function is used for deposit to created lock. Not for extend locktime.
-    /// @param _for The address to do the deposit
-    /// @param _amount The amount that user wishes to deposit
+    /// @param for_ The address to do the deposit
+    /// @param amount The amount that user wishes to deposit
 
-    function depositFor(address _for, uint256 _amount) external nonReentrant {
+    function depositFor(address for_, uint256 amount) external nonReentrant {
         StakeWeightStorage storage s = _getStakeWeightStorage();
         if (Pauser(s.config.getPauser()).isStakeWeightPaused()) revert Paused();
-        LockedBalance memory _lock = LockedBalance({ amount: s.locks[_for].amount, end: s.locks[_for].end });
+        LockedBalance memory lock = LockedBalance({ amount: s.locks[for_].amount, end: s.locks[for_].end });
 
-        if (_for == address(0)) revert InvalidAddress();
-        if (_amount == 0) revert InvalidAmount(_amount);
-        if (_lock.amount == 0) revert InvalidLockState();
-        if (_lock.end <= block.timestamp) revert ExpiredLock(block.timestamp, _lock.end);
+        if (for_ == address(0)) revert InvalidAddress(for_);
+        if (amount == 0) revert InvalidAmount(amount);
+        if (lock.amount == 0) revert NonExistentLock();
+        if (lock.end <= block.timestamp) revert ExpiredLock(block.timestamp, lock.end);
 
-        _depositFor(_for, _amount, 0, _lock, ACTION_DEPOSIT_FOR);
+        _depositFor(for_, amount, 0, lock, ACTION_DEPOSIT_FOR);
     }
 
     /// @notice Internal function to perform deposit and lock WCT for a user
-    /// @param _for The address to be locked and received Stake Weight
-    /// @param _amount The amount to deposit
-    /// @param _unlockTime New time to unlock WCT. Pass 0 if no change.
-    /// @param _prevLocked Existed locks[_for]
-    /// @param _actionType The action that user did as this internal function shared among
+    /// @param for_ The address to be locked and received Stake Weight
+    /// @param amount The amount to deposit
+    /// @param unlockTime New time to unlock WCT. Pass 0 if no change.
+    /// @param prevLocked Existed locks[for]
+    /// @param actionType The action that user did as this internal function shared among
     function _depositFor(
-        address _for,
-        uint256 _amount,
-        uint256 _unlockTime,
-        LockedBalance memory _prevLocked,
-        uint256 _actionType
+        address for_,
+        uint256 amount,
+        uint256 unlockTime,
+        LockedBalance memory prevLocked,
+        uint256 actionType
     )
         internal
     {
         StakeWeightStorage storage s = _getStakeWeightStorage();
-        // Initiate _supplyBefore & update supply
-        uint256 _supplyBefore = s.supply;
-        s.supply = _supplyBefore + _amount;
+        // Initiate supplyBefore & update supply
+        uint256 supplyBefore = s.supply;
+        s.supply = supplyBefore + amount;
 
-        // Store _prevLocked
-        LockedBalance memory _newLocked = LockedBalance({ amount: _prevLocked.amount, end: _prevLocked.end });
+        // Store prevLocked
+        LockedBalance memory newLocked = LockedBalance({ amount: prevLocked.amount, end: prevLocked.end });
 
         // Adding new lock to existing lock, or if lock is expired
         // - creating a new one
-        _newLocked.amount = _newLocked.amount + SafeCast.toInt128(int256(_amount));
-        if (_unlockTime != 0) {
-            _newLocked.end = _unlockTime;
+        newLocked.amount = newLocked.amount + SafeCast.toInt128(int256(amount));
+        if (unlockTime != 0) {
+            newLocked.end = unlockTime;
         }
-        s.locks[_for] = _newLocked;
+        s.locks[for_] = newLocked;
 
         // Handling checkpoint here
-        _checkpoint(_for, _prevLocked, _newLocked);
+        _checkpoint(for_, prevLocked, newLocked);
 
-        IERC20(s.config.getL2wct()).safeTransferFrom(msg.sender, address(this), _amount);
+        IERC20(s.config.getL2wct()).safeTransferFrom(msg.sender, address(this), amount);
 
-        emit Deposit(_for, _amount, _newLocked.end, _actionType, block.timestamp);
-        emit Supply(_supplyBefore, s.supply);
+        emit Deposit(for_, amount, newLocked.end, actionType, block.timestamp);
+        emit Supply(supplyBefore, s.supply);
     }
 
     /// @notice Do Binary Search to find out block timestamp for block number
-    /// @param _blockNumber The block number to find timestamp
-    /// @param _maxEpoch No beyond this timestamp
-    function _findBlockEpoch(uint256 _blockNumber, uint256 _maxEpoch) internal view returns (uint256) {
+    /// @param blockNumber The block number to find timestamp
+    /// @param maxEpoch No beyond this timestamp
+    function _findBlockEpoch(uint256 blockNumber, uint256 maxEpoch) internal view returns (uint256) {
         StakeWeightStorage storage s = _getStakeWeightStorage();
-        uint256 _min = 0;
-        uint256 _max = _maxEpoch;
+        uint256 min = 0;
+        uint256 max = maxEpoch;
         // Loop for 128 times -> enough for 128-bit numbers
         for (uint256 i = 0; i < 128; i++) {
-            if (_min >= _max) {
+            if (min >= max) {
                 break;
             }
-            uint256 _mid = (_min + _max + 1) / 2;
-            if (s.pointHistory[_mid].blockNumber <= _blockNumber) {
-                _min = _mid;
+            uint256 mid = (min + max + 1) / 2;
+            if (s.pointHistory[mid].blockNumber <= blockNumber) {
+                min = mid;
             } else {
-                _max = _mid - 1;
+                max = mid - 1;
             }
         }
-        return _min;
+        return min;
     }
 
     /// @notice Do Binary Search to find the most recent user point history preceeding block
-    /// @param _user The address of user to find
-    /// @param _blockNumber Find the most recent point history before this block number
-    function _findUserBlockEpoch(address _user, uint256 _blockNumber) internal view returns (uint256) {
+    /// @param user The address of user to find
+    /// @param blockNumber Find the most recent point history before this block number
+    function _findUserBlockEpoch(address user, uint256 blockNumber) internal view returns (uint256) {
         StakeWeightStorage storage s = _getStakeWeightStorage();
-        uint256 _min = 0;
-        uint256 _max = s.userPointEpoch[_user];
+        uint256 min = 0;
+        uint256 max = s.userPointEpoch[user];
         for (uint256 i = 0; i < 128; i++) {
-            if (_min >= _max) {
+            if (min >= max) {
                 break;
             }
-            uint256 _mid = (_min + _max + 1) / 2;
-            if (s.userPointHistory[_user][_mid].blockNumber <= _blockNumber) {
-                _min = _mid;
+            uint256 mid = (min + max + 1) / 2;
+            if (s.userPointHistory[user][mid].blockNumber <= blockNumber) {
+                min = mid;
             } else {
-                _max = _mid - 1;
+                max = mid - 1;
             }
         }
-        return _min;
+        return min;
     }
 
     /// @notice Increase lock amount without increase "end"
-    /// @param _amount The amount of WCT to be added to the lock
-    function increaseLockAmount(uint256 _amount) external nonReentrant {
+    /// @param amount The amount of WCT to be added to the lock
+    function increaseLockAmount(uint256 amount) external nonReentrant {
         StakeWeightStorage storage s = _getStakeWeightStorage();
         if (Pauser(s.config.getPauser()).isStakeWeightPaused()) revert Paused();
-        LockedBalance memory _lock = s.locks[msg.sender];
-        if (_amount == 0) revert InvalidAmount(_amount);
-        if (_lock.amount == 0) revert InvalidLockState();
-        if (_lock.end <= block.timestamp) revert ExpiredLock(block.timestamp, _lock.end);
-        _depositFor(msg.sender, _amount, 0, _lock, ACTION_INCREASE_LOCK_AMOUNT);
+        LockedBalance memory lock = s.locks[msg.sender];
+        if (amount == 0) revert InvalidAmount(amount);
+        if (lock.amount == 0) revert NonExistentLock();
+        if (lock.end <= block.timestamp) revert ExpiredLock(block.timestamp, lock.end);
+        _depositFor(msg.sender, amount, 0, lock, ACTION_INCREASE_LOCK_AMOUNT);
     }
 
     /// @notice Increase unlock time without changing locked amount
-    /// @param _newUnlockTime The new unlock time to be updated
-    function increaseUnlockTime(uint256 _newUnlockTime) external nonReentrant {
+    /// @param newUnlockTime The new unlock time to be updated
+    function increaseUnlockTime(uint256 newUnlockTime) external nonReentrant {
         StakeWeightStorage storage s = _getStakeWeightStorage();
         if (Pauser(s.config.getPauser()).isStakeWeightPaused()) revert Paused();
-        LockedBalance memory _locked = s.locks[msg.sender];
-        _newUnlockTime = _timestampToFloorWeek(_newUnlockTime);
-        if (_locked.amount == 0) revert InvalidLockState();
-        if (_locked.end <= block.timestamp) revert ExpiredLock(block.timestamp, _locked.end);
-        if (_newUnlockTime <= _locked.end) revert CanOnlyIncreaseLockDuration();
-        if (_newUnlockTime > block.timestamp + s.maxLock) revert VotingLockMaxExceeded();
-        _depositFor(msg.sender, 0, _newUnlockTime, _locked, ACTION_INCREASE_UNLOCK_TIME);
+        LockedBalance memory locked = s.locks[msg.sender];
+        newUnlockTime = _timestampToFloorWeek(newUnlockTime);
+        if (locked.amount == 0) revert NonExistentLock();
+        if (locked.end <= block.timestamp) revert ExpiredLock(block.timestamp, locked.end);
+        if (newUnlockTime <= locked.end) revert LockTimeNotIncreased(locked.end, newUnlockTime);
+        if (newUnlockTime > block.timestamp + s.maxLock) {
+            revert LockMaxDurationExceeded(newUnlockTime, _timestampToFloorWeek(block.timestamp + s.maxLock));
+        }
+        _depositFor(msg.sender, 0, newUnlockTime, locked, ACTION_INCREASE_UNLOCK_TIME);
     }
 
     /// @notice Round off random timestamp to week
-    /// @param _timestamp The timestamp to be rounded off
-    function _timestampToFloorWeek(uint256 _timestamp) internal pure returns (uint256) {
-        return (_timestamp / 1 weeks) * 1 weeks;
+    /// @param timestamp The timestamp to be rounded off
+    function _timestampToFloorWeek(uint256 timestamp) internal pure returns (uint256) {
+        return (timestamp / 1 weeks) * 1 weeks;
     }
 
     /// @notice Calculate total supply of Stake Weight
@@ -572,74 +626,74 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
     }
 
     /// @notice Calculate total supply of Stake Weight at at specific timestamp
-    /// @param _timestamp The specific timestamp to calculate totalSupply
-    function totalSupplyAtTime(uint256 _timestamp) external view returns (uint256) {
+    /// @param timestamp The specific timestamp to calculate totalSupply
+    function totalSupplyAtTime(uint256 timestamp) external view returns (uint256) {
         StakeWeightStorage storage s = _getStakeWeightStorage();
-        return _totalSupplyAt(s.pointHistory[s.epoch], _timestamp);
+        return _totalSupplyAt(s.pointHistory[s.epoch], timestamp);
     }
 
     /// @notice Calculate total supply of Stake Weight at specific block
-    /// @param _blockNumber The specific block number to calculate totalSupply
-    function totalSupplyAt(uint256 _blockNumber) external view returns (uint256) {
-        if (_blockNumber > block.number) revert BadBlockNumber(_blockNumber);
+    /// @param blockNumber The specific block number to calculate totalSupply
+    function totalSupplyAt(uint256 blockNumber) external view returns (uint256) {
+        if (blockNumber > block.number) revert FutureBlockNumber(block.number, blockNumber);
         StakeWeightStorage storage s = _getStakeWeightStorage();
-        uint256 _epoch = s.epoch;
-        uint256 _targetEpoch = _findBlockEpoch(_blockNumber, _epoch);
+        uint256 epoch_ = s.epoch;
+        uint256 targetEpoch = _findBlockEpoch(blockNumber, epoch_);
 
-        Point memory _point = s.pointHistory[_targetEpoch];
-        uint256 _timeDelta = 0;
-        if (_targetEpoch < _epoch) {
-            Point memory _nextPoint = s.pointHistory[_targetEpoch + 1];
-            if (_point.blockNumber != _nextPoint.blockNumber) {
-                _timeDelta = ((_blockNumber - _point.blockNumber) * (_nextPoint.timestamp - _point.timestamp))
-                    / (_nextPoint.blockNumber - _point.blockNumber);
+        Point memory point = s.pointHistory[targetEpoch];
+        uint256 timeDelta = 0;
+        if (targetEpoch < epoch_) {
+            Point memory nextPoint = s.pointHistory[targetEpoch + 1];
+            if (point.blockNumber != nextPoint.blockNumber) {
+                timeDelta = ((blockNumber - point.blockNumber) * (nextPoint.timestamp - point.timestamp))
+                    / (nextPoint.blockNumber - point.blockNumber);
             }
         } else {
-            if (_point.blockNumber != block.number) {
-                _timeDelta = ((_blockNumber - _point.blockNumber) * (block.timestamp - _point.timestamp))
-                    / (block.number - _point.blockNumber);
+            if (point.blockNumber != block.number) {
+                timeDelta = ((blockNumber - point.blockNumber) * (block.timestamp - point.timestamp))
+                    / (block.number - point.blockNumber);
             }
         }
 
-        return _totalSupplyAt(_point, _point.timestamp + _timeDelta);
+        return _totalSupplyAt(point, point.timestamp + timeDelta);
     }
 
     /// @notice Calculate total supply of Stake Weight at some point in the past
-    /// @param _point The point to start to search from
-    /// @param _timestamp The timestamp to calculate the total voting power at
-    function _totalSupplyAt(Point memory _point, uint256 _timestamp) internal view returns (uint256) {
+    /// @param point The point to start to search from
+    /// @param timestamp The timestamp to calculate the total voting power at
+    function _totalSupplyAt(Point memory point, uint256 timestamp) internal view returns (uint256) {
         StakeWeightStorage storage s = _getStakeWeightStorage();
-        Point memory _lastPoint = _point;
-        uint256 _weekCursor = _timestampToFloorWeek(_point.timestamp);
+        Point memory lastPoint = point;
+        uint256 weekCursor = _timestampToFloorWeek(point.timestamp);
         // Iterate through weeks to take slopChanges into the account
         for (uint256 i = 0; i < 255; i++) {
-            _weekCursor = _weekCursor + 1 weeks;
-            int128 _slopeDelta = 0;
-            if (_weekCursor > _timestamp) {
-                // If _weekCursor goes beyond _timestamp -> leave _slopeDelta
+            weekCursor = weekCursor + 1 weeks;
+            int128 slopeDelta = 0;
+            if (weekCursor > timestamp) {
+                // If weekCursor goes beyond timestamp -> leave slopeDelta
                 // to be 0 as there is no more slopeChanges
-                _weekCursor = _timestamp;
+                weekCursor = timestamp;
             } else {
-                // If _weekCursor still behind _timestamp, then _slopeDelta
+                // If weekCursor still behind timestamp, then slopeDelta
                 // should be taken into the account.
-                _slopeDelta = s.slopeChanges[_weekCursor];
+                slopeDelta = s.slopeChanges[weekCursor];
             }
-            // Update bias at _weekCursor
-            _lastPoint.bias =
-                _lastPoint.bias - (_lastPoint.slope * SafeCast.toInt128(int256(_weekCursor - _lastPoint.timestamp)));
-            if (_weekCursor == _timestamp) {
+            // Update bias at weekCursor
+            lastPoint.bias =
+                lastPoint.bias - (lastPoint.slope * SafeCast.toInt128(int256(weekCursor - lastPoint.timestamp)));
+            if (weekCursor == timestamp) {
                 break;
             }
             // Update slope and timestamp
-            _lastPoint.slope = _lastPoint.slope + _slopeDelta;
-            _lastPoint.timestamp = _weekCursor;
+            lastPoint.slope = lastPoint.slope + slopeDelta;
+            lastPoint.timestamp = weekCursor;
         }
 
-        if (_lastPoint.bias < 0) {
-            _lastPoint.bias = 0;
+        if (lastPoint.bias < 0) {
+            lastPoint.bias = 0;
         }
 
-        return SafeCast.toUint256(_lastPoint.bias);
+        return SafeCast.toUint256(lastPoint.bias);
     }
 
     /// @notice Withdraw all WCT when lock has expired.
@@ -647,58 +701,55 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
         StakeWeightStorage storage s = _getStakeWeightStorage();
         WalletConnectConfig wcConfig = s.config;
         if (Pauser(wcConfig.getPauser()).isStakeWeightPaused()) revert Paused();
-        LockedBalance memory _lock = s.locks[msg.sender];
-        if (_lock.amount == 0) revert InvalidLockState();
-        if (_lock.end > block.timestamp) revert InvalidLockState();
+        LockedBalance memory lock = s.locks[msg.sender];
+        if (lock.amount == 0) revert NonExistentLock();
+        if (lock.end > block.timestamp) revert LockStillActive(lock.end);
 
-        uint256 _amount = SafeCast.toUint256(_lock.amount);
+        uint256 amount = SafeCast.toUint256(lock.amount);
 
-        _unlock(msg.sender, _lock, _amount);
+        _unlock(msg.sender, lock, amount);
 
-        IERC20(wcConfig.getL2wct()).safeTransfer(msg.sender, _amount);
+        IERC20(wcConfig.getL2wct()).safeTransfer(msg.sender, amount);
 
-        emit Withdraw(msg.sender, _amount, block.timestamp);
+        emit Withdraw(msg.sender, amount, block.timestamp);
     }
 
-    function _unlock(address _user, LockedBalance memory _lock, uint256 _withdrawAmount) internal {
+    function _unlock(address user, LockedBalance memory lock, uint256 withdrawAmount) internal {
         StakeWeightStorage storage s = _getStakeWeightStorage();
         // Cast here for readability
-        uint256 _lockedAmount = SafeCast.toUint256(_lock.amount);
-        if (_withdrawAmount > _lockedAmount) {
-            revert AmountTooLarge(_withdrawAmount, _lockedAmount);
+        uint256 lockedAmount = SafeCast.toUint256(lock.amount);
+        if (withdrawAmount > lockedAmount) {
+            revert InsufficientLockedAmount(withdrawAmount, lockedAmount);
         }
 
-        LockedBalance memory _prevLock = LockedBalance({ end: _lock.end, amount: _lock.amount });
-        //_lock.end should remain the same if we do partially withdraw
-        _lock.end = _lockedAmount == _withdrawAmount ? 0 : _lock.end;
-        _lock.amount = SafeCast.toInt128(int256(_lockedAmount - _withdrawAmount));
-        s.locks[_user] = _lock;
+        LockedBalance memory prevLock = LockedBalance({ end: lock.end, amount: lock.amount });
+        //lock.end should remain the same if we do partially withdraw
+        lock.end = lockedAmount == withdrawAmount ? 0 : lock.end;
+        lock.amount = SafeCast.toInt128(int256(lockedAmount - withdrawAmount));
+        s.locks[user] = lock;
 
-        uint256 _supplyBefore = s.supply;
-        s.supply = _supplyBefore - _withdrawAmount;
+        uint256 supplyBefore = s.supply;
+        s.supply = supplyBefore - withdrawAmount;
 
-        // _prevLock can have either block.timstamp >= _lock.end or zero end
-        // _lock has only 0 end
+        // prevLock can have either block.timstamp >= lock.end or zero end
+        // lock has only 0 end
         // Both can have >= 0 amount
-        _checkpoint(_user, _prevLock, _lock);
+        _checkpoint(user, prevLock, lock);
 
-        emit Supply(_supplyBefore, s.supply);
+        emit Supply(supplyBefore, s.supply);
     }
 
     /// @notice Set the maximum lock duration
-    /// @param _maxLock The maximum lock duration in seconds
+    /// @param newMaxLock The maximum lock duration in seconds
     /// @dev The maximum lock duration is 209 weeks (4 years)
     /// @dev The maximum lock duration cannot be less than the current max lock duration to prevent bricking existing
     /// locks
-    function setMaxLock(uint256 _maxLock) external onlyOwner {
+    function setMaxLock(uint256 newMaxLock) external onlyOwner {
         StakeWeightStorage storage s = _getStakeWeightStorage();
-        if (_maxLock > (209 weeks) - 1) revert InvalidMaxLock(_maxLock);
-        if (_maxLock < s.maxLock) revert InvalidMaxLock(_maxLock);
-        emit MaxLockUpdated(s.maxLock, _maxLock);
-        s.maxLock = _maxLock;
+        if (newMaxLock < s.maxLock || newMaxLock > MAX_LOCK_CAP) revert InvalidMaxLock(newMaxLock);
+        emit MaxLockUpdated(s.maxLock, newMaxLock);
+        s.maxLock = newMaxLock;
     }
-
-    // Getters
 
     function maxLock() external view returns (uint256) {
         StakeWeightStorage storage s = _getStakeWeightStorage();
@@ -710,32 +761,30 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
         return s.epoch;
     }
 
-    function pointHistory(uint256 _epoch) external view returns (int128, int128, uint256, uint256) {
+    function pointHistory(uint256 epoch_) external view returns (Point memory) {
         StakeWeightStorage storage s = _getStakeWeightStorage();
-        Point memory point = s.pointHistory[_epoch];
-        return (point.bias, point.slope, point.timestamp, point.blockNumber);
+        return s.pointHistory[epoch_];
     }
 
-    function userPointHistory(address _user, uint256 _epoch) external view returns (int128, int128, uint256, uint256) {
+    function userPointHistory(address user, uint256 epoch_) external view returns (Point memory) {
         StakeWeightStorage storage s = _getStakeWeightStorage();
-        Point memory point = s.userPointHistory[_user][_epoch];
-        return (point.bias, point.slope, point.timestamp, point.blockNumber);
+        return s.userPointHistory[user][epoch_];
     }
 
-    function locks(address _user) external view returns (int128, uint256) {
+    function locks(address user) external view returns (int128, uint256) {
         StakeWeightStorage storage s = _getStakeWeightStorage();
-        LockedBalance memory lock = s.locks[_user];
+        LockedBalance memory lock = s.locks[user];
         return (lock.amount, lock.end);
     }
 
-    function userPointEpoch(address _user) external view returns (uint256) {
+    function userPointEpoch(address user) external view returns (uint256) {
         StakeWeightStorage storage s = _getStakeWeightStorage();
-        return s.userPointEpoch[_user];
+        return s.userPointEpoch[user];
     }
 
-    function slopeChanges(uint256 _timestamp) external view returns (int128) {
+    function slopeChanges(uint256 timestamp) external view returns (int128) {
         StakeWeightStorage storage s = _getStakeWeightStorage();
-        return s.slopeChanges[_timestamp];
+        return s.slopeChanges[timestamp];
     }
 
     function supply() external view returns (uint256) {

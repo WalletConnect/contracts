@@ -3,14 +3,14 @@ increaseUnlockTime.t.sol
 │   └── it should revert
 └── given contract is not paused
     ├── when user has no existing lock
-    │   └── it should revert with InvalidLockState
+    │   └── it should revert with NonExistentLock
     ├── when user has an expired lock
     │   └── it should revert with ExpiredLock
     └── when user has an active lock
         ├── when new unlock time is less than or equal to current lock end
-        │   └── it should revert with CanOnlyIncreaseLockDuration
+        │   └── it should revert with LockTimeNotIncreased
         ├── when new unlock time exceeds MAX_LOCK
-        │   └── it should revert with VotingLockMaxExceeded
+        │   └── it should revert with LockMaxDurationExceeded
         └── when new unlock time is valid
             ├── it should update the lock end time
             ├── it should update the user's voting power

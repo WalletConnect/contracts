@@ -160,7 +160,7 @@ contract TotalSupplyAt_StakeWeight_Integration_Concrete_Test is StakeWeight_Inte
     }
 
     function test_WhenQueryingFutureBlock() external {
-        vm.expectRevert(abi.encodeWithSelector(StakeWeight.BadBlockNumber.selector, block.number + 1));
+        vm.expectRevert(abi.encodeWithSelector(StakeWeight.FutureBlockNumber.selector, block.number, block.number + 1));
         stakeWeight.totalSupplyAt(block.number + 1);
     }
 }

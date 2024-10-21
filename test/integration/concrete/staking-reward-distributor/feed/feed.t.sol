@@ -53,7 +53,7 @@ contract Feed_StakingRewardDistributor_Integration_Concrete_Test is StakeWeight_
 
         vm.prank(users.alice);
         vm.expectEmit(true, true, true, true);
-        emit Feed(0);
+        emit Fed(0);
         bool result = stakingRewardDistributor.feed(0);
 
         assertEq(
@@ -79,7 +79,7 @@ contract Feed_StakingRewardDistributor_Integration_Concrete_Test is StakeWeight_
 
         vm.prank(users.alice);
         vm.expectEmit(true, true, true, true);
-        emit Feed(FEED_AMOUNT);
+        emit Fed(FEED_AMOUNT);
         bool result = stakingRewardDistributor.feed(FEED_AMOUNT);
 
         assertEq(

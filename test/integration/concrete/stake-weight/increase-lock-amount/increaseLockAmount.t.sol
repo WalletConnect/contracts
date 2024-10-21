@@ -21,7 +21,7 @@ contract IncreaseLockAmount_StakeWeight_Integration_Concrete_Test is StakeWeight
     }
 
     function test_RevertWhen_UserHasNoExistingLock() external whenContractIsNotPaused {
-        vm.expectRevert(StakeWeight.InvalidLockState.selector);
+        vm.expectRevert(StakeWeight.NonExistentLock.selector);
         stakeWeight.increaseLockAmount(INCREASE_AMOUNT);
     }
 

@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.25 <0.9.0;
 
-import { StakingRewardDistributor, IStakeWeight } from "src/StakingRewardDistributor.sol";
+import { StakeWeight } from "src/StakeWeight.sol";
+import { StakingRewardDistributor } from "src/StakingRewardDistributor.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { console2 } from "forge-std/console2.sol";
@@ -17,7 +18,7 @@ contract CheckpointTotalSupply_StakingRewardDistributor_Integration_Concrete_Tes
     }
 
     function test_CallCheckpointOnStakeWeight() external {
-        vm.expectCall(address(stakeWeight), abi.encodeWithSelector(IStakeWeight.checkpoint.selector));
+        vm.expectCall(address(stakeWeight), abi.encodeWithSelector(stakeWeight.checkpoint.selector));
         stakingRewardDistributor.checkpointTotalSupply();
     }
 
@@ -43,7 +44,7 @@ contract CheckpointTotalSupply_StakingRewardDistributor_Integration_Concrete_Tes
         _createLockForUser(users.alice, 1000 ether, block.timestamp + 52 weeks);
 
         uint256 epoch = stakeWeight.userPointEpoch(users.alice);
-        (int128 bias,,,) = stakeWeight.userPointHistory(users.alice, epoch);
+        StakeWeight.Point memory point = stakeWeight.userPointHistory(users.alice, epoch);
 
         // Force a checkpoint to ensure the point is recorded
         stakeWeight.checkpoint();
@@ -59,7 +60,7 @@ contract CheckpointTotalSupply_StakingRewardDistributor_Integration_Concrete_Tes
         uint256 totalSupply = stakingRewardDistributor.totalSupplyAt(currentWeek);
 
         // The bias should have decreased slightly due to the slope
-        assertLt(totalSupply, SafeCast.toUint256(bias), "Total supply should be less than initial bias");
+        assertLt(totalSupply, SafeCast.toUint256(point.bias), "Total supply should be less than initial bias");
         assertGt(totalSupply, 0, "Total supply should be greater than 0");
     }
 

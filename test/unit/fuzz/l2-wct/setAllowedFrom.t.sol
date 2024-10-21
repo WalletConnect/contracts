@@ -11,7 +11,14 @@ contract SetAllowedFrom_L2WCT_Unit_Fuzz_Test is Base_Test {
         deployCoreConditionally();
     }
 
-    function testFuzz_setAllowedFrom(address from, address sender, bool allowed) public {
+    function testFuzz_setAllowedFrom(
+        address from,
+        address sender,
+        bool allowed
+    )
+        public
+        notFromProxyAdmin(sender, address(l2wct))
+    {
         vm.startPrank(sender);
         if (sender != users.manager) {
             vm.expectRevert(

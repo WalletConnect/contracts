@@ -22,7 +22,7 @@ contract IncreaseUnlockTime_StakeWeight_Integration_Concrete_Test is StakeWeight
 
     function test_RevertWhen_UserHasNoExistingLock() external {
         vm.prank(users.bob);
-        vm.expectRevert(StakeWeight.InvalidLockState.selector);
+        vm.expectRevert(StakeWeight.NonExistentLock.selector);
         stakeWeight.increaseUnlockTime(block.timestamp + 8 weeks);
     }
 
@@ -36,14 +36,26 @@ contract IncreaseUnlockTime_StakeWeight_Integration_Concrete_Test is StakeWeight
 
     function test_RevertWhen_NewUnlockTimeLessThanOrEqualToCurrentLockEnd() external {
         vm.prank(users.alice);
-        vm.expectRevert(StakeWeight.CanOnlyIncreaseLockDuration.selector);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                StakeWeight.LockTimeNotIncreased.selector,
+                _timestampToFloorWeek(block.timestamp + INITIAL_LOCK_DURATION),
+                _timestampToFloorWeek(block.timestamp + INITIAL_LOCK_DURATION)
+            )
+        );
         stakeWeight.increaseUnlockTime(block.timestamp + INITIAL_LOCK_DURATION);
     }
 
     function test_RevertWhen_NewUnlockTimeExceedsMaxLock() external {
         uint256 maxLock = stakeWeight.maxLock();
         vm.startPrank(users.alice);
-        vm.expectRevert(StakeWeight.VotingLockMaxExceeded.selector);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                StakeWeight.LockMaxDurationExceeded.selector,
+                _timestampToFloorWeek(block.timestamp + maxLock + 1 weeks),
+                _timestampToFloorWeek(block.timestamp + maxLock)
+            )
+        );
         stakeWeight.increaseUnlockTime(block.timestamp + maxLock + 1 weeks);
     }
 
