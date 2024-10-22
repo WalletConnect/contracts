@@ -22,7 +22,13 @@ contract SetMaxLock_StakeWeight_Unit_Fuzz_Test is StakeWeight_Concrete_Test {
         assertEq(stakeWeight.maxLock(), newMaxLock, "It should set the new maxLock value");
     }
 
-    function testFuzz_SetMaxLock_RevertWhenCallerIsNotOwner(address caller, uint256 newMaxLock) public {
+    function testFuzz_SetMaxLock_RevertWhenCallerIsNotOwner(
+        address caller,
+        uint256 newMaxLock
+    )
+        public
+        notFromProxyAdmin(caller, address(stakeWeight))
+    {
         vm.assume(caller != users.admin);
         vm.prank(caller);
         vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", caller));

@@ -771,10 +771,9 @@ contract StakeWeight is Initializable, OwnableUpgradeable, ReentrancyGuardUpgrad
         return s.userPointHistory[user][epoch_];
     }
 
-    function locks(address user) external view returns (int128, uint256) {
+    function locks(address user) external view returns (LockedBalance memory) {
         StakeWeightStorage storage s = _getStakeWeightStorage();
-        LockedBalance memory lock = s.locks[user];
-        return (lock.amount, lock.end);
+        return s.locks[user];
     }
 
     function userPointEpoch(address user) external view returns (uint256) {

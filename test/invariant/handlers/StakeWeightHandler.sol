@@ -43,19 +43,19 @@ contract StakeWeightHandler is BaseHandler {
         unlockTime = bound(unlockTime, block.timestamp + 1 weeks, block.timestamp + stakeWeight.maxLock());
 
         uint256 previousBalance = stakeWeight.balanceOf(user);
-        (, uint256 previousEndTime) = stakeWeight.locks(user);
+        StakeWeight.LockedBalance memory previousLock = stakeWeight.locks(user);
 
         vm.startPrank(user);
         l2wct.approve(address(stakeWeight), amount);
         stakeWeight.createLock(amount, unlockTime);
         vm.stopPrank();
 
-        (int128 newAmount,) = stakeWeight.locks(user);
+        StakeWeight.LockedBalance memory newLock = stakeWeight.locks(user);
 
         store.addAddressWithLock(user);
-        store.updateLockedAmount(user, newAmount);
+        store.updateLockedAmount(user, newLock.amount);
         store.updatePreviousBalance(user, previousBalance);
-        store.updatePreviousEndTime(user, previousEndTime);
+        store.updatePreviousEndTime(user, previousLock.end);
     }
 
     function increaseLockAmount(uint256 amount) public instrument("increaseLockAmount") {
@@ -70,7 +70,7 @@ contract StakeWeightHandler is BaseHandler {
         }
 
         uint256 previousBalance = stakeWeight.balanceOf(user);
-        (, uint256 previousEndTime) = stakeWeight.locks(user);
+        StakeWeight.LockedBalance memory previousLock = stakeWeight.locks(user);
 
         vm.startPrank(user);
         l2wct.approve(address(stakeWeight), amount);
@@ -79,35 +79,35 @@ contract StakeWeightHandler is BaseHandler {
 
         store.updateLockedAmount(user, int128(int256(amount)));
         store.updatePreviousBalance(user, previousBalance);
-        store.updatePreviousEndTime(user, previousEndTime);
+        store.updatePreviousEndTime(user, previousLock.end);
     }
 
     function increaseUnlockTime(uint256 unlockTime) public instrument("increaseUnlockTime") {
         address user = store.getRandomAddressWithLock();
-        (, uint256 currentEndTime) = stakeWeight.locks(user);
-        unlockTime = bound(unlockTime, currentEndTime + 1, block.timestamp + stakeWeight.maxLock());
+        StakeWeight.LockedBalance memory lock = stakeWeight.locks(user);
+        unlockTime = bound(unlockTime, lock.end + 1, block.timestamp + stakeWeight.maxLock());
 
         uint256 previousBalance = stakeWeight.balanceOf(user);
-        (, uint256 previousEndTime) = stakeWeight.locks(user);
+        StakeWeight.LockedBalance memory previousLock = stakeWeight.locks(user);
 
         resetPrank(user);
         stakeWeight.increaseUnlockTime(unlockTime);
         vm.stopPrank();
 
         store.updatePreviousBalance(user, previousBalance);
-        store.updatePreviousEndTime(user, previousEndTime);
+        store.updatePreviousEndTime(user, previousLock.end);
     }
 
     function withdrawAll() public instrument("withdrawAll") {
         address user = store.getRandomAddressWithLock();
 
-        (int128 lockedAmount,) = stakeWeight.locks(user);
+        StakeWeight.LockedBalance memory lock = stakeWeight.locks(user);
 
         resetPrank(user);
         stakeWeight.withdrawAll();
         vm.stopPrank();
 
-        uint256 newWithdrawnAmount = uint256(uint128(lockedAmount));
+        uint256 newWithdrawnAmount = uint256(uint128(lock.amount));
         store.updateWithdrawnAmount(user, newWithdrawnAmount);
         store.removeAddressWithLock(user);
     }

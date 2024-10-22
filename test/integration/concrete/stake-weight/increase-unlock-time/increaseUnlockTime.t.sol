@@ -28,8 +28,8 @@ contract IncreaseUnlockTime_StakeWeight_Integration_Concrete_Test is StakeWeight
 
     function test_RevertWhen_UserHasExpiredLock() external {
         vm.warp(block.timestamp + INITIAL_LOCK_DURATION + 1);
-        (, uint256 lockEnd) = stakeWeight.locks(users.alice);
-        vm.expectRevert(abi.encodeWithSelector(StakeWeight.ExpiredLock.selector, block.timestamp, lockEnd));
+        StakeWeight.LockedBalance memory lock = stakeWeight.locks(users.alice);
+        vm.expectRevert(abi.encodeWithSelector(StakeWeight.ExpiredLock.selector, block.timestamp, lock.end));
         vm.prank(users.alice);
         stakeWeight.increaseUnlockTime(block.timestamp + 8 weeks);
     }
@@ -75,8 +75,8 @@ contract IncreaseUnlockTime_StakeWeight_Integration_Concrete_Test is StakeWeight
         vm.prank(users.alice);
         stakeWeight.increaseUnlockTime(newUnlockTime);
 
-        (, uint256 lockEnd) = stakeWeight.locks(users.alice);
-        assertEq(lockEnd, newUnlockTimeFloored, "Lock end time should be updated");
+        StakeWeight.LockedBalance memory lock = stakeWeight.locks(users.alice);
+        assertEq(lock.end, newUnlockTimeFloored, "Lock end time should be updated");
         assertEq(stakeWeight.supply(), initialSupply, "Supply should remain the same");
         assertGt(stakeWeight.balanceOf(users.alice), initialStakeWeight, "Stake weight should increase");
         assertGt(stakeWeight.totalSupply(), initialTotalSupply, "Total supply should increase");

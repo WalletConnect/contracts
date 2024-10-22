@@ -44,27 +44,16 @@ contract StakingRewardDistributorStore {
     }
 
     function getRandomAddressWithLock() public view returns (address) {
-        uint256 lockCount = 0;
-        for (uint256 i = 0; i < users.length; i++) {
-            if (userInfo[users[i]].hasLock) {
-                lockCount++;
-            }
-        }
-        require(lockCount > 0, "No users with lock");
+        // Get array of users with locks
+        address[] memory usersWithLocks = getUsersWithLocks();
+        require(usersWithLocks.length > 0, "No users with lock");
 
-        uint256 randomIndex = uint256(keccak256(abi.encodePacked(block.timestamp, block.prevrandao))) % lockCount;
-        uint256 currentIndex = 0;
+        // Generate pseudo-random index
+        uint256 randomIndex =
+            uint256(keccak256(abi.encodePacked(block.timestamp, block.prevrandao))) % usersWithLocks.length;
 
-        for (uint256 i = 0; i < users.length; i++) {
-            if (userInfo[users[i]].hasLock) {
-                if (currentIndex == randomIndex) {
-                    return users[i];
-                }
-                currentIndex++;
-            }
-        }
-
-        revert("No user found");
+        // Return the randomly selected user
+        return usersWithLocks[randomIndex];
     }
 
     function updateClaimedAmount(address user, uint256 amount) public {
@@ -139,5 +128,26 @@ contract StakingRewardDistributorStore {
             }
         }
         tokensPerWeekInjectedTimestamps.push(timestamp);
+    }
+
+    function getUsersWithLocks() public view returns (address[] memory) {
+        uint256 lockCount = 0;
+        address[] memory tempUsers = new address[](users.length);
+
+        // Count and collect users with locks
+        for (uint256 i = 0; i < users.length; i++) {
+            if (userInfo[users[i]].hasLock) {
+                tempUsers[lockCount] = users[i];
+                lockCount++;
+            }
+        }
+
+        // Create and populate final array of exact size
+        address[] memory usersWithLocks = new address[](lockCount);
+        for (uint256 i = 0; i < lockCount; i++) {
+            usersWithLocks[i] = tempUsers[i];
+        }
+
+        return usersWithLocks;
     }
 }

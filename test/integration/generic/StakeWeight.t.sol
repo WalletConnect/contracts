@@ -33,9 +33,9 @@ contract StakeWeight_Test is Base_Test {
         vm.prank(users.alice);
         stakeWeight.createLock(amount, unlockTime);
 
-        (int128 lockedAmount, uint256 end) = stakeWeight.locks(users.alice);
-        assertEq(uint256(int256(lockedAmount)), amount);
-        assertEq(end, _timestampToFloorWeek(unlockTime));
+        StakeWeight.LockedBalance memory lock = stakeWeight.locks(users.alice);
+        assertEq(uint256(int256(lock.amount)), amount);
+        assertEq(lock.end, _timestampToFloorWeek(unlockTime));
     }
 
     function testIncreaseLockAmount() public {
@@ -48,8 +48,8 @@ contract StakeWeight_Test is Base_Test {
         stakeWeight.increaseLockAmount(additionalAmount);
         vm.stopPrank();
 
-        (int128 lockedAmount,) = stakeWeight.locks(users.alice);
-        assertEq(uint256(int256(lockedAmount)), initialAmount + additionalAmount);
+        StakeWeight.LockedBalance memory lock = stakeWeight.locks(users.alice);
+        assertEq(uint256(int256(lock.amount)), initialAmount + additionalAmount);
     }
 
     function testIncreaseUnlockTime() public {
@@ -61,13 +61,13 @@ contract StakeWeight_Test is Base_Test {
 
         vm.startPrank(users.alice);
         stakeWeight.createLock(amount, initialUnlockTime);
-        (, uint256 initialEnd) = stakeWeight.locks(users.alice);
-        assertEq(initialEnd, initialUnlockTimeRounded, "Initial unlock time rounded incorrectly");
+        StakeWeight.LockedBalance memory initialLock = stakeWeight.locks(users.alice);
+        assertEq(initialLock.end, initialUnlockTimeRounded, "Initial unlock time rounded incorrectly");
         stakeWeight.increaseUnlockTime(newUnlockTime);
         vm.stopPrank();
 
-        (, uint256 finalEnd) = stakeWeight.locks(users.alice);
-        assertEq(finalEnd, _timestampToFloorWeek(newUnlockTime), "Final unlock time rounded incorrectly");
+        StakeWeight.LockedBalance memory finalLock = stakeWeight.locks(users.alice);
+        assertEq(finalLock.end, _timestampToFloorWeek(newUnlockTime), "Final unlock time rounded incorrectly");
     }
 
     function testWithdrawAfterLockExpired() public {
@@ -95,9 +95,9 @@ contract StakeWeight_Test is Base_Test {
         assertEq(aliceBalanceAfter - aliceBalanceBefore, amount, "Incorrect amount withdrawn");
 
         // Check lock is cleared
-        (int128 lockedAmount, uint256 end) = stakeWeight.locks(users.alice);
-        assertEq(uint256(int256(lockedAmount)), 0, "Locked amount should be zero");
-        assertEq(end, 0, "Lock end time should be zero");
+        StakeWeight.LockedBalance memory lock = stakeWeight.locks(users.alice);
+        assertEq(uint256(int256(lock.amount)), 0, "Locked amount should be zero");
+        assertEq(lock.end, 0, "Lock end time should be zero");
     }
 
     function testBalanceOf() public {

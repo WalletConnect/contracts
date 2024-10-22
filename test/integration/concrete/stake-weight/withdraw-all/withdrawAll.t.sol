@@ -57,9 +57,9 @@ contract WithdrawAll_StakeWeight_Integration_Concrete_Test is StakeWeight_Integr
 
         stakeWeight.withdrawAll();
 
-        (int128 lockAmount, uint256 lockEnd) = stakeWeight.locks(users.alice);
-        assertEq(SafeCast.toUint256(lockAmount), 0, "Lock amount should be zero");
-        assertEq(lockEnd, 0, "Lock end should be zero");
+        StakeWeight.LockedBalance memory lock = stakeWeight.locks(users.alice);
+        assertEq(SafeCast.toUint256(lock.amount), 0, "Lock amount should be zero");
+        assertEq(lock.end, 0, "Lock end should be zero");
         assertEq(stakeWeight.supply(), initialSupply - LOCK_AMOUNT, "Total supply should be updated");
         assertEq(l2wct.balanceOf(users.alice), initialBalance + LOCK_AMOUNT, "Tokens should be transferred to the user");
     }

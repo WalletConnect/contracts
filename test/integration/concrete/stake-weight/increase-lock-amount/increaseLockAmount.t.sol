@@ -34,9 +34,9 @@ contract IncreaseLockAmount_StakeWeight_Integration_Concrete_Test is StakeWeight
     function test_RevertWhen_LockHasExpired() external whenContractIsNotPaused whenUserHasExistingLock {
         vm.warp(block.timestamp + 2 weeks);
 
-        (, uint256 lockEnd) = stakeWeight.locks(users.alice);
+        StakeWeight.LockedBalance memory lock = stakeWeight.locks(users.alice);
 
-        vm.expectRevert(abi.encodeWithSelector(StakeWeight.ExpiredLock.selector, block.timestamp, lockEnd));
+        vm.expectRevert(abi.encodeWithSelector(StakeWeight.ExpiredLock.selector, block.timestamp, lock.end));
         stakeWeight.increaseLockAmount(INCREASE_AMOUNT);
     }
 
@@ -50,19 +50,23 @@ contract IncreaseLockAmount_StakeWeight_Integration_Concrete_Test is StakeWeight
         deal(address(l2wct), users.alice, INCREASE_AMOUNT);
         uint256 initialBalance = l2wct.balanceOf(address(users.alice));
 
-        (, uint256 lockEnd) = stakeWeight.locks(users.alice);
+        StakeWeight.LockedBalance memory initialLock = stakeWeight.locks(users.alice);
         IERC20(address(l2wct)).approve(address(stakeWeight), INCREASE_AMOUNT);
 
         vm.expectEmit(true, true, true, true);
-        emit Deposit(users.alice, INCREASE_AMOUNT, lockEnd, stakeWeight.ACTION_INCREASE_LOCK_AMOUNT(), block.timestamp);
+        emit Deposit(
+            users.alice, INCREASE_AMOUNT, initialLock.end, stakeWeight.ACTION_INCREASE_LOCK_AMOUNT(), block.timestamp
+        );
 
         vm.expectEmit(true, true, true, true);
         emit Supply(initialSupply, initialSupply + INCREASE_AMOUNT);
 
         stakeWeight.increaseLockAmount(INCREASE_AMOUNT);
 
-        (int128 lockAmount,) = stakeWeight.locks(users.alice);
-        assertEq(uint256(int256(lockAmount)), INITIAL_LOCK_AMOUNT + INCREASE_AMOUNT, "Lock amount should be increased");
+        StakeWeight.LockedBalance memory finalLock = stakeWeight.locks(users.alice);
+        assertEq(
+            uint256(int256(finalLock.amount)), INITIAL_LOCK_AMOUNT + INCREASE_AMOUNT, "Lock amount should be increased"
+        );
         assertEq(stakeWeight.supply(), initialSupply + INCREASE_AMOUNT, "Total supply should be updated");
         assertEq(
             l2wct.balanceOf(address(users.alice)),

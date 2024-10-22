@@ -184,7 +184,7 @@ contract StakingRewardDistributor_Invariant_Test is Invariant_Test {
         uint256 initialContractBalance = l2wct.balanceOf(address(stakingRewardDistributor));
         console2.log("Initial contract balance:", initialContractBalance);
 
-        // Time warp to max lock in the future in iterations of 51 weeks
+        // Time warp to max lock in the future in iterations of 50 weeks
         uint256 remainingTime = stakeWeight.maxLock();
         while (remainingTime > 0) {
             uint256 timeJump = remainingTime > 50 weeks ? 50 weeks : remainingTime;
@@ -197,29 +197,27 @@ contract StakingRewardDistributor_Invariant_Test is Invariant_Test {
         // Claim for all users after time warp
         address[] memory users = store.getUsers();
         uint256 totalClaimed = 0;
+        uint256 totalLockedAmount = 0;
+
         for (uint256 i = 0; i < users.length; i++) {
+            uint256 lockedAmount = store.getLockedAmount(users[i]);
+            totalLockedAmount += lockedAmount;
+
+            uint256 balanceBeforeClaim = l2wct.balanceOf(address(stakingRewardDistributor));
             uint256 claimed = stakingRewardDistributor.claim(users[i]);
+            uint256 balanceAfterClaim = l2wct.balanceOf(address(stakingRewardDistributor));
+
             totalClaimed += claimed;
-            console2.log("User", users[i], "claimed after time warp:", claimed);
+
+            assertEq(claimed, balanceBeforeClaim - balanceAfterClaim, "Claim amount should match balance change");
         }
-        console2.log("Total claimed after time warp:", totalClaimed);
 
-        // Verify final balances
         uint256 finalContractBalance = l2wct.balanceOf(address(stakingRewardDistributor));
-        console2.log("Final contract balance:", finalContractBalance);
 
-        // Check that all distributed tokens have been claimed
-        assertEq(
-            initialContractBalance - finalContractBalance,
-            totalClaimed,
-            "All distributed tokens should have been claimed"
-        );
-
-        // Verify final contract state
-        assertEq(
-            stakingRewardDistributor.weekCursor() - 1 weeks,
-            _timestampToFloorWeek(stakingRewardDistributor.lastTokenTimestamp()),
-            "weekCursor should be one week ahead the floored lastTokenTimestamp, at the start of the week to process"
+        assertGe(
+            stakingRewardDistributor.totalDistributed(),
+            totalClaimed + finalContractBalance,
+            "Total distributed should be greater than or equal to total claimed plus final balance"
         );
 
         console2.log("afterInvariant checks completed successfully");

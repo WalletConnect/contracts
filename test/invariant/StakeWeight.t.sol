@@ -2,6 +2,7 @@
 pragma solidity >=0.8.25 <0.9.0;
 
 import { Invariant_Test } from "./Invariant.t.sol";
+import { StakeWeight } from "src/StakeWeight.sol";
 import { StakeWeightHandler } from "./handlers/StakeWeightHandler.sol";
 import { StakeWeightStore } from "./stores/StakeWeightStore.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
@@ -47,9 +48,9 @@ contract StakeWeight_Invariant_Test is Invariant_Test {
     function invariant_lockTimeNeverExceedsMaxTime() public view {
         address[] memory users = store.getAddressesWithLock();
         for (uint256 i = 0; i < users.length; i++) {
-            (int128 amount, uint256 end) = stakeWeight.locks(users[i]);
-            if (amount > 0) {
-                assertLe(end, block.timestamp + stakeWeight.maxLock(), "Lock time should never exceed MAXTIME");
+            StakeWeight.LockedBalance memory lock = stakeWeight.locks(users[i]);
+            if (lock.amount > 0) {
+                assertLe(lock.end, block.timestamp + stakeWeight.maxLock(), "Lock time should never exceed MAXTIME");
             }
         }
     }
@@ -84,10 +85,10 @@ contract StakeWeight_Invariant_Test is Invariant_Test {
         address[] memory users = store.getAddressesWithLock();
         for (uint256 i = 0; i < users.length; i++) {
             uint256 stakeWeightBalance = stakeWeight.balanceOf(users[i]);
-            (int128 lockedAmount,) = stakeWeight.locks(users[i]);
+            StakeWeight.LockedBalance memory lock = stakeWeight.locks(users[i]);
             assertLe(
                 stakeWeightBalance,
-                SafeCast.toUint256((int256(lockedAmount))),
+                SafeCast.toUint256((int256(lock.amount))),
                 "User's stakeWeight balance should never exceed their locked amount"
             );
         }
@@ -99,8 +100,8 @@ contract StakeWeight_Invariant_Test is Invariant_Test {
             uint256 currentBalance = stakeWeight.balanceOf(users[i]);
             uint256 previousBalance = store.getPreviousBalance(users[i]);
             uint256 previousEndTime = store.getPreviousEndTime(users[i]);
-            (, uint256 currentEndTime) = stakeWeight.locks(users[i]);
-            if (currentEndTime > previousEndTime) {
+            StakeWeight.LockedBalance memory lock = stakeWeight.locks(users[i]);
+            if (lock.end > previousEndTime) {
                 assertGe(currentBalance, previousBalance, "Lock extension should increase balance");
             }
         }
@@ -111,9 +112,9 @@ contract StakeWeight_Invariant_Test is Invariant_Test {
         for (uint256 i = 0; i < users.length; i++) {
             uint256 currentBalance = stakeWeight.balanceOf(users[i]);
             uint256 previousBalance = store.getPreviousBalance(users[i]);
-            (int128 currentAmount,) = stakeWeight.locks(users[i]);
+            StakeWeight.LockedBalance memory lock = stakeWeight.locks(users[i]);
             int128 previousAmount = store.getPreviousLockedAmount(users[i]);
-            if (currentAmount > previousAmount) {
+            if (lock.amount > previousAmount) {
                 assertGe(currentBalance, previousBalance, "Deposit should increase balance");
             }
         }
@@ -140,20 +141,20 @@ contract StakeWeight_Invariant_Test is Invariant_Test {
         for (uint256 i = 0; i < users.length; i++) {
             address user = users[i];
             uint256 currentBalance = stakeWeight.balanceOf(user);
-            (int128 lockedAmount, uint256 endTime) = stakeWeight.locks(user);
+            StakeWeight.LockedBalance memory lock = stakeWeight.locks(user);
             uint256 previousBalance = store.getPreviousBalance(user);
             uint256 previousEndTime = store.getPreviousEndTime(user);
             int128 previousLockedAmount = store.getPreviousLockedAmount(user);
 
-            if (block.timestamp < endTime && lockedAmount > 0) {
-                if (endTime > previousEndTime) {
+            if (block.timestamp < lock.end && lock.amount > 0) {
+                if (lock.end > previousEndTime) {
                     // Lock time was increased
                     assertGe(
                         currentBalance,
                         previousBalance,
                         "Balance should increase or stay the same when lock time is increased"
                     );
-                } else if (lockedAmount > previousLockedAmount) {
+                } else if (lock.amount > previousLockedAmount) {
                     // Lock amount was increased
                     assertGt(currentBalance, previousBalance, "Balance should increase when lock amount is increased");
                 } else {
@@ -173,11 +174,11 @@ contract StakeWeight_Invariant_Test is Invariant_Test {
         for (uint256 i = 0; i < users.length; i++) {
             address user = users[i];
             uint256 withdrawnAmount = store.withdrawnAmount(user);
-            (, uint256 endTime) = stakeWeight.locks(user);
+            StakeWeight.LockedBalance memory lock = stakeWeight.locks(user);
 
             if (withdrawnAmount > 0) {
                 assertTrue(
-                    block.timestamp >= endTime,
+                    block.timestamp >= lock.end,
                     "Withdrawal should only be possible after lock expiration or if re-locked"
                 );
             }
@@ -191,8 +192,8 @@ contract StakeWeight_Invariant_Test is Invariant_Test {
         address[] memory users = store.getAddressesWithLock();
         for (uint256 i = 0; i < users.length; i++) {
             address user = users[i];
-            (int128 lockedAmount,) = stakeWeight.locks(user);
-            totalValueLocked += lockedAmount;
+            StakeWeight.LockedBalance memory lock = stakeWeight.locks(user);
+            totalValueLocked += lock.amount;
             totalBalance += stakeWeight.balanceOf(user);
         }
 
@@ -216,9 +217,9 @@ contract StakeWeight_Invariant_Test is Invariant_Test {
         uint256 totalWithdrawn = 0;
         for (uint256 i = 0; i < users.length; i++) {
             address user = users[i];
-            (, uint256 endTime) = stakeWeight.locks(user);
-            if (block.timestamp < endTime) {
-                vm.warp(endTime);
+            StakeWeight.LockedBalance memory lock = stakeWeight.locks(user);
+            if (block.timestamp < lock.end) {
+                vm.warp(lock.end);
             }
             uint256 balanceBefore = l2wct.balanceOf(user);
             resetPrank(user);
@@ -256,8 +257,8 @@ contract StakeWeight_Invariant_Test is Invariant_Test {
         // 6. Check for any remaining locks
         for (uint256 i = 0; i < users.length; i++) {
             address user = users[i];
-            (int128 lockedAmount,) = stakeWeight.locks(user);
-            assertEq(uint256(uint128(lockedAmount)), 0, "User should have no remaining locked amount");
+            StakeWeight.LockedBalance memory lock = stakeWeight.locks(user);
+            assertEq(uint256(uint128(lock.amount)), 0, "User should have no remaining locked amount");
             assertEq(stakeWeight.balanceOf(user), 0, "User should have no remaining balance");
         }
 

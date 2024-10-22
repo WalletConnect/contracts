@@ -46,6 +46,7 @@ contract StakingRewardDistributorHandler is BaseHandler {
     }
 
     function setRecipient(uint256 seed, address recipient) public adjustTimestamp(seed) instrument("setRecipient") {
+        vm.assume(recipient != address(stakeWeight) && recipient != address(stakingRewardDistributor));
         address user = store.getRandomAddressWithLock();
         vm.prank(user);
         stakingRewardDistributor.setRecipient(recipient);
@@ -93,17 +94,17 @@ contract StakingRewardDistributorHandler is BaseHandler {
             uint256 maxAmount = 10_000 * 10 ** 18; // 10,000 tokens
             amount = bound(amount, minAmount, maxAmount);
             deal(address(l2wct), user, amount);
+
+            unlockTime = bound(unlockTime, block.timestamp + 1 weeks, block.timestamp + stakeWeight.maxLock());
+
+            vm.startPrank(user);
+            l2wct.approve(address(stakeWeight), amount);
+            stakeWeight.createLock(amount, unlockTime);
+            vm.stopPrank();
+
+            store.updateLockedAmount(user, amount);
+            store.updateUnlockTime(user, unlockTime);
         }
-
-        unlockTime = bound(unlockTime, block.timestamp + 1 weeks, block.timestamp + stakeWeight.maxLock());
-
-        vm.startPrank(user);
-        l2wct.approve(address(stakeWeight), amount);
-        stakeWeight.createLock(amount, unlockTime);
-        vm.stopPrank();
-
-        store.updateLockedAmount(user, amount);
-        store.updateUnlockTime(user, unlockTime);
     }
 
     function withdrawAll(uint256 seed) public adjustTimestamp(seed) instrument("withdrawAll") {
