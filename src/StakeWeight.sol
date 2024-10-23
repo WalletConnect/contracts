@@ -777,23 +777,14 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
 
     /// @notice Withdraw all WCT when lock has expired.
     function withdrawAll() external nonReentrant {
-        StakeWeightStorage storage s = _getStakeWeightStorage();
-        WalletConnectConfig wcConfig = s.config;
-        if (Pauser(wcConfig.getPauser()).isStakeWeightPaused()) revert Paused();
-        LockedBalance memory lock = s.locks[msg.sender];
-        if (lock.amount == 0) revert NonExistentLock();
-        if (lock.end > block.timestamp) revert LockStillActive(lock.end);
-
-        uint256 amount = SafeCast.toUint256(lock.amount);
-
-        _unlock(msg.sender, lock, amount);
-
-        IERC20(wcConfig.getL2wct()).safeTransfer(msg.sender, amount);
-
-        emit Withdraw(msg.sender, amount, block.timestamp);
+        _withdrawAll(msg.sender, LockType.Transferred);
     }
 
     function withdrawAllFor(address user) external nonReentrant onlyRole(LOCKED_TOKEN_STAKER_ROLE) {
+        _withdrawAll(user, LockType.NonTransferred);
+    }
+
+    function _withdrawAll(address user, LockType lockType) internal {
         StakeWeightStorage storage s = _getStakeWeightStorage();
         WalletConnectConfig wcConfig = s.config;
         if (Pauser(wcConfig.getPauser()).isStakeWeightPaused()) revert Paused();
@@ -804,6 +795,10 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
         uint256 amount = SafeCast.toUint256(lock.amount);
 
         _unlock(user, lock, amount);
+
+        if (lockType == LockType.Transferred) {
+            IERC20(wcConfig.getL2wct()).safeTransfer(user, amount);
+        }
 
         emit Withdraw(user, amount, block.timestamp);
     }
