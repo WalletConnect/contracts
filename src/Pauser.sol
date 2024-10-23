@@ -28,6 +28,9 @@ contract Pauser is Initializable, AccessControlUpgradeable {
     /// @notice Flag indicating if submit oracle records is paused
     bool public isSubmitOracleRecordsPaused;
 
+    /// @notice Flag indicating if locked token staker is paused
+    bool public isLockedTokenStakerPaused;
+
     /// @notice Configuration for contract initialization
     struct Init {
         address admin;
@@ -56,6 +59,17 @@ contract Pauser is Initializable, AccessControlUpgradeable {
             _checkRole(UNPAUSER_ROLE);
         }
         _setIsStakeWeightPaused(isPaused);
+    }
+
+    /// @notice Pauses or unpauses locked token staker
+    /// @param isPaused The new pause state
+    function setIsLockedTokenStakerPaused(bool isPaused) external {
+        if (isPaused) {
+            _checkRole(PAUSER_ROLE);
+        } else {
+            _checkRole(UNPAUSER_ROLE);
+        }
+        _setIsLockedTokenStakerPaused(isPaused);
     }
 
     /// @notice Pauses or unpauses submit oracle records
@@ -101,5 +115,11 @@ contract Pauser is Initializable, AccessControlUpgradeable {
             isPaused: isPaused,
             flagName: "isSubmitOracleRecordsPaused"
         });
+    }
+
+    /// @dev Sets the locked token staker pause state
+    /// @param isPaused The new pause state
+    function _setIsLockedTokenStakerPaused(bool isPaused) private {
+        isLockedTokenStakerPaused = isPaused;
     }
 }

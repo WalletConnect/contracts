@@ -11,6 +11,8 @@ import { RewardManager } from "src/RewardManager.sol";
 import { StakeWeight } from "src/StakeWeight.sol";
 import { Staking } from "src/Staking.sol";
 import { StakingRewardDistributor } from "src/StakingRewardDistributor.sol";
+import { LockedTokenStaker } from "src/LockedTokenStaker.sol";
+import { MerkleVester } from "src/interfaces/MerkleVester.sol";
 import { MockBridge } from "./mocks/MockBridge.sol";
 import {
     newPauser,
@@ -54,6 +56,8 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
     Staking internal staking;
     StakeWeight internal stakeWeight;
     StakingRewardDistributor internal stakingRewardDistributor;
+    LockedTokenStaker internal lockedTokenStaker;
+    MerkleVester internal vester;
     /*//////////////////////////////////////////////////////////////////////////
                                    MOCKS
     //////////////////////////////////////////////////////////////////////////*/
@@ -154,6 +158,15 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
         // Deploy the non-proxy contracts
         permissionedNodeRegistry =
             new PermissionedNodeRegistry({ initialAdmin: users.admin, maxNodes_: defaults.MAX_REGISTRY_NODES() });
+
+        vester = new MerkleVester(
+            address(l2wct),
+            users.admin,
+            0, // No claim fee
+            address(0), // No fee collector
+            address(0), // No fee setter
+            true // Direct claim allowed
+        );
 
         // Update the WalletConnectConfig with the necessary contracts.
         walletConnectConfig.updateWCT(address(wct));

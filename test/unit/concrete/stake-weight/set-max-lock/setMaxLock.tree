@@ -1,7 +1,7 @@
 setMaxLock.t.sol
-├── when caller is not owner
-│   └── it should revert with OwnableUnauthorizedAccount error
-└── when caller is owner
+├── when caller is not admin
+│   └── it should revert with AccessControlUnauthorizedAccount error
+└── when caller is admin
     ├── when new maxLock is greater than 209 weeks minus 1
     │   └── it should revert with InvalidMaxLock error
     ├── when new maxLock is less than current maxLock
