@@ -1,0 +1,225 @@
+// SPDX-License-Identifier: MIT
+pragma solidity >=0.8.25 <0.9.0;
+
+import { Invariant_Test } from "./Invariant.t.sol";
+import { StakingRewardDistributorHandler } from "./handlers/StakingRewardDistributorHandler.sol";
+import { StakingRewardDistributorStore } from "./stores/StakingRewardDistributorStore.sol";
+import { console2 } from "forge-std/console2.sol";
+
+contract StakingRewardDistributor_Invariant_Test is Invariant_Test {
+    StakingRewardDistributorHandler public handler;
+    StakingRewardDistributorStore public store;
+
+    function setUp() public override {
+        super.setUp();
+
+        // Deploy StakingRewardDistributor contract
+        store = new StakingRewardDistributorStore();
+        handler =
+            new StakingRewardDistributorHandler(stakingRewardDistributor, store, users.admin, stakeWeight, wct, l2wct);
+
+        vm.label(address(handler), "StakingRewardDistributorHandler");
+        vm.label(address(store), "StakingRewardDistributorStore");
+
+        targetContract(address(handler));
+
+        disableTransferRestrictions();
+
+        bytes4[] memory selectors = new bytes4[](8);
+        selectors[0] = handler.createLock.selector;
+        selectors[1] = handler.withdrawAll.selector;
+        selectors[2] = handler.claim.selector;
+        selectors[3] = handler.setRecipient.selector;
+        selectors[4] = handler.injectReward.selector;
+        selectors[5] = handler.feed.selector;
+        selectors[6] = handler.checkpointToken.selector;
+        selectors[7] = handler.checkpointTotalSupply.selector;
+
+        targetSelector(FuzzSelector(address(handler), selectors));
+    }
+
+    function invariant_tokenBalanceConsistency() public view {
+        uint256 actualBalance = l2wct.balanceOf(address(stakingRewardDistributor));
+        uint256 lastTokenBalance = stakingRewardDistributor.lastTokenBalance();
+        uint256 totalDistributed = stakingRewardDistributor.totalDistributed();
+        uint256 totalClaimed = store.totalClaimed();
+
+        assertGe(actualBalance, lastTokenBalance, "Actual balance should be greater than or equal to lastTokenBalance");
+
+        assertEq(
+            actualBalance,
+            lastTokenBalance + (actualBalance - lastTokenBalance),
+            "Contract token balance should equal lastTokenBalance plus any new tokens"
+        );
+
+        assertEq(
+            actualBalance + totalClaimed,
+            totalDistributed,
+            "Actual balance plus total claimed should equal total distributed"
+        );
+    }
+
+    function invariant_totalDistributedConsistency() public view {
+        uint256 totalCursorTokensPerWeek = 0;
+        uint256 flooredLastTokenTimestamp = _timestampToFloorWeek(stakingRewardDistributor.lastTokenTimestamp());
+
+        // Fed rewards
+        for (uint256 i = stakingRewardDistributor.startWeekCursor(); i <= flooredLastTokenTimestamp; i += 1 weeks) {
+            totalCursorTokensPerWeek += stakingRewardDistributor.tokensPerWeek(i);
+        }
+
+        uint256 totalInjectedTokensPerWeek = 0;
+        // Injected rewards
+        for (uint256 i = 0; i < store.getTokensPerWeekInjectedTimestampsLength(); i++) {
+            uint256 week = store.tokensPerWeekInjectedTimestamps(i);
+            // Only consider rewards that have been injected before our calculated cursors
+            if (week < stakingRewardDistributor.startWeekCursor() || week > flooredLastTokenTimestamp) {
+                totalInjectedTokensPerWeek += stakingRewardDistributor.tokensPerWeek(week);
+            }
+        }
+
+        assertLe(
+            totalInjectedTokensPerWeek,
+            store.totalInjectedRewards(),
+            "Total injected tokens per week should be <= total injected rewards"
+        );
+
+        uint256 totalTokensPerWeek = totalCursorTokensPerWeek + totalInjectedTokensPerWeek;
+
+        assertEq(
+            store.totalFedRewards() + store.totalInjectedRewards(),
+            stakingRewardDistributor.totalDistributed(),
+            "Total distributed should equal sum of fed and injected rewards"
+        );
+
+        assertApproxEqAbs(
+            totalTokensPerWeek,
+            store.totalFedRewards() + store.totalInjectedRewards(),
+            store.totalFedRewards() + store.totalInjectedRewards() / 1e6, // Allow 0.0001% difference
+            "Total tokens per week should equal sum of fed and injected rewards"
+        );
+
+        assertApproxEqAbs(
+            totalTokensPerWeek,
+            stakingRewardDistributor.totalDistributed(),
+            stakingRewardDistributor.totalDistributed() / 100, // Allow 1% difference
+            "Sum of tokensPerWeek should approximately equal totalDistributed"
+        );
+    }
+
+    function invariant_timeBasedConstraints() public view {
+        assertGe(
+            stakingRewardDistributor.weekCursor(),
+            stakingRewardDistributor.startWeekCursor(),
+            "weekCursor should be >= startWeekCursor"
+        );
+        assertGe(
+            stakingRewardDistributor.lastTokenTimestamp(),
+            stakingRewardDistributor.startWeekCursor(),
+            "lastTokenTimestamp should be >= startWeekCursor"
+        );
+        assertEq(stakingRewardDistributor.weekCursor() % 1 weeks, 0, "weekCursor should be a multiple of 1 week");
+    }
+
+    function invariant_claimIntegrity() public view {
+        address[] memory users = store.getUsers();
+        uint256 totalClaimed = 0;
+        for (uint256 i = 0; i < users.length; i++) {
+            totalClaimed += store.claimedAmount(users[i]);
+            assertLe(
+                store.claimedAmount(users[i]),
+                stakingRewardDistributor.totalDistributed(),
+                "User claimed amount should not exceed total distributed"
+            );
+        }
+        assertLe(
+            totalClaimed,
+            stakingRewardDistributor.totalDistributed(),
+            "Total claimed should not exceed total distributed"
+        );
+    }
+
+    function invariant_stakeWeightConsistency() public view {
+        if (store.firstLockCreatedAt() == 0) {
+            return;
+        }
+        for (uint256 week = store.firstLockCreatedAt(); week <= stakingRewardDistributor.weekCursor(); week++) {
+            assertLe(
+                stakingRewardDistributor.totalSupplyAt(week),
+                stakeWeight.totalSupplyAtTime(week),
+                "totalSupplyAt should not exceed StakeWeight totalSupplyAtTime"
+            );
+        }
+    }
+
+    function invariant_recipientManagement() public view {
+        address[] memory users = store.getUsers();
+        for (uint256 i = 0; i < users.length; i++) {
+            address user = users[i];
+            address recipient = stakingRewardDistributor.getRecipient(user);
+            if (recipient != user) {
+                assertNotEq(recipient, address(0), "Set recipient should not be zero address");
+            }
+
+            assertTrue(
+                recipient == user || recipient == store.getSetRecipient(user),
+                "Recipient should be user or set recipient"
+            );
+        }
+    }
+
+    function afterInvariant() public {
+        // Log campaign metrics
+        console2.log("Total calls made during invariant test:", handler.totalCalls());
+        console2.log("checkpointToken calls:", handler.calls("checkpointToken"));
+        console2.log("checkpointTotalSupply calls:", handler.calls("checkpointTotalSupply"));
+        console2.log("claim calls:", handler.calls("claim"));
+        console2.log("setRecipient calls:", handler.calls("setRecipient"));
+        console2.log("injectReward calls:", handler.calls("injectReward"));
+        console2.log("withdrawAll calls:", handler.calls("withdrawAll"));
+        console2.log("createLock calls:", handler.calls("createLock"));
+        console2.log("feed calls:", handler.calls("feed"));
+
+        // Record initial contract balance
+        uint256 initialContractBalance = l2wct.balanceOf(address(stakingRewardDistributor));
+        console2.log("Initial contract balance:", initialContractBalance);
+
+        // Time warp to max lock in the future in iterations of 50 weeks
+        uint256 remainingTime = stakeWeight.maxLock();
+        while (remainingTime > 0) {
+            uint256 timeJump = remainingTime > 50 weeks ? 50 weeks : remainingTime;
+            vm.warp(block.timestamp + timeJump);
+            stakingRewardDistributor.checkpointToken();
+            stakingRewardDistributor.checkpointTotalSupply();
+            remainingTime -= timeJump;
+        }
+
+        // Claim for all users after time warp
+        address[] memory users = store.getUsers();
+        uint256 totalClaimed = 0;
+        uint256 totalLockedAmount = 0;
+
+        for (uint256 i = 0; i < users.length; i++) {
+            uint256 lockedAmount = store.getLockedAmount(users[i]);
+            totalLockedAmount += lockedAmount;
+
+            uint256 balanceBeforeClaim = l2wct.balanceOf(address(stakingRewardDistributor));
+            uint256 claimed = stakingRewardDistributor.claim(users[i]);
+            uint256 balanceAfterClaim = l2wct.balanceOf(address(stakingRewardDistributor));
+
+            totalClaimed += claimed;
+
+            assertEq(claimed, balanceBeforeClaim - balanceAfterClaim, "Claim amount should match balance change");
+        }
+
+        uint256 finalContractBalance = l2wct.balanceOf(address(stakingRewardDistributor));
+
+        assertGe(
+            stakingRewardDistributor.totalDistributed(),
+            totalClaimed + finalContractBalance,
+            "Total distributed should be greater than or equal to total claimed plus final balance"
+        );
+
+        console2.log("afterInvariant checks completed successfully");
+    }
+}

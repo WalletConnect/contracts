@@ -1,0 +1,5 @@
+getWhitelistedNodeAtIndex.t.sol
+├── given there is a node at a specific index
+│   └── it should return the correct node
+└── given there is no node at a specific index
+    └── it should revert

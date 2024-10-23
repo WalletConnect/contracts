@@ -1,0 +1,11 @@
+setMaxLock.t.sol
+├── when caller is not admin
+│   └── it should revert with AccessControlUnauthorizedAccount error
+└── when caller is admin
+    ├── when new maxLock is greater than 209 weeks minus 1
+    │   └── it should revert with InvalidMaxLock error
+    ├── when new maxLock is less than current maxLock
+    │   └── it should revert with InvalidMaxLock error
+    └── when new maxLock is valid (between current maxLock and 209 weeks minus 1)
+        ├── it should set the new maxLock value
+        └── it should emit a MaxLockUpdated event

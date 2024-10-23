@@ -1,0 +1,19 @@
+grantRole.t.sol
+├── when caller doesn't have DEFAULT_ADMIN_ROLE
+│   ├── when granting DEFAULT_ADMIN_ROLE
+│   │   └── it should revert with AccessControlUnauthorizedAccount
+│   └── when granting MANAGER_ROLE
+│       └── it should revert with AccessControlUnauthorizedAccount
+└── when caller has DEFAULT_ADMIN_ROLE
+    ├── when granting DEFAULT_ADMIN_ROLE
+    │   ├── when account doesn't have DEFAULT_ADMIN_ROLE
+    │   │   ├── it should grant the role
+    │   │   └── it should emit RoleGranted event
+    │   └── when account already has DEFAULT_ADMIN_ROLE
+    │       └── it should not revert
+    └── when granting MANAGER_ROLE
+        ├── when account doesn't have MANAGER_ROLE
+        │   ├── it should grant the role
+        │   └── it should emit RoleGranted event
+        └── when account already has MANAGER_ROLE
+            └── it should not revert

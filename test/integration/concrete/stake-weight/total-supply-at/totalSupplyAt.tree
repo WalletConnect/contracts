@@ -1,0 +1,22 @@
+totalSupplyAt.t.sol
+├── when querying supply at a block before any locks
+│   └── it should return zero
+├── when querying supply at the current block
+│   └── it should match the regular totalSupply
+├── when querying supply at a block with active locks
+│   ├── it should return the sum of all active locks at that block
+│   └── it should be less than or equal to the current totalSupply
+├── when querying supply at a block after some locks have expired
+│   ├── it should only include non-expired locks in the total supply
+│   └── it should be less than the original totalSupply
+├── when querying supply at a block after all locks have expired
+│   └── it should return zero
+├── when locks have different durations
+│   └── it should correctly calculate partial lock values
+├── when querying supply backwards after creating locks
+│   ├── it should increase as we query backwards
+│   └── it should match the initial supply at the start block
+├── when querying across epoch boundaries
+│   └── it should correctly interpolate values between epochs
+└── when querying a future block
+    └── it should revert with FutureBlockNumber error

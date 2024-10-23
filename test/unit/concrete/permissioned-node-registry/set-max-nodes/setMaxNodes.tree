@@ -1,0 +1,11 @@
+setMaxNodes.t.sol
+├── when the caller is not the owner
+│   └── it should revert
+└── when the caller is the owner
+    ├── when the new max nodes is lt current node count
+    │   └── it should revert
+    ├── when the new max nodes eq current node count
+    │   └── it should revert
+    └── when the new max nodes gt current node count
+        ├── it should set the max nodes
+        └── it should emit a {MaxNodesSet} event

@@ -1,0 +1,14 @@
+claim.t.sol
+├── given the contract is paused
+│   └── it should revert when attempting to claim
+└── given the contract is not paused
+    ├── when the amount to claim is zero
+    │   └── it should revert with InvalidAmount
+    ├── when the caller has already claimed
+    │   └── it should revert with AlreadyClaimed
+    ├── when the proof is invalid
+    │   └── it should revert with InvalidProof
+    └── when the claim is valid
+        ├── it should transfer the correct amount of tokens to the caller
+        ├── it should mark the caller as having claimed
+        └── it should emit a TokensClaimed event

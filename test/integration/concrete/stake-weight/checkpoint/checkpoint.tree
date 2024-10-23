@@ -1,0 +1,40 @@
+checkpoint.t.sol
+├── given there are no existing locks
+│   ├── it should update the global point history with current timestamp
+│   ├── it should set the global point bias to zero
+│   ├── it should set the global point slope to zero
+│   ├── it should not change the total supply
+│   └── it should increment the epoch by 1
+├── given there are existing locks
+│   ├── when no time has passed since last checkpoint
+│   │   ├── it should add one point to the global point history
+│   │   ├── it should set the timestamp of the latest point to the current timestamp
+│   │   ├── it should increment the epoch by 1
+│   │   └── it should not change the total supply
+│   ├── when less than a week has passed since last checkpoint
+│   │   ├── it should update the global point history with current timestamp
+│   │   ├── it should correctly calculate and set the global point bias
+│   │   ├── it should correctly calculate and set the global point slope
+│   │   ├── it should decrease the total supply
+│   │   └── it should increment the epoch by 1
+│   ├── when multiple weeks have passed since last checkpoint
+│   │   ├── it should update the global point history for each week
+│   │   ├── it should set the timestamp of the latest point to the current timestamp
+│   │   ├── it should correctly calculate and set the global point bias for each update
+│   │   ├── it should correctly calculate and set the global point slope for each update
+│   │   ├── it should update the total supply
+│   │   └── it should increment the epoch by (number of weeks passed + 1)
+│   ├── when some locks are expiring
+│   │   ├── it should correctly calculate and set the global point bias (accounting for expired locks)
+│   │   ├── it should correctly calculate and set the global point slope (accounting for expired locks)
+│   │   ├── it should decrease the total supply by the amount of expired locks
+│   │   └── it should set the timestamp of the latest point to the current timestamp
+│   └── when all locks are expiring
+│       ├── it should set the global point bias to zero
+│       ├── it should set the global point slope to zero
+│       ├── it should set the total supply to zero
+│       └── it should set the timestamp of the latest point to the current timestamp
+└── when called multiple times in the same block
+    ├── it should only update once
+    ├── it should increment the epoch for the number of times it's called in the same block
+    └── it should only increase the length of the global point history by 1

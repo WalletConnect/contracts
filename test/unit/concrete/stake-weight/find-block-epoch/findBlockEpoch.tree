@@ -1,0 +1,9 @@
+_findBlockEpoch.t.sol
+├── when block number is less than the first point's block number
+│   └── it should return 0
+├── when block number is equal to a point's block number
+│   └── it should return that point's epoch
+├── when block number is between two points
+│   └── it should return the epoch of the earlier point
+└── when block number is greater than the last point's block number
+    └── it should return the last epoch

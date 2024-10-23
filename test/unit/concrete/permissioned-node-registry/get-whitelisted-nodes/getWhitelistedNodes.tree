@@ -1,0 +1,5 @@
+getWhitelistedNodes.t.sol
+├── given nodes have been whitelisted
+│   └── it should return the list of whitelisted nodes
+└── given no nodes have been whitelisted
+    └── it should return an empty list

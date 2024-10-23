@@ -1,0 +1,5 @@
+isNodeWhitelisted.t.sol
+├── given a nodes is whitelisted
+│   └── it should return true
+└── given a node is not whitelisted
+    └── it should return false
