@@ -53,7 +53,7 @@ contract WithdrawAll_StakeWeight_Integration_Concrete_Test is StakeWeight_Integr
         emit Supply(initialSupply, initialSupply - LOCK_AMOUNT);
 
         vm.expectEmit(true, true, true, true);
-        emit Withdraw(users.alice, LOCK_AMOUNT, block.timestamp);
+        emit Withdraw(users.alice, LOCK_AMOUNT, LOCK_AMOUNT, block.timestamp);
 
         stakeWeight.withdrawAll();
 

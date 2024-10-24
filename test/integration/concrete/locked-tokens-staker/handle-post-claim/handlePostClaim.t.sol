@@ -108,7 +108,7 @@ contract HandlePostClaim_LockedTokenStaker_Integration_Concrete_Test is LockedTo
         emit Supply(initialSupply, initialSupply - LOCK_AMOUNT);
 
         vm.expectEmit(true, true, true, true);
-        emit Withdraw(users.alice, LOCK_AMOUNT, block.timestamp);
+        emit Withdraw(users.alice, LOCK_AMOUNT, 0, block.timestamp);
 
         vester.withdraw(
             CLAIM_AMOUNT, // withdrawalAmount

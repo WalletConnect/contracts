@@ -1,5 +1,11 @@
 pragma solidity >=0.8.25 <0.9.0;
 
+struct AllocationData {
+    address beneficiary;
+    bytes decodableArgs;
+    bytes32[] proofs;
+}
+
 contract StakeWeightStore {
     struct UserInfo {
         int128 lockedAmount;
@@ -10,10 +16,15 @@ contract StakeWeightStore {
     }
 
     mapping(address => UserInfo) public userInfo;
+
+    AllocationData[] public allocations;
+    mapping(address => bool) public hasAllocation;
+
     address[] public addressesWithLock;
     mapping(address => bool) public hasLock;
 
     int128 public totalLockedAmount;
+    int128 public nonTransferableBalance;
     uint256 public totalWithdrawnAmount;
 
     function addAddressWithLock(address user) public {
@@ -44,6 +55,40 @@ contract StakeWeightStore {
         require(addressesWithLock.length > 0, "No addresses with lock");
         return addressesWithLock[uint256(keccak256(abi.encodePacked(block.timestamp, block.prevrandao, msg.sender)))
             % addressesWithLock.length];
+    }
+
+    function addAllocation(AllocationData memory allocation) public {
+        if (!hasAllocation[allocation.beneficiary]) {
+            allocations.push(allocation);
+            hasAllocation[allocation.beneficiary] = true;
+        }
+    }
+
+    function removeAllocation(address user) public {
+        if (hasAllocation[user]) {
+            for (uint256 i = 0; i < allocations.length; i++) {
+                if (allocations[i].beneficiary == user) {
+                    allocations[i] = allocations[allocations.length - 1];
+                    allocations.pop();
+                    break;
+                }
+            }
+            hasAllocation[user] = false;
+        }
+    }
+
+    function getAllocations() public view returns (AllocationData[] memory) {
+        return allocations;
+    }
+
+    function getRandomAllocation(uint256 seed) public view returns (AllocationData memory) {
+        require(allocations.length > 0, "No allocations");
+        return allocations[uint256(keccak256(abi.encodePacked(block.timestamp, block.prevrandao, msg.sender, seed)))
+            % allocations.length];
+    }
+
+    function updateNonTransferableBalance(int128 amount) public {
+        nonTransferableBalance += amount;
     }
 
     function updateLockedAmount(address user, int128 amount) public {

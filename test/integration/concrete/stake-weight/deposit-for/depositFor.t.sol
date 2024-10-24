@@ -83,7 +83,14 @@ contract DepositFor_StakeWeight_Integration_Concrete_Test is StakeWeight_Integra
         l2wct.approve(address(stakeWeight), additionalAmount);
 
         vm.expectEmit(true, true, true, true);
-        emit Deposit(users.alice, additionalAmount, initialLock.end, stakeWeight.ACTION_DEPOSIT_FOR(), block.timestamp);
+        emit Deposit(
+            users.alice,
+            additionalAmount,
+            initialLock.end,
+            stakeWeight.ACTION_DEPOSIT_FOR(),
+            additionalAmount,
+            block.timestamp
+        );
 
         vm.expectEmit(true, true, true, true);
         emit Supply(initialSupply, initialSupply + additionalAmount);

@@ -18,9 +18,6 @@ abstract contract LockedTokenStaker_Integration_Shared_Test is Integration_Test 
     function setUp() public virtual override {
         super.setUp();
 
-        lockedTokenStaker =
-            new LockedTokenStaker({ vesterContract_: IMerkleVester(address(vester)), config_: walletConnectConfig });
-
         disableTransferRestrictions();
 
         merkle = new Merkle();

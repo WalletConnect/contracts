@@ -55,7 +55,12 @@ contract IncreaseLockAmount_StakeWeight_Integration_Concrete_Test is StakeWeight
 
         vm.expectEmit(true, true, true, true);
         emit Deposit(
-            users.alice, INCREASE_AMOUNT, initialLock.end, stakeWeight.ACTION_INCREASE_LOCK_AMOUNT(), block.timestamp
+            users.alice,
+            INCREASE_AMOUNT,
+            initialLock.end,
+            stakeWeight.ACTION_INCREASE_LOCK_AMOUNT(),
+            INCREASE_AMOUNT,
+            block.timestamp
         );
 
         vm.expectEmit(true, true, true, true);

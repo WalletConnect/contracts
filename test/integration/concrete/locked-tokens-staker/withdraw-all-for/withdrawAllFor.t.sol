@@ -71,7 +71,7 @@ contract WithdrawAllFor_LockedTokenStaker_Integration_Concrete_Test is LockedTok
         emit Supply(initialSupply, initialSupply - LOCK_AMOUNT);
 
         vm.expectEmit(true, true, true, true);
-        emit Withdraw(users.alice, LOCK_AMOUNT, block.timestamp);
+        emit Withdraw(users.alice, LOCK_AMOUNT, 0, block.timestamp);
 
         vm.prank(users.alice);
         lockedTokenStaker.withdrawAllFor(users.alice);

@@ -131,7 +131,7 @@ contract CreateLockFor_LockedTokenStaker_Integration_Concrete_Test is LockedToke
 
         vm.startPrank(users.alice);
         vm.expectEmit(true, true, true, true);
-        emit Deposit(users.alice, amount, unlockTime, stakeWeight.ACTION_CREATE_LOCK(), block.timestamp);
+        emit Deposit(users.alice, amount, unlockTime, stakeWeight.ACTION_CREATE_LOCK(), 0, block.timestamp);
         lockedTokenStaker.createLockFor(users.alice, amount, unlockTime, 0, decodableArgs, proof);
 
         // Check lock creation

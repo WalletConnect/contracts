@@ -83,7 +83,7 @@ contract CreateLock_StakeWeight_Unit_Concrete_Test is StakeWeight_Integration_Sh
         uint256 supplyBefore = stakeWeight.supply();
 
         vm.expectEmit(true, true, true, true);
-        emit Deposit(users.alice, amount, unlockTime, stakeWeight.ACTION_CREATE_LOCK(), block.timestamp);
+        emit Deposit(users.alice, amount, unlockTime, stakeWeight.ACTION_CREATE_LOCK(), amount, block.timestamp);
         stakeWeight.createLock(amount, unlockTime);
 
         // Check lock creation
@@ -130,7 +130,12 @@ contract CreateLock_StakeWeight_Unit_Concrete_Test is StakeWeight_Integration_Sh
 
         vm.expectEmit(true, true, true, true);
         emit Deposit(
-            users.alice, amount, _timestampToFloorWeek(unlockTime), stakeWeight.ACTION_CREATE_LOCK(), block.timestamp
+            users.alice,
+            amount,
+            _timestampToFloorWeek(unlockTime),
+            stakeWeight.ACTION_CREATE_LOCK(),
+            amount,
+            block.timestamp
         );
         stakeWeight.createLock(amount, unlockTime);
     }

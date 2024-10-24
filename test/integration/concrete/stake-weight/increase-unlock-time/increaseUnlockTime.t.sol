@@ -67,7 +67,9 @@ contract IncreaseUnlockTime_StakeWeight_Integration_Concrete_Test is StakeWeight
         uint256 initialStakeWeight = stakeWeight.balanceOf(users.alice);
 
         vm.expectEmit(true, true, true, true);
-        emit Deposit(users.alice, 0, newUnlockTimeFloored, stakeWeight.ACTION_INCREASE_UNLOCK_TIME(), block.timestamp);
+        emit Deposit(
+            users.alice, 0, newUnlockTimeFloored, stakeWeight.ACTION_INCREASE_UNLOCK_TIME(), 0, block.timestamp
+        );
 
         vm.expectEmit(true, true, true, true);
         emit Supply(initialSupply, stakeWeight.supply());

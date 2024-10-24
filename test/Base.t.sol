@@ -12,7 +12,7 @@ import { StakeWeight } from "src/StakeWeight.sol";
 import { Staking } from "src/Staking.sol";
 import { StakingRewardDistributor } from "src/StakingRewardDistributor.sol";
 import { LockedTokenStaker } from "src/LockedTokenStaker.sol";
-import { MerkleVester } from "src/interfaces/MerkleVester.sol";
+import { MerkleVester, IMerkleVester, IPostClaimHandler } from "src/interfaces/MerkleVester.sol";
 import { MockBridge } from "./mocks/MockBridge.sol";
 import {
     newPauser,
@@ -165,8 +165,13 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
             0, // No claim fee
             address(0), // No fee collector
             address(0), // No fee setter
+            new IPostClaimHandler[](0), // No post claim handlers
+            0, // Max claim fee
             true // Direct claim allowed
         );
+
+        lockedTokenStaker =
+            new LockedTokenStaker({ vesterContract_: IMerkleVester(address(vester)), config_: walletConnectConfig });
 
         // Update the WalletConnectConfig with the necessary contracts.
         walletConnectConfig.updateWCT(address(wct));
@@ -189,6 +194,8 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
         vm.label({ account: address(stakeWeight), newLabel: "StakeWeight" });
         vm.label({ account: address(mockBridge), newLabel: "MockBridge" });
         vm.label({ account: address(stakingRewardDistributor), newLabel: "StakingRewardDistributor" });
+        vm.label({ account: address(vester), newLabel: "MerkleVester" });
+        vm.label({ account: address(lockedTokenStaker), newLabel: "LockedTokenStaker" });
     }
 
     function deployMockBridge() internal {

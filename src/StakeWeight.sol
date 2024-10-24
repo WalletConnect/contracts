@@ -39,24 +39,17 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
         uint256 blockNumber;
     }
 
-    /// @notice The type of lock (transferred or non-transferred)
-    /// @dev Used to determine if the lock gave tokens to the staking contract (through LockedTokenStaker)
-    enum LockType {
-        NonTransferred,
-        Transferred
-    }
-
     /// @notice A struct representing a locked balance
     struct LockedBalance {
         /// @notice The amount of locked tokens
         int128 amount;
         /// @notice The end time of the lock
         uint256 end;
-        /// @notice The type of lock (transferred or non-transferred)
-        LockType lockType;
+        /// @notice The transferred tokens (if any)
+        uint256 transferredAmount;
     }
-    /// @notice Initialization parameters for the StakeWeight contract
 
+    /// @notice Initialization parameters for the StakeWeight contract
     struct Init {
         /// @notice The address of the admin
         address admin;
@@ -121,8 +114,17 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
                                     EVENTS
     //////////////////////////////////////////////////////////////////////////*/
 
-    event Deposit(address indexed provider, uint256 value, uint256 locktime, uint256 type_, uint256 timestamp);
-    event Withdraw(address indexed provider, uint256 value, uint256 timestamp);
+    event Deposit(
+        address indexed provider,
+        uint256 amount,
+        uint256 locktime,
+        uint256 type_,
+        uint256 transferredAmount,
+        uint256 timestamp
+    );
+
+    event Withdraw(address indexed provider, uint256 totalAmount, uint256 transferredAmount, uint256 timestamp);
+
     event Supply(uint256 previousSupply, uint256 newSupply);
     event MaxLockUpdated(uint256 previousMaxLock, uint256 newMaxLock);
 
@@ -140,9 +142,6 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
 
     /// @notice Thrown when attempting to create a lock that already exists
     error AlreadyCreatedLock();
-
-    /// @notice Thrown when trying to mix different lock types for the same user
-    error MixedLockTypes();
 
     /// @notice Thrown when attempting to operate on a non-existent lock
     error NonExistentLock();
@@ -473,7 +472,7 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
 
     /// @notice Trigger global checkpoint
     function checkpoint() external {
-        LockedBalance memory empty = LockedBalance({ amount: 0, end: 0, lockType: LockType.Transferred });
+        LockedBalance memory empty = LockedBalance({ amount: 0, end: 0, transferredAmount: 0 });
         _checkpoint(address(0), empty, empty);
     }
 
@@ -485,7 +484,7 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
     function createLock(uint256 amount, uint256 unlockTime) external nonReentrant {
         StakeWeightStorage storage s = _getStakeWeightStorage();
         if (Pauser(s.config.getPauser()).isStakeWeightPaused()) revert Paused();
-        _createLock(msg.sender, amount, unlockTime, LockType.Transferred);
+        _createLock(msg.sender, amount, unlockTime, true);
     }
 
     function createLockFor(
@@ -499,10 +498,10 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
     {
         StakeWeightStorage storage s = _getStakeWeightStorage();
         if (Pauser(s.config.getPauser()).isStakeWeightPaused()) revert Paused();
-        _createLock(for_, amount, unlockTime, LockType.NonTransferred);
+        _createLock(for_, amount, unlockTime, false);
     }
 
-    function _createLock(address for_, uint256 amount, uint256 unlockTime, LockType lockType) internal {
+    function _createLock(address for_, uint256 amount, uint256 unlockTime, bool isTransferred) internal {
         unlockTime = _timestampToFloorWeek(unlockTime);
         StakeWeightStorage storage s = _getStakeWeightStorage();
         LockedBalance memory locked = s.locks[for_];
@@ -514,7 +513,7 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
             revert LockMaxDurationExceeded(unlockTime, block.timestamp + s.maxLock);
         }
 
-        _depositFor(for_, amount, unlockTime, locked, ACTION_CREATE_LOCK, lockType);
+        _depositFor(for_, amount, unlockTime, locked, ACTION_CREATE_LOCK, isTransferred);
     }
     /// @notice Deposit `amount` tokens for `for_` and add to `locks[for_]`
     /// @dev This function is used for deposit to created lock. Not for extend locktime.
@@ -524,15 +523,18 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
     function depositFor(address for_, uint256 amount) external nonReentrant {
         StakeWeightStorage storage s = _getStakeWeightStorage();
         if (Pauser(s.config.getPauser()).isStakeWeightPaused()) revert Paused();
-        LockedBalance memory lock =
-            LockedBalance({ amount: s.locks[for_].amount, end: s.locks[for_].end, lockType: s.locks[for_].lockType });
+        LockedBalance memory lock = LockedBalance({
+            amount: s.locks[for_].amount,
+            end: s.locks[for_].end,
+            transferredAmount: s.locks[for_].transferredAmount
+        });
 
         if (for_ == address(0)) revert InvalidAddress(for_);
         if (amount == 0) revert InvalidAmount(amount);
         if (lock.amount == 0) revert NonExistentLock();
         if (lock.end <= block.timestamp) revert ExpiredLock(block.timestamp, lock.end);
 
-        _depositFor(for_, amount, 0, lock, ACTION_DEPOSIT_FOR, LockType.Transferred);
+        _depositFor(for_, amount, 0, lock, ACTION_DEPOSIT_FOR, true);
     }
 
     /// @notice Internal function to perform deposit and lock WCT for a user
@@ -547,24 +549,22 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
         uint256 unlockTime,
         LockedBalance memory prevLocked,
         uint256 actionType,
-        LockType lockType
+        bool isTransferred
     )
         internal
     {
         StakeWeightStorage storage s = _getStakeWeightStorage();
-
-        // Ensure lock types are not mixed
-        if (prevLocked.amount > 0 && prevLocked.lockType != lockType) {
-            revert MixedLockTypes();
-        }
 
         // Initiate supplyBefore & update supply
         uint256 supplyBefore = s.supply;
         s.supply = supplyBefore + amount;
 
         // Store prevLocked
-        LockedBalance memory newLocked =
-            LockedBalance({ amount: prevLocked.amount, end: prevLocked.end, lockType: lockType });
+        LockedBalance memory newLocked = LockedBalance({
+            amount: prevLocked.amount,
+            end: prevLocked.end,
+            transferredAmount: prevLocked.transferredAmount
+        });
 
         // Adding new lock to existing lock, or if lock is expired
         // - creating a new one
@@ -572,16 +572,21 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
         if (unlockTime != 0) {
             newLocked.end = unlockTime;
         }
+
+        if (isTransferred) {
+            newLocked.transferredAmount += amount;
+        }
+
         s.locks[for_] = newLocked;
 
         // Handling checkpoint here
         _checkpoint(for_, prevLocked, newLocked);
 
-        if (lockType == LockType.Transferred) {
+        if (isTransferred) {
             IERC20(s.config.getL2wct()).safeTransferFrom(msg.sender, address(this), amount);
         }
 
-        emit Deposit(for_, amount, newLocked.end, actionType, block.timestamp);
+        emit Deposit(for_, amount, newLocked.end, actionType, isTransferred ? amount : 0, block.timestamp);
         emit Supply(supplyBefore, s.supply);
     }
 
@@ -633,7 +638,7 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
     function increaseLockAmount(uint256 amount) external nonReentrant {
         StakeWeightStorage storage s = _getStakeWeightStorage();
         if (Pauser(s.config.getPauser()).isStakeWeightPaused()) revert Paused();
-        _increaseLockAmount(msg.sender, amount);
+        _increaseLockAmount(msg.sender, amount, true);
     }
 
     function increaseLockAmountFor(
@@ -646,16 +651,16 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
     {
         StakeWeightStorage storage s = _getStakeWeightStorage();
         if (Pauser(s.config.getPauser()).isStakeWeightPaused()) revert Paused();
-        _increaseLockAmount(for_, amount);
+        _increaseLockAmount(for_, amount, false);
     }
 
-    function _increaseLockAmount(address for_, uint256 amount) internal {
+    function _increaseLockAmount(address for_, uint256 amount, bool isTransferred) internal {
         StakeWeightStorage storage s = _getStakeWeightStorage();
         LockedBalance memory lock = s.locks[for_];
         if (amount == 0) revert InvalidAmount(amount);
         if (lock.amount == 0) revert NonExistentLock();
         if (lock.end <= block.timestamp) revert ExpiredLock(block.timestamp, lock.end);
-        _depositFor(for_, amount, 0, lock, ACTION_INCREASE_LOCK_AMOUNT, lock.lockType);
+        _depositFor(for_, amount, 0, lock, ACTION_INCREASE_LOCK_AMOUNT, isTransferred);
     }
 
     /// @notice Increase unlock time without changing locked amount
@@ -663,7 +668,7 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
     function increaseUnlockTime(uint256 newUnlockTime) external nonReentrant {
         StakeWeightStorage storage s = _getStakeWeightStorage();
         if (Pauser(s.config.getPauser()).isStakeWeightPaused()) revert Paused();
-        _increaseUnlockTime(msg.sender, newUnlockTime, LockType.Transferred);
+        _increaseUnlockTime(msg.sender, newUnlockTime);
     }
 
     function increaseUnlockTimeFor(
@@ -676,10 +681,10 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
     {
         StakeWeightStorage storage s = _getStakeWeightStorage();
         if (Pauser(s.config.getPauser()).isStakeWeightPaused()) revert Paused();
-        _increaseUnlockTime(for_, newUnlockTime, LockType.NonTransferred);
+        _increaseUnlockTime(for_, newUnlockTime);
     }
 
-    function _increaseUnlockTime(address for_, uint256 newUnlockTime, LockType lockType) internal {
+    function _increaseUnlockTime(address for_, uint256 newUnlockTime) internal {
         StakeWeightStorage storage s = _getStakeWeightStorage();
         LockedBalance memory locked = s.locks[for_];
         newUnlockTime = _timestampToFloorWeek(newUnlockTime);
@@ -689,7 +694,7 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
         if (newUnlockTime > block.timestamp + s.maxLock) {
             revert LockMaxDurationExceeded(newUnlockTime, _timestampToFloorWeek(block.timestamp + s.maxLock));
         }
-        _depositFor(for_, 0, newUnlockTime, locked, ACTION_INCREASE_UNLOCK_TIME, lockType);
+        _depositFor(for_, 0, newUnlockTime, locked, ACTION_INCREASE_UNLOCK_TIME, false);
     }
 
     /// @notice Round off random timestamp to week
@@ -777,14 +782,14 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
 
     /// @notice Withdraw all WCT when lock has expired.
     function withdrawAll() external nonReentrant {
-        _withdrawAll(msg.sender, LockType.Transferred);
+        _withdrawAll(msg.sender);
     }
 
     function withdrawAllFor(address user) external nonReentrant onlyRole(LOCKED_TOKEN_STAKER_ROLE) {
-        _withdrawAll(user, LockType.NonTransferred);
+        _withdrawAll(user);
     }
 
-    function _withdrawAll(address user, LockType lockType) internal {
+    function _withdrawAll(address user) internal {
         StakeWeightStorage storage s = _getStakeWeightStorage();
         WalletConnectConfig wcConfig = s.config;
         if (Pauser(wcConfig.getPauser()).isStakeWeightPaused()) revert Paused();
@@ -793,14 +798,15 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
         if (lock.end > block.timestamp) revert LockStillActive(lock.end);
 
         uint256 amount = SafeCast.toUint256(lock.amount);
+        uint256 transferredAmount = lock.transferredAmount;
 
         _unlock(user, lock, amount);
 
-        if (lockType == LockType.Transferred) {
-            IERC20(wcConfig.getL2wct()).safeTransfer(user, amount);
+        if (transferredAmount > 0) {
+            IERC20(wcConfig.getL2wct()).safeTransfer(user, transferredAmount);
         }
 
-        emit Withdraw(user, amount, block.timestamp);
+        emit Withdraw(user, amount, transferredAmount, block.timestamp);
     }
 
     function _unlock(address user, LockedBalance memory lock, uint256 withdrawAmount) internal {
@@ -811,10 +817,13 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
             revert InsufficientLockedAmount(withdrawAmount, lockedAmount);
         }
 
-        LockedBalance memory prevLock = LockedBalance({ end: lock.end, amount: lock.amount, lockType: lock.lockType });
+        LockedBalance memory prevLock =
+            LockedBalance({ end: lock.end, amount: lock.amount, transferredAmount: lock.transferredAmount });
         //lock.end should remain the same if we do partially withdraw
         lock.end = lockedAmount == withdrawAmount ? 0 : lock.end;
         lock.amount = SafeCast.toInt128(int256(lockedAmount - withdrawAmount));
+        // reset transferredAmount to 0, as it's sent to user on _withdrawAll
+        lock.transferredAmount = 0;
         s.locks[user] = lock;
 
         uint256 supplyBefore = s.supply;

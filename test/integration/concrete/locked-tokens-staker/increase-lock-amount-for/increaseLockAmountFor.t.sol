@@ -115,7 +115,7 @@ contract IncreaseLockAmountFor_LockedTokenStaker_Integration_Concrete_Test is
 
         vm.expectEmit(true, true, true, true);
         emit Deposit(
-            users.alice, INCREASE_AMOUNT, initialLock.end, stakeWeight.ACTION_INCREASE_LOCK_AMOUNT(), block.timestamp
+            users.alice, INCREASE_AMOUNT, initialLock.end, stakeWeight.ACTION_INCREASE_LOCK_AMOUNT(), 0, block.timestamp
         );
 
         vm.expectEmit(true, true, true, true);
