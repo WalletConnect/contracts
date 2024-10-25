@@ -1,12 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import { IPostClaimHandler } from "src/interfaces/magna/IPostClaimHandler.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { StakeWeight } from "src/StakeWeight.sol";
 import { WalletConnectConfig } from "src/WalletConnectConfig.sol";
-import { IMerkleVester, Allocation } from "./interfaces/MerkleVester.sol";
+import { IMerkleVester, Allocation, IPostClaimHandler, IERC20, SafeERC20 } from "./interfaces/MerkleVester.sol";
 import { Pauser } from "./Pauser.sol";
 
 /**
@@ -146,9 +143,11 @@ contract LockedTokenStaker is IPostClaimHandler {
         uint256 amount,
         address originalBeneficiary,
         address withdrawalAddress,
+        string memory allocationId,
         bytes memory extraData
     )
         external
+        override
     {
         if (Pauser(config.getPauser()).isLockedTokenStakerPaused()) {
             revert Paused();

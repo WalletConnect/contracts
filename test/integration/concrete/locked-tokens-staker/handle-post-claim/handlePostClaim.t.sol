@@ -4,9 +4,8 @@ pragma solidity >=0.8.25 <0.9.0;
 import { LockedTokenStaker_Integration_Shared_Test } from "test/integration/shared/LockedTokenStaker.t.sol";
 import { LockedTokenStaker } from "src/LockedTokenStaker.sol";
 import { StakeWeight } from "src/StakeWeight.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import { IPostClaimHandler } from "src/interfaces/MerkleVester.sol";
+import { IPostClaimHandler, IERC20 } from "src/interfaces/MerkleVester.sol";
 
 contract HandlePostClaim_LockedTokenStaker_Integration_Concrete_Test is LockedTokenStaker_Integration_Shared_Test {
     uint256 constant LOCK_AMOUNT = 100 ether;
@@ -36,7 +35,7 @@ contract HandlePostClaim_LockedTokenStaker_Integration_Concrete_Test is LockedTo
 
         vm.expectRevert(LockedTokenStaker.Paused.selector);
         vm.prank(address(vester));
-        lockedTokenStaker.handlePostClaim(IERC20(address(l2wct)), CLAIM_AMOUNT, users.alice, users.alice, "");
+        lockedTokenStaker.handlePostClaim(IERC20(address(l2wct)), CLAIM_AMOUNT, users.alice, users.alice, "", "");
     }
 
     modifier whenContractIsNotPaused() {
@@ -46,7 +45,7 @@ contract HandlePostClaim_LockedTokenStaker_Integration_Concrete_Test is LockedTo
     function test_RevertGiven_CallerIsNotTheVesterContract() external whenContractIsNotPaused {
         vm.expectRevert(LockedTokenStaker.InvalidCaller.selector);
         vm.prank(users.bob);
-        lockedTokenStaker.handlePostClaim(IERC20(address(l2wct)), CLAIM_AMOUNT, users.alice, users.alice, "");
+        lockedTokenStaker.handlePostClaim(IERC20(address(l2wct)), CLAIM_AMOUNT, users.alice, users.alice, "", "");
     }
 
     modifier givenCallerIsTheVesterContract() {
