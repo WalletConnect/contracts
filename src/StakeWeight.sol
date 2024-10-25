@@ -668,25 +668,7 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
     function increaseUnlockTime(uint256 newUnlockTime) external nonReentrant {
         StakeWeightStorage storage s = _getStakeWeightStorage();
         if (Pauser(s.config.getPauser()).isStakeWeightPaused()) revert Paused();
-        _increaseUnlockTime(msg.sender, newUnlockTime);
-    }
-
-    function increaseUnlockTimeFor(
-        address for_,
-        uint256 newUnlockTime
-    )
-        external
-        nonReentrant
-        onlyRole(LOCKED_TOKEN_STAKER_ROLE)
-    {
-        StakeWeightStorage storage s = _getStakeWeightStorage();
-        if (Pauser(s.config.getPauser()).isStakeWeightPaused()) revert Paused();
-        _increaseUnlockTime(for_, newUnlockTime);
-    }
-
-    function _increaseUnlockTime(address for_, uint256 newUnlockTime) internal {
-        StakeWeightStorage storage s = _getStakeWeightStorage();
-        LockedBalance memory locked = s.locks[for_];
+        LockedBalance memory locked = s.locks[msg.sender];
         newUnlockTime = _timestampToFloorWeek(newUnlockTime);
         if (locked.amount == 0) revert NonExistentLock();
         if (locked.end <= block.timestamp) revert ExpiredLock(block.timestamp, locked.end);
@@ -694,7 +676,7 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
         if (newUnlockTime > block.timestamp + s.maxLock) {
             revert LockMaxDurationExceeded(newUnlockTime, _timestampToFloorWeek(block.timestamp + s.maxLock));
         }
-        _depositFor(for_, 0, newUnlockTime, locked, ACTION_INCREASE_UNLOCK_TIME, false);
+        _depositFor(msg.sender, 0, newUnlockTime, locked, ACTION_INCREASE_UNLOCK_TIME, false);
     }
 
     /// @notice Round off random timestamp to week

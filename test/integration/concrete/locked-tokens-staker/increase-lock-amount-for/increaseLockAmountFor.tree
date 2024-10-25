@@ -13,12 +13,11 @@ increaseLockAmountFor.t.sol
             ├── when amount is zero
             │   └── it should revert with InvalidAmount error
             └── when amount is greater than zero
-                ├── when new total amount exceeds allocation
+                ├── when new total amount exceeds available amount (totalAllocation - withdrawn)
                 │   └── it should revert with InsufficientAllocation error
-                └── when new total amount is within allocation
+                └── when new total amount is within available amount
                     ├── it should increase the lock amount
                     ├── it should update the supply
                     ├── it should not transfer tokens from the user
                     ├── it should emit a Deposit event
                     └── it should emit a Supply event
-

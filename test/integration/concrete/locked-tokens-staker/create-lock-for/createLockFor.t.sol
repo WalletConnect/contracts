@@ -14,7 +14,7 @@ contract CreateLockFor_LockedTokenStaker_Integration_Concrete_Test is LockedToke
 
         vm.expectRevert(LockedTokenStaker.Paused.selector);
         vm.prank(users.alice);
-        lockedTokenStaker.createLockFor(users.alice, 100 ether, block.timestamp + 1 weeks, 0, decodableArgs, proof);
+        lockedTokenStaker.createLockFor(100 ether, block.timestamp + 1 weeks, 0, decodableArgs, proof);
     }
 
     modifier whenContractIsNotPaused() {
@@ -26,7 +26,7 @@ contract CreateLockFor_LockedTokenStaker_Integration_Concrete_Test is LockedToke
 
         vm.expectRevert(LockedTokenStaker.InvalidCaller.selector);
         vm.prank(users.bob);
-        lockedTokenStaker.createLockFor(users.alice, 100 ether, block.timestamp + 1 weeks, 0, decodableArgs, proof);
+        lockedTokenStaker.createLockFor(100 ether, block.timestamp + 1 weeks, 0, decodableArgs, proof);
     }
 
     modifier givenUserIsTheOriginalBeneficiary() {
@@ -45,7 +45,7 @@ contract CreateLockFor_LockedTokenStaker_Integration_Concrete_Test is LockedToke
         // Attempt to create another lock
         vm.expectRevert(StakeWeight.AlreadyCreatedLock.selector);
         vm.prank(users.alice);
-        lockedTokenStaker.createLockFor(users.alice, amount, unlockTime, 0, decodableArgs, proof);
+        lockedTokenStaker.createLockFor(amount, unlockTime, 0, decodableArgs, proof);
     }
 
     modifier givenUserDoesNotHaveALock() {
@@ -62,7 +62,7 @@ contract CreateLockFor_LockedTokenStaker_Integration_Concrete_Test is LockedToke
 
         vm.expectRevert(abi.encodeWithSelector(StakeWeight.InvalidAmount.selector, 0));
         vm.prank(users.alice);
-        lockedTokenStaker.createLockFor(users.alice, 0, block.timestamp + 1 weeks, 0, decodableArgs, proof);
+        lockedTokenStaker.createLockFor(0, block.timestamp + 1 weeks, 0, decodableArgs, proof);
     }
 
     function test_RevertWhen_ValueGreaterThanAllocation()
@@ -76,7 +76,33 @@ contract CreateLockFor_LockedTokenStaker_Integration_Concrete_Test is LockedToke
 
         vm.expectRevert(LockedTokenStaker.InsufficientAllocation.selector);
         vm.prank(users.alice);
-        lockedTokenStaker.createLockFor(users.alice, allocation + 1, block.timestamp + 1 weeks, 0, decodableArgs, proof);
+        lockedTokenStaker.createLockFor(allocation + 1, block.timestamp + 1 weeks, 0, decodableArgs, proof);
+    }
+
+    function test_RevertWhen_ValueGreaterThanAvailableAmount()
+        external
+        whenContractIsNotPaused
+        givenUserIsTheOriginalBeneficiary
+        givenUserDoesNotHaveALock
+    {
+        uint256 allocation = 100 ether;
+        (bytes memory decodableArgs, bytes32[] memory proof) = _createAllocation(users.alice, allocation);
+
+        // Get 50% of the allocation unlocked
+        skip(30 days);
+
+        // Simulate a withdrawal
+        uint256 withdrawnAmount = allocation / 2;
+
+        _withdrawFromUser(users.alice, withdrawnAmount, decodableArgs, proof);
+
+        // Calculate the available amount
+        uint256 availableAmount = allocation - withdrawnAmount;
+
+        // Try to create a lock with more than the available amount
+        vm.expectRevert(LockedTokenStaker.InsufficientAllocation.selector);
+        vm.prank(users.alice);
+        lockedTokenStaker.createLockFor(availableAmount + 1, block.timestamp + 1 weeks, 0, decodableArgs, proof);
     }
 
     function test_RevertWhen_UnlockTimeInPast()
@@ -90,7 +116,7 @@ contract CreateLockFor_LockedTokenStaker_Integration_Concrete_Test is LockedToke
         uint256 lockTime = _timestampToFloorWeek(block.timestamp - 1);
         vm.expectRevert(abi.encodeWithSelector(StakeWeight.InvalidUnlockTime.selector, lockTime));
         vm.prank(users.alice);
-        lockedTokenStaker.createLockFor(users.alice, 1 ether, lockTime, 0, decodableArgs, proof);
+        lockedTokenStaker.createLockFor(1 ether, lockTime, 0, decodableArgs, proof);
     }
 
     function test_RevertWhen_UnlockTimeTooFarInFuture()
@@ -110,9 +136,7 @@ contract CreateLockFor_LockedTokenStaker_Integration_Concrete_Test is LockedToke
             )
         );
         vm.prank(users.alice);
-        lockedTokenStaker.createLockFor(
-            users.alice, 1 ether, block.timestamp + maxLock + 2 weeks, 0, decodableArgs, proof
-        );
+        lockedTokenStaker.createLockFor(1 ether, block.timestamp + maxLock + 2 weeks, 0, decodableArgs, proof);
     }
 
     function test_WhenValidParameters()
@@ -132,7 +156,7 @@ contract CreateLockFor_LockedTokenStaker_Integration_Concrete_Test is LockedToke
         vm.startPrank(users.alice);
         vm.expectEmit(true, true, true, true);
         emit Deposit(users.alice, amount, unlockTime, stakeWeight.ACTION_CREATE_LOCK(), 0, block.timestamp);
-        lockedTokenStaker.createLockFor(users.alice, amount, unlockTime, 0, decodableArgs, proof);
+        lockedTokenStaker.createLockFor(amount, unlockTime, 0, decodableArgs, proof);
 
         // Check lock creation
         StakeWeight.LockedBalance memory lock = stakeWeight.locks(users.alice);

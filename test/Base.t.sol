@@ -12,7 +12,7 @@ import { StakeWeight } from "src/StakeWeight.sol";
 import { Staking } from "src/Staking.sol";
 import { StakingRewardDistributor } from "src/StakingRewardDistributor.sol";
 import { LockedTokenStaker } from "src/LockedTokenStaker.sol";
-import { MerkleVester, IMerkleVester, IPostClaimHandler } from "src/interfaces/MerkleVester.sol";
+import { MerkleVester, IPostClaimHandler } from "src/interfaces/MerkleVester.sol";
 import { MockBridge } from "./mocks/MockBridge.sol";
 import {
     newPauser,
@@ -174,7 +174,7 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
         );
 
         lockedTokenStaker =
-            new LockedTokenStaker({ vesterContract_: IMerkleVester(address(vester)), config_: walletConnectConfig });
+            new LockedTokenStaker({ vesterContract_: MerkleVester(address(vester)), config_: walletConnectConfig });
 
         // Update the WalletConnectConfig with the necessary contracts.
         walletConnectConfig.updateWCT(address(wct));

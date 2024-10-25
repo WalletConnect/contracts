@@ -10,9 +10,9 @@ createLockFor.t.sol
         └── given user does not have a lock
             ├── when value is zero
             │   └── it should revert
-            ├── when the value is greater than the users allocation
-            │   └── it should revert
-            └── when the value is less or equal to the users allocation
+            ├── when the value is greater than the available amount (totalAllocation - withdrawn)
+            │   └── it should revert with InsufficientAllocation
+            └── when the value is less or equal to the available amount
                 ├── when unlock time is in the past
                 │   └── it should revert
                 ├── when unlock time is too far in the future

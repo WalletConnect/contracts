@@ -91,7 +91,7 @@ abstract contract LockedTokenStaker_Integration_Shared_Test is Integration_Test 
         deal(address(l2wct), user, amount);
         vm.startPrank(user);
         l2wct.approve(address(lockedTokenStaker), amount);
-        lockedTokenStaker.createLockFor(user, amount, _lockTime, 0, decodableArgs, proof);
+        lockedTokenStaker.createLockFor(amount, _lockTime, 0, decodableArgs, proof);
         vm.stopPrank();
     }
 
@@ -105,7 +105,20 @@ abstract contract LockedTokenStaker_Integration_Shared_Test is Integration_Test 
     {
         vm.startPrank(user);
         l2wct.approve(address(lockedTokenStaker), amount);
-        lockedTokenStaker.increaseLockAmountFor(user, amount, 0, decodableArgs, proof);
+        lockedTokenStaker.increaseLockAmountFor(amount, 0, decodableArgs, proof);
+        vm.stopPrank();
+    }
+
+    function _withdrawFromUser(
+        address user,
+        uint256 amount,
+        bytes memory decodableArgs,
+        bytes32[] memory proof
+    )
+        internal
+    {
+        vm.startPrank(user);
+        vester.withdraw(amount, 0, decodableArgs, proof);
         vm.stopPrank();
     }
 

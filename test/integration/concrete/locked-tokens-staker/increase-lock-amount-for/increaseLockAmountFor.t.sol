@@ -21,7 +21,7 @@ contract IncreaseLockAmountFor_LockedTokenStaker_Integration_Concrete_Test is
 
         vm.expectRevert(LockedTokenStaker.Paused.selector);
         vm.prank(users.alice);
-        lockedTokenStaker.increaseLockAmountFor(users.alice, INCREASE_AMOUNT, 0, decodableArgs, proof);
+        lockedTokenStaker.increaseLockAmountFor(INCREASE_AMOUNT, 0, decodableArgs, proof);
     }
 
     modifier whenContractIsNotPaused() {
@@ -33,7 +33,7 @@ contract IncreaseLockAmountFor_LockedTokenStaker_Integration_Concrete_Test is
 
         vm.expectRevert(LockedTokenStaker.InvalidCaller.selector);
         vm.prank(users.bob);
-        lockedTokenStaker.increaseLockAmountFor(users.alice, INCREASE_AMOUNT, 0, decodableArgs, proof);
+        lockedTokenStaker.increaseLockAmountFor(INCREASE_AMOUNT, 0, decodableArgs, proof);
     }
 
     modifier givenCallerIsTheOriginalBeneficiary() {
@@ -49,7 +49,7 @@ contract IncreaseLockAmountFor_LockedTokenStaker_Integration_Concrete_Test is
 
         vm.expectRevert(StakeWeight.NonExistentLock.selector);
         vm.prank(users.alice);
-        lockedTokenStaker.increaseLockAmountFor(users.alice, INCREASE_AMOUNT, 0, decodableArgs, proof);
+        lockedTokenStaker.increaseLockAmountFor(INCREASE_AMOUNT, 0, decodableArgs, proof);
     }
 
     modifier givenUserHasExistingLock() {
@@ -71,7 +71,7 @@ contract IncreaseLockAmountFor_LockedTokenStaker_Integration_Concrete_Test is
 
         vm.expectRevert(abi.encodeWithSelector(StakeWeight.ExpiredLock.selector, block.timestamp, lock.end));
         vm.prank(users.alice);
-        lockedTokenStaker.increaseLockAmountFor(users.alice, INCREASE_AMOUNT, 0, decodableArgs, proof);
+        lockedTokenStaker.increaseLockAmountFor(INCREASE_AMOUNT, 0, decodableArgs, proof);
     }
 
     function test_RevertWhen_AmountIsZero()
@@ -84,7 +84,7 @@ contract IncreaseLockAmountFor_LockedTokenStaker_Integration_Concrete_Test is
 
         vm.expectRevert(abi.encodeWithSelector(StakeWeight.InvalidAmount.selector, 0));
         vm.prank(users.alice);
-        lockedTokenStaker.increaseLockAmountFor(users.alice, 0, 0, decodableArgs, proof);
+        lockedTokenStaker.increaseLockAmountFor(0, 0, decodableArgs, proof);
     }
 
     function test_RevertWhen_NewTotalAmountExceedsAllocation()
@@ -95,7 +95,32 @@ contract IncreaseLockAmountFor_LockedTokenStaker_Integration_Concrete_Test is
     {
         vm.expectRevert(LockedTokenStaker.InsufficientAllocation.selector);
         vm.prank(users.alice);
-        lockedTokenStaker.increaseLockAmountFor(users.alice, INCREASE_AMOUNT + 1 ether, 0, decodableArgs, proof);
+        lockedTokenStaker.increaseLockAmountFor(INCREASE_AMOUNT + 1 ether, 0, decodableArgs, proof);
+    }
+
+    function test_RevertWhen_NewTotalAmountExceedsAvailableAmount()
+        external
+        whenContractIsNotPaused
+        givenCallerIsTheOriginalBeneficiary
+        givenUserHasExistingLock
+    {
+        uint256 allocation = INITIAL_LOCK_AMOUNT + INCREASE_AMOUNT;
+
+        // Get 50% of the allocation unlocked
+        skip(30 days);
+
+        // Simulate a withdrawal
+        uint256 withdrawnAmount = allocation / 2;
+        // _withdrawFromUser(users.alice, withdrawnAmount, decodableArgs, proof);
+
+        // Calculate the available amount
+        uint256 availableAmount = allocation - withdrawnAmount;
+
+        // Try to increase the lock amount by more than the available amount
+        uint256 excessAmount = 1 ether;
+        vm.expectRevert(LockedTokenStaker.InsufficientAllocation.selector);
+        vm.prank(users.alice);
+        lockedTokenStaker.increaseLockAmountFor(availableAmount + excessAmount, 0, decodableArgs, proof);
     }
 
     function test_WhenValidParameters()
@@ -121,7 +146,7 @@ contract IncreaseLockAmountFor_LockedTokenStaker_Integration_Concrete_Test is
         vm.expectEmit(true, true, true, true);
         emit Supply(initialSupply, initialSupply + INCREASE_AMOUNT);
 
-        lockedTokenStaker.increaseLockAmountFor(users.alice, INCREASE_AMOUNT, 0, decodableArgs, proof);
+        lockedTokenStaker.increaseLockAmountFor(INCREASE_AMOUNT, 0, decodableArgs, proof);
 
         StakeWeight.LockedBalance memory finalLock = stakeWeight.locks(users.alice);
         assertEq(

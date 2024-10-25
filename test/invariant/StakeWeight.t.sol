@@ -50,16 +50,14 @@ contract StakeWeight_Invariant_Test is Invariant_Test {
 
         disableTransferRestrictions();
 
-        bytes4[] memory selectors = new bytes4[](5);
+        bytes4[] memory selectors = new bytes4[](7);
         selectors[0] = handler.createLock.selector;
         selectors[1] = handler.increaseLockAmount.selector;
         selectors[2] = handler.increaseUnlockTime.selector;
         selectors[3] = handler.withdrawAll.selector;
         selectors[4] = handler.checkpoint.selector;
-        // selectors[5] = handler.createLockFor.selector;
-        // selectors[6] = handler.increaseLockAmountFor.selector;
-        // selectors[7] = handler.increaseUnlockTimeFor.selector;
-        // selectors[8] = handler.withdrawAllFor.selector;
+        selectors[5] = handler.createLockFor.selector;
+        selectors[6] = handler.increaseLockAmountFor.selector;
 
         targetSelector(FuzzSelector(address(handler), selectors));
     }

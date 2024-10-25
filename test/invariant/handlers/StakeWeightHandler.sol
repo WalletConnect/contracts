@@ -82,9 +82,9 @@ contract StakeWeightHandler is BaseHandler {
         vm.stopPrank();
 
         StakeWeight.LockedBalance memory newLock = stakeWeight.locks(user);
-        int128 newAmount = newLock.amount - previousLock.amount;
+        int128 increasedAmount = newLock.amount - previousLock.amount;
 
-        store.updateLockedAmount(user, newAmount);
+        store.updateLockedAmount(user, increasedAmount);
         store.updatePreviousBalance(user, previousBalance);
         store.updatePreviousEndTime(user, previousLock.end);
     }
@@ -140,9 +140,7 @@ contract StakeWeightHandler is BaseHandler {
         StakeWeight.LockedBalance memory previousLock = stakeWeight.locks(allocation.beneficiary);
 
         vm.prank(allocation.beneficiary);
-        lockedTokenStaker.createLockFor(
-            allocation.beneficiary, amount, unlockTime, 0, allocation.decodableArgs, allocation.proofs
-        );
+        lockedTokenStaker.createLockFor(amount, unlockTime, 0, allocation.decodableArgs, allocation.proofs);
 
         StakeWeight.LockedBalance memory newLock = stakeWeight.locks(allocation.beneficiary);
 
@@ -173,62 +171,16 @@ contract StakeWeightHandler is BaseHandler {
         amount = bound(amount, minAmount, maxAmount);
 
         vm.prank(allocation.beneficiary);
-        lockedTokenStaker.increaseLockAmountFor(
-            allocation.beneficiary, amount, 0, allocation.decodableArgs, allocation.proofs
-        );
+        lockedTokenStaker.increaseLockAmountFor(amount, 0, allocation.decodableArgs, allocation.proofs);
 
         StakeWeight.LockedBalance memory newLock = stakeWeight.locks(allocation.beneficiary);
 
-        store.updateNonTransferableBalance(newLock.amount);
-        store.updateLockedAmount(allocation.beneficiary, newLock.amount);
+        int128 increasedAmount = newLock.amount - previousLock.amount;
+
+        store.updateNonTransferableBalance(increasedAmount);
+        store.updateLockedAmount(allocation.beneficiary, increasedAmount);
         store.updatePreviousBalance(allocation.beneficiary, previousBalance);
         store.updatePreviousEndTime(allocation.beneficiary, previousLock.end);
-    }
-
-    function increaseUnlockTimeFor(uint256 newUnlockTime) public instrument("increaseUnlockTimeFor") {
-        AllocationData memory allocation;
-        uint256 maxAttempts = 10; // Safety lock to prevent infinite loop
-        for (uint256 safetyCounter = 0; safetyCounter < maxAttempts; safetyCounter++) {
-            allocation = store.getRandomAllocation(newUnlockTime);
-            if (store.hasLock(allocation.beneficiary)) {
-                break;
-            }
-            if (safetyCounter == maxAttempts - 1) return;
-        }
-
-        StakeWeight.LockedBalance memory previousLock = stakeWeight.locks(allocation.beneficiary);
-        newUnlockTime = bound(newUnlockTime, previousLock.end + 1, block.timestamp + stakeWeight.maxLock());
-
-        uint256 previousBalance = stakeWeight.balanceOf(allocation.beneficiary);
-
-        vm.prank(allocation.beneficiary);
-        lockedTokenStaker.increaseUnlockTimeFor(allocation.beneficiary, newUnlockTime);
-
-        store.updatePreviousBalance(allocation.beneficiary, previousBalance);
-        store.updatePreviousEndTime(allocation.beneficiary, previousLock.end);
-    }
-
-    function withdrawAllFor(uint256 randomSeed) public instrument("withdrawAllFor") {
-        AllocationData memory allocation;
-        uint256 maxAttempts = 10; // Safety lock to prevent infinite loop
-        for (uint256 safetyCounter = 0; safetyCounter < maxAttempts; safetyCounter++) {
-            allocation = store.getRandomAllocation(randomSeed);
-            if (store.hasLock(allocation.beneficiary)) {
-                break;
-            }
-            if (safetyCounter == maxAttempts - 1) {
-                return;
-            }
-        }
-
-        StakeWeight.LockedBalance memory lock = stakeWeight.locks(allocation.beneficiary);
-        vm.prank(allocation.beneficiary);
-        lockedTokenStaker.withdrawAllFor(allocation.beneficiary);
-
-        uint256 newWithdrawnAmount = uint256(uint128(lock.amount));
-        store.updateNonTransferableBalance(-int128(int256(newWithdrawnAmount)));
-        store.updateWithdrawnAmount(allocation.beneficiary, newWithdrawnAmount);
-        store.removeAddressWithLock(allocation.beneficiary);
     }
 
     function checkpoint() public instrument("checkpoint") {
