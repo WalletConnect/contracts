@@ -1,0 +1,5 @@
+getRecipient.t.sol
+├── when user has no custom recipient set
+│   └── it should return the user's address
+└── when user has a custom recipient set
+    └── it should return the custom recipient address

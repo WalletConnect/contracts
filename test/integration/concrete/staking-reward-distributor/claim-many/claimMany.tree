@@ -1,0 +1,15 @@
+claimMany.t.sol
+├── when contract is not live
+│   └── it should revert
+├── when contract is live
+    ├── when users array length is greater than 20
+    │   └── it should revert with TooManyUsers error
+    └── when users array length is 20 or less
+        ├── it should call _checkpointTotalSupply if necessary
+        ├── it should call _checkpointToken
+        ├── it should process claims for all users in the array
+        │   ├── it should skip transfers for users with zero claim amounts
+        │   └── it should accumulate total claimed amount correctly
+        ├── it should update lastTokenBalance only if total claimed amount is non-zero
+        └── it should return true
+

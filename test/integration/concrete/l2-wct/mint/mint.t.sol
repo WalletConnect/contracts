@@ -1,0 +1,63 @@
+// SPDX-License-Identifier: MIT
+pragma solidity >=0.8.25 <0.9.0;
+
+import { L2WCT } from "src/L2WCT.sol";
+import { ERC20Votes } from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
+import { Integration_Test } from "test/integration/Integration.t.sol";
+
+contract Mint_L2WCT_Integration_Concrete_Test is Integration_Test {
+    function test_RevertWhen_CallerNotBridge() external {
+        vm.expectRevert(L2WCT.OnlyBridge.selector);
+        vm.prank(users.alice);
+        l2wct.mint(users.alice, 100);
+    }
+
+    modifier whenCallerBridge() {
+        _;
+    }
+
+    function test_MintWhenSupplyNotExceedMax() external whenCallerBridge {
+        uint256 initialSupply = l2wct.totalSupply();
+        uint256 initialBalance = l2wct.balanceOf(users.alice);
+        uint256 amount = 100;
+
+        vm.expectEmit(true, true, true, true);
+        emit Transfer(address(0), users.alice, amount);
+        vm.expectEmit(true, true, true, true);
+        emit Mint(users.alice, amount);
+        vm.expectEmit(true, true, true, true);
+        emit ERC20BridgeFinalized(
+            address(l2wct), address(wct), users.alice, users.alice, amount, abi.encodePacked(uint32(amount), "")
+        );
+
+        vm.startPrank(users.alice);
+        mockBridge.bridgeERC20({
+            localToken: address(l2wct),
+            remoteToken: address(wct),
+            amount: amount,
+            minGasLimit: uint32(amount),
+            extraData: ""
+        });
+        vm.stopPrank();
+
+        assertEq(l2wct.balanceOf(users.alice), initialBalance + amount, "Balance should increase");
+        assertEq(l2wct.totalSupply(), initialSupply + amount, "Total supply should increase");
+    }
+
+    function test_RevertWhen_SupplyExceedsMax() external whenCallerBridge {
+        uint256 maxSupply = type(uint208).max;
+        uint256 currentSupply = l2wct.totalSupply();
+        uint256 amountToMint = maxSupply - currentSupply + 1;
+
+        vm.expectRevert(abi.encodeWithSelector(ERC20Votes.ERC20ExceededSafeSupply.selector, amountToMint, maxSupply));
+        vm.startPrank(users.alice);
+        mockBridge.bridgeERC20({
+            localToken: address(l2wct),
+            remoteToken: address(wct),
+            amount: amountToMint,
+            minGasLimit: uint32(amountToMint),
+            extraData: ""
+        });
+        vm.stopPrank();
+    }
+}

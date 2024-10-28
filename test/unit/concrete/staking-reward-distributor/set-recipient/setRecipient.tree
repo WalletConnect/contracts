@@ -1,0 +1,10 @@
+setRecipient.t.sol
+├── when new recipient is the same as the old recipient
+│   ├── it should update the recipient (even if it's the same)
+│   └── it should emit an RecipientUpdated event
+├── when new recipient is different from the old recipient
+│   ├── it should update the recipient
+│   └── it should emit an RecipientUpdated event
+└── when user already has custom recipient set
+    ├── it should update the recipient to the new value
+    └── it should emit an RecipientUpdated event with the correct old and new recipients
