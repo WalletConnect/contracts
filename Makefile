@@ -12,34 +12,12 @@ ANVIL_DEPLOY = script/deploy/AnvilDeploy.s.sol:AnvilDeploy
 # Default RPC URL for Anvil
 DEFAULT_ANVIL_RPC = http://localhost:8545
 
-# Broadcasting configuration
+# Set BROADCAST_FLAGS based on the BROADCAST variable
 ifdef BROADCAST
-    # Export variables for sub-makes
-    export BROADCAST_FLAGS = --broadcast
-    export NETWORK_TYPE = $(findstring optimism,$(MAKECMDGOALS))
-
-    ifeq ($(NETWORK_TYPE),optimism)
-        export API_KEY_ETHERSCAN = ${API_KEY_OPTIMISTIC_ETHERSCAN}
-    endif
-
-    ifeq ($(IS_ANVIL),)
-        BROADCAST_FLAGS += --verify --etherscan-api-key ${API_KEY_ETHERSCAN}
-    endif
-
-    define broadcast_info
-        @if [ "$(findstring optimism,$@)" != "" ]; then \
-            echo "Using Optimistic Etherscan API key"; \
-        else \
-            echo "Using Ethereum Etherscan API key"; \
-        fi
-    endef
+    BROADCAST_FLAGS = --broadcast
 else
-    export BROADCAST_FLAGS =
-    define broadcast_info
-        @echo "Not broadcasting - dry run only"
-    endef
+    BROADCAST_FLAGS =
 endif
-
 
 # Network-specific targets
 .PHONY: deploy-mainnet deploy-sepolia deploy-optimism deploy-optimism-sepolia deploy-anvil log-mainnet log-sepolia log-optimism log-optimism-sepolia log-anvil fund-deployer
@@ -98,9 +76,11 @@ fund-deployer:
 _deploy:
 	$(eval include .common.env)
 	$(eval include $(ENV_FILE))
+	$(eval ETHSCAN_KEY = $(if $(findstring optimism,$(ENV_FILE)),${API_KEY_OPTIMISTIC_ETHERSCAN},${API_KEY_ETHERSCAN}))
 
 ifeq ($(IS_ANVIL),)
 	$(eval RPC_URL = https://${CHAIN_NAME}.infura.io/v3/${API_KEY_INFURA})
+	$(eval BROADCAST_FLAGS += --verify --etherscan-api-key ${ETHSCAN_KEY})
 else
 	$(eval RPC_URL = $(DEFAULT_ANVIL_RPC))
 endif
