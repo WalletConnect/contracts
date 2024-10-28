@@ -7,29 +7,51 @@ FORGE_CMD = forge script
 ETHEREUM_DEPLOY = script/deploy/EthereumDeploy.s.sol:EthereumDeploy
 OPTIMISM_DEPLOY = script/deploy/OptimismDeploy.s.sol:OptimismDeploy
 
-# Set BROADCAST_FLAGS based on the BROADCAST variable
+# Set BROADCAST_FLAGS based on the BROADCAST variable and network type
 ifdef BROADCAST
+    # Move the conditional logic into a variable assignment
+    NETWORK_TYPE = $(findstring optimism,$(MAKECMDGOALS))
+    ifeq ($(NETWORK_TYPE),optimism)
+        export API_KEY_ETHERSCAN=${API_KEY_OPTIMISTIC_ETHERSCAN}
+    endif
+
     BROADCAST_FLAGS = --verify --etherscan-api-key ${API_KEY_ETHERSCAN} --broadcast
+
+    # Move the info message to the deploy targets instead
+    define broadcast_info
+        @if [ "$(findstring optimism,$@)" != "" ]; then \
+            echo "Using Optimistic Etherscan API key"; \
+        else \
+            echo "Using Ethereum Etherscan API key"; \
+        fi
+    endef
 else
     BROADCAST_FLAGS =
+    define broadcast_info
+        @echo "Not broadcasting - dry run only"
+    endef
 endif
 
 # Network-specific targets
 .PHONY: deploy-mainnet deploy-sepolia deploy-optimism deploy-optimism-sepolia log-mainnet log-sepolia log-optimism log-optimism-sepolia
 
 deploy-mainnet:
+	$(broadcast_info)
 	@echo "Deploying to Ethereum Mainnet"
 	@$(MAKE) _deploy ENV_FILE=.mainnet.env SCRIPT=$(ETHEREUM_DEPLOY) LEDGER=true
 
 deploy-sepolia:
+	$(broadcast_info)
 	@echo "Deploying to Sepolia testnet"
 	@$(MAKE) _deploy ENV_FILE=.sepolia.env SCRIPT=$(ETHEREUM_DEPLOY)
 
 deploy-optimism:
+	$(broadcast_info)
 	@echo "Deploying to Optimism Mainnet"
-	@$(MAKE) _deploy ENV_FILE=.optimism.env SCRIPT=$(OPTIMISM_DEPLOY)
+	@$(MAKE) _deploy ENV_FILE=.optimism.env SCRIPT=$(OPTIMISM_DEPLOY) LEDGER=true
 
 deploy-optimism-sepolia:
+	$(broadcast_info)
 	@echo "Deploying to Optimism Sepolia testnet"
 	@$(MAKE) _deploy ENV_FILE=.optimism-sepolia.env SCRIPT=$(OPTIMISM_DEPLOY)
 
