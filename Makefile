@@ -4,33 +4,25 @@
 FORGE_CMD = forge script
 VERBOSITY = -vvvv
 
-# Network detection (pass it through to submake)
-IS_ANVIL := $(findstring anvil,$(MAKECMDGOALS))
-export IS_ANVIL
-
 # Deploy scripts
 ETHEREUM_DEPLOY = script/deploy/EthereumDeploy.s.sol:EthereumDeploy
 OPTIMISM_DEPLOY = script/deploy/OptimismDeploy.s.sol:OptimismDeploy
 ANVIL_DEPLOY = script/deploy/AnvilDeploy.s.sol:AnvilDeploy
 
 # Default RPC URL for Anvil
-DEFAULT_ANVIL_RPC = http://127.0.0.1:8545
+DEFAULT_ANVIL_RPC = http://localhost:8545
 
 # Broadcasting configuration
 ifdef BROADCAST
-    # Base broadcast flags
-    BROADCAST_FLAGS = --broadcast
+    # Export variables for sub-makes
+    export BROADCAST_FLAGS = --broadcast
+    export NETWORK_TYPE = $(findstring optimism,$(MAKECMDGOALS))
 
-    # Network-specific settings
-    NETWORK_TYPE = $(findstring optimism,$(MAKECMDGOALS))
-
-    # Set appropriate Etherscan API key
     ifeq ($(NETWORK_TYPE),optimism)
-        API_KEY_ETHERSCAN = ${API_KEY_OPTIMISTIC_ETHERSCAN}
+        export API_KEY_ETHERSCAN = ${API_KEY_OPTIMISTIC_ETHERSCAN}
     endif
 
-    # Add verification flags for non-anvil deployments
-    ifeq ($(IS_ANVIL),)  # Check if IS_ANVIL is empty (meaning not anvil)
+    ifeq ($(IS_ANVIL),)
         BROADCAST_FLAGS += --verify --etherscan-api-key ${API_KEY_ETHERSCAN}
     endif
 
@@ -42,11 +34,12 @@ ifdef BROADCAST
         fi
     endef
 else
-    BROADCAST_FLAGS =
+    export BROADCAST_FLAGS =
     define broadcast_info
         @echo "Not broadcasting - dry run only"
     endef
 endif
+
 
 # Network-specific targets
 .PHONY: deploy-mainnet deploy-sepolia deploy-optimism deploy-optimism-sepolia deploy-anvil log-mainnet log-sepolia log-optimism log-optimism-sepolia log-anvil fund-deployer
@@ -74,7 +67,7 @@ deploy-optimism-sepolia:
 deploy-anvil:
 	$(broadcast_info)
 	@echo "Deploying to Anvil local network"
-	@$(MAKE) _deploy ENV_FILE=.anvil.env SCRIPT=$(ANVIL_DEPLOY) IS_ANVIL=anvil
+	@$(MAKE) _deploy ENV_FILE=.anvil.env SCRIPT=$(ANVIL_DEPLOY) IS_ANVIL=true
 
 log-mainnet:
 	@echo "Logging deployments for Ethereum Mainnet"
@@ -94,7 +87,7 @@ log-optimism-sepolia:
 
 log-anvil:
 	@echo "Logging deployments for Anvil local network"
-	@$(MAKE) _log_deployments ENV_FILE=.anvil.env SCRIPT=$(ANVIL_DEPLOY)
+	@$(MAKE) _log_deployments ENV_FILE=.anvil.env SCRIPT=$(ANVIL_DEPLOY) IS_ANVIL=true
 
 fund-deployer:
 	@echo "Funding deployer account on Anvil"
@@ -103,12 +96,15 @@ fund-deployer:
 
 # Internal deploy function
 _deploy:
-	@echo "IS_ANVIL: $(IS_ANVIL)"
 	$(eval include .common.env)
 	$(eval include $(ENV_FILE))
-	$(eval RPC_URL := $(if $(IS_ANVIL),\
-		$(DEFAULT_ANVIL_RPC),\
-		https://${CHAIN_NAME}.infura.io/v3/${API_KEY_INFURA}))
+
+ifeq ($(IS_ANVIL),)
+	$(eval RPC_URL = https://${CHAIN_NAME}.infura.io/v3/${API_KEY_INFURA})
+else
+	$(eval RPC_URL = $(DEFAULT_ANVIL_RPC))
+endif
+
 	@if [ "$(LEDGER)" = "true" ]; then \
 		$(FORGE_CMD) $(SCRIPT) \
 			$(VERBOSITY) \
@@ -132,11 +128,18 @@ _deploy:
 _log_deployments:
 	$(eval include .common.env)
 	$(eval include $(ENV_FILE))
+
+ifeq ($(IS_ANVIL),)
+	$(eval RPC_URL = https://${CHAIN_NAME}.infura.io/v3/${API_KEY_INFURA})
+else
+	$(eval RPC_URL = $(DEFAULT_ANVIL_RPC))
+endif
+
 	$(FORGE_CMD) $(SCRIPT) \
-    $(VERBOSITY) \
-    -s "logDeployments()" \
-    --rpc-url $(RPC_URL) \
-    --sender ${ETH_FROM}
+		$(VERBOSITY) \
+		-s "logDeployments()" \
+		--rpc-url $(RPC_URL) \
+		--sender ${ETH_FROM}
 
 # Help target
 .PHONY: help
