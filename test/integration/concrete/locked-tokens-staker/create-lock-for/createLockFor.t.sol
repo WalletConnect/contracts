@@ -105,6 +105,24 @@ contract CreateLockFor_LockedTokenStaker_Integration_Concrete_Test is LockedToke
         lockedTokenStaker.createLockFor(availableAmount + 1, block.timestamp + 1 weeks, 0, decodableArgs, proof);
     }
 
+    function test_RevertGiven_AllocationIsTerminated()
+        external
+        whenContractIsNotPaused
+        givenUserIsTheOriginalBeneficiary
+        givenUserDoesNotHaveALock
+    {
+        uint256 allocation = 100 ether;
+        (bytes memory decodableArgs, bytes32[] memory proof) = _createAllocation(users.alice, allocation);
+
+        // Terminate the allocation
+        vm.prank(users.admin);
+        vester.cancel(0, decodableArgs, proof);
+
+        vm.expectRevert(LockedTokenStaker.TerminatedAllocation.selector);
+        vm.prank(users.alice);
+        lockedTokenStaker.createLockFor(allocation, block.timestamp + 1 weeks, 0, decodableArgs, proof);
+    }
+
     function test_RevertWhen_UnlockTimeInPast()
         external
         whenContractIsNotPaused

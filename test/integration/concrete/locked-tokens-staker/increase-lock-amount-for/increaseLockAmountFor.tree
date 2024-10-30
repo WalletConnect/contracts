@@ -12,6 +12,8 @@ increaseLockAmountFor.t.sol
             │   └── it should revert with ExpiredLock error
             ├── when amount is zero
             │   └── it should revert with InvalidAmount error
+            ├── when allocation is terminated
+            │   └── it should revert with TerminatedAllocation
             └── when amount is greater than zero
                 ├── when new total amount exceeds available amount (totalAllocation - withdrawn)
                 │   └── it should revert with InsufficientAllocation error

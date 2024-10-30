@@ -31,6 +31,7 @@ contract LockedTokenStaker is IPostClaimHandler {
     WalletConnectConfig public immutable config;
 
     error InvalidCaller();
+    error TerminatedAllocation();
     error CannotClaimWithActiveLock();
     error InsufficientAllocation();
     error Paused();
@@ -82,7 +83,11 @@ contract LockedTokenStaker is IPostClaimHandler {
             revert InvalidCaller();
         }
 
-        (,, uint256 withdrawn,,,) = vesterContract.schedules(allocation.id);
+        (, uint32 terminatedTimestamp, uint256 withdrawn,,,) = vesterContract.schedules(allocation.id);
+        if (terminatedTimestamp != 0) {
+            revert TerminatedAllocation();
+        }
+
         uint256 availableAmount = allocation.totalAllocation - withdrawn;
         if (availableAmount < amount) {
             revert InsufficientAllocation();
@@ -116,6 +121,11 @@ contract LockedTokenStaker is IPostClaimHandler {
             revert InvalidCaller();
         }
 
+        (, uint32 terminatedTimestamp, uint256 withdrawn,,,) = vesterContract.schedules(allocation.id);
+        if (terminatedTimestamp != 0) {
+            revert TerminatedAllocation();
+        }
+
         StakeWeight stakeWeight = StakeWeight(config.getStakeWeight());
 
         // Get the current lock for the address
@@ -124,7 +134,6 @@ contract LockedTokenStaker is IPostClaimHandler {
         // Calculate the new total amount after increase
         uint256 newAmount = uint256(int256(lock.amount)) + amount;
 
-        (,, uint256 withdrawn,,,) = vesterContract.schedules(allocation.id);
         uint256 availableAmount = allocation.totalAllocation - withdrawn;
 
         // Check if the new amount exceeds the total available allocation

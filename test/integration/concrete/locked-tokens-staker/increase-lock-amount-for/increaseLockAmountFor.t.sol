@@ -87,6 +87,21 @@ contract IncreaseLockAmountFor_LockedTokenStaker_Integration_Concrete_Test is
         lockedTokenStaker.increaseLockAmountFor(0, 0, decodableArgs, proof);
     }
 
+    function test_RevertGiven_AllocationIsTerminated()
+        external
+        whenContractIsNotPaused
+        givenCallerIsTheOriginalBeneficiary
+        givenUserHasExistingLock
+    {
+        // Terminate the allocation
+        vm.prank(users.admin);
+        vester.cancel(0, decodableArgs, proof);
+
+        vm.expectRevert(LockedTokenStaker.TerminatedAllocation.selector);
+        vm.prank(users.alice);
+        lockedTokenStaker.increaseLockAmountFor(INCREASE_AMOUNT, 0, decodableArgs, proof);
+    }
+
     function test_RevertWhen_NewTotalAmountExceedsAllocation()
         external
         whenContractIsNotPaused
