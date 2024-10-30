@@ -781,8 +781,9 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
         if (to == address(0)) {
             revert InvalidAddress(to);
         }
-
         StakeWeightStorage storage s = _getStakeWeightStorage();
+
+        if (Pauser(s.config.getPauser()).isStakeWeightPaused()) revert Paused();
 
         LockedBalance memory lock = s.locks[to];
 
