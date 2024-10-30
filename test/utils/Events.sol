@@ -67,6 +67,9 @@ abstract contract Events {
         uint256 timestamp
     );
     event Withdraw(address indexed provider, uint256 value, uint256 transferredValue, uint256 timestamp);
+    event ForcedWithdraw(
+        address indexed provider, uint256 value, uint256 transferredValue, uint256 timestamp, uint256 end
+    );
     event Supply(uint256 previousSupply, uint256 newSupply);
     event MaxLockUpdated(uint256 previousMaxLock, uint256 newMaxLock);
     /*//////////////////////////////////////////////////////////////////////////

@@ -124,7 +124,13 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
     );
 
     event Withdraw(address indexed provider, uint256 totalAmount, uint256 transferredAmount, uint256 timestamp);
-
+    event ForcedWithdraw(
+        address indexed provider,
+        uint256 totalAmount,
+        uint256 transferredAmount,
+        uint256 timestamp,
+        uint256 endTimestamp
+    );
     event Supply(uint256 previousSupply, uint256 newSupply);
     event MaxLockUpdated(uint256 previousMaxLock, uint256 newMaxLock);
 
@@ -771,15 +777,41 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
         _withdrawAll(user);
     }
 
+    function forceWithdrawAll(address to) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (to == address(0)) {
+            revert InvalidAddress(to);
+        }
+
+        StakeWeightStorage storage s = _getStakeWeightStorage();
+
+        LockedBalance memory lock = s.locks[to];
+
+        uint256 amount = SafeCast.toUint256(lock.amount);
+
+        if (amount == 0) revert NonExistentLock();
+
+        uint256 end = lock.end;
+        uint256 transferredAmount = lock.transferredAmount;
+
+        _unlock(to, lock, amount);
+
+        // transfer remaining back to owner
+        if (transferredAmount > 0) {
+            IERC20(s.config.getL2wct()).safeTransfer(to, transferredAmount);
+        }
+
+        emit ForcedWithdraw(to, amount, transferredAmount, block.timestamp, end);
+    }
+
     function _withdrawAll(address user) internal {
         StakeWeightStorage storage s = _getStakeWeightStorage();
         WalletConnectConfig wcConfig = s.config;
         if (Pauser(wcConfig.getPauser()).isStakeWeightPaused()) revert Paused();
         LockedBalance memory lock = s.locks[user];
-        if (lock.amount == 0) revert NonExistentLock();
+        uint256 amount = SafeCast.toUint256(lock.amount);
+        if (amount == 0) revert NonExistentLock();
         if (lock.end > block.timestamp) revert LockStillActive(lock.end);
 
-        uint256 amount = SafeCast.toUint256(lock.amount);
         uint256 transferredAmount = lock.transferredAmount;
 
         _unlock(user, lock, amount);

@@ -183,6 +183,27 @@ contract StakeWeightHandler is BaseHandler {
         store.updatePreviousEndTime(allocation.beneficiary, previousLock.end);
     }
 
+    function forceWithdrawAll() public instrument("forceWithdrawAll") {
+        address user = store.getRandomAddressWithLock();
+        uint256 previousBalance = stakeWeight.balanceOf(user);
+        StakeWeight.LockedBalance memory previousLock = stakeWeight.locks(user);
+
+        resetPrank(admin);
+        stakeWeight.forceWithdrawAll(user);
+        vm.stopPrank();
+
+        uint256 newWithdrawnAmount = uint256(uint128(previousLock.amount));
+        store.removeAddressWithLock(user);
+        store.updateWithdrawnAmount(user, newWithdrawnAmount);
+        store.updateNonTransferableBalance(
+            -int128(previousLock.amount - int128(int256(previousLock.transferredAmount)))
+        );
+        store.updateLockedAmount(user, -int128(previousLock.amount));
+        store.updatePreviousBalance(user, previousBalance);
+        store.updatePreviousEndTime(user, previousLock.end);
+        store.setHasBeenForcedWithdrawn(user, true);
+    }
+
     function checkpoint() public instrument("checkpoint") {
         resetPrank(manager);
         stakeWeight.checkpoint();

@@ -50,7 +50,7 @@ contract StakeWeight_Invariant_Test is Invariant_Test {
 
         disableTransferRestrictions();
 
-        bytes4[] memory selectors = new bytes4[](7);
+        bytes4[] memory selectors = new bytes4[](8);
         selectors[0] = handler.createLock.selector;
         selectors[1] = handler.increaseLockAmount.selector;
         selectors[2] = handler.increaseUnlockTime.selector;
@@ -58,6 +58,7 @@ contract StakeWeight_Invariant_Test is Invariant_Test {
         selectors[4] = handler.checkpoint.selector;
         selectors[5] = handler.createLockFor.selector;
         selectors[6] = handler.increaseLockAmountFor.selector;
+        selectors[7] = handler.forceWithdrawAll.selector;
 
         targetSelector(FuzzSelector(address(handler), selectors));
     }
@@ -175,7 +176,7 @@ contract StakeWeight_Invariant_Test is Invariant_Test {
         address[] memory users = store.getAddressesWithLock();
         for (uint256 i = 0; i < users.length; i++) {
             uint256 withdrawnAmount = store.withdrawnAmount(users[i]);
-            int128 lockedAmount = store.lockedAmount(users[i]);
+            int128 lockedAmount = store.userTotalLockedAmount(users[i]);
             assertLe(
                 withdrawnAmount,
                 SafeCast.toUint256((int256(lockedAmount))),
@@ -301,7 +302,7 @@ contract StakeWeight_Invariant_Test is Invariant_Test {
             uint256 withdrawnAmount = store.withdrawnAmount(user);
             StakeWeight.LockedBalance memory lock = stakeWeight.locks(user);
 
-            if (withdrawnAmount > 0) {
+            if (withdrawnAmount > 0 && !store.hasBeenForcedWithdrawn(user)) {
                 assertTrue(
                     block.timestamp >= lock.end,
                     "Withdrawal should only be possible after lock expiration or if re-locked"
@@ -330,7 +331,7 @@ contract StakeWeight_Invariant_Test is Invariant_Test {
         }
 
         assertEq(
-            totalValueLocked, store.totalLockedAmount(), "Total value locked should equal the stored locked amount"
+            totalValueLocked, store.currentLockedAmount(), "Total value locked should equal the stored locked amount"
         );
         assertEq(
             SafeCast.toUint256(totalValueLocked) - SafeCast.toUint256(store.nonTransferableBalance()),
