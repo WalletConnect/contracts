@@ -72,6 +72,8 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
     uint256 public constant ACTION_CREATE_LOCK = 1;
     uint256 public constant ACTION_INCREASE_LOCK_AMOUNT = 2;
     uint256 public constant ACTION_INCREASE_UNLOCK_TIME = 3;
+    uint256 public constant ACTION_UPDATE_LOCK = 4;
+
     // Roles
     // @dev Role for the locked token staker, needs to happen after deployment for circular dependency
     bytes32 public constant LOCKED_TOKEN_STAKER_ROLE = keccak256("LOCKED_TOKEN_STAKER_ROLE");
@@ -683,6 +685,29 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
             revert LockMaxDurationExceeded(newUnlockTime, _timestampToFloorWeek(block.timestamp + s.maxLock));
         }
         _depositFor(msg.sender, 0, newUnlockTime, locked, ACTION_INCREASE_UNLOCK_TIME, false);
+    }
+
+    /// @notice Atomically update both lock duration and amount
+    /// @param amount The additional amount to lock
+    /// @param unlockTime The new unlock time
+    function updateLock(uint256 amount, uint256 unlockTime) external nonReentrant {
+        StakeWeightStorage storage s = _getStakeWeightStorage();
+        if (Pauser(s.config.getPauser()).isStakeWeightPaused()) revert Paused();
+
+        LockedBalance memory lock = s.locks[msg.sender];
+        if (lock.amount == 0) revert NonExistentLock();
+        if (lock.end <= block.timestamp) revert ExpiredLock(block.timestamp, lock.end);
+        if (amount == 0) revert InvalidAmount(amount);
+
+        // Floor the unlock time first
+        unlockTime = _timestampToFloorWeek(unlockTime);
+        if (unlockTime <= lock.end) revert LockTimeNotIncreased(lock.end, unlockTime);
+        if (unlockTime > _timestampToFloorWeek(block.timestamp + s.maxLock)) {
+            revert LockMaxDurationExceeded(unlockTime, _timestampToFloorWeek(block.timestamp + s.maxLock));
+        }
+
+        // Update both unlock time and amount in a single _depositFor call
+        _depositFor(msg.sender, amount, unlockTime, lock, ACTION_UPDATE_LOCK, true);
     }
 
     /// @notice Round off random timestamp to week
