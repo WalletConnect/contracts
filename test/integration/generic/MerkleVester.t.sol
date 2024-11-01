@@ -11,6 +11,7 @@ import {
 } from "src/interfaces/MerkleVester.sol";
 import { Merkle } from "test/utils/Merkle.sol";
 import { Base_Test } from "test/Base.t.sol";
+import { IPostClaimHandler } from "src/interfaces/MerkleVester.sol";
 import { console2 } from "forge-std/console2.sol";
 
 contract MerkleVesterTest is Base_Test {
@@ -21,6 +22,9 @@ contract MerkleVesterTest is Base_Test {
         super.setUp();
         deployCoreConditionally();
         disableTransferRestrictions();
+        IPostClaimHandler postClaimHandler = IPostClaimHandler(address(0));
+        vm.prank(users.admin);
+        vester.addPostClaimHandlerToWhitelist(postClaimHandler);
         merkle = new Merkle();
     }
 

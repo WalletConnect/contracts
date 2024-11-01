@@ -34,6 +34,17 @@ abstract contract LockedTokenStaker_Integration_Shared_Test is Integration_Test 
         internal
         returns (bytes memory decodableArgs, bytes32[] memory proof)
     {
+        return _createAllocationWithId(beneficiary, amount, "allocation1");
+    }
+
+    function _createAllocationWithId(
+        address beneficiary,
+        uint256 amount,
+        string memory id
+    )
+        internal
+        returns (bytes memory decodableArgs, bytes32[] memory proof)
+    {
         // Create a simple calendar unlock schedule
         uint32[] memory unlockTimestamps = new uint32[](2);
         unlockTimestamps[0] = uint32(block.timestamp + 30 days);
@@ -51,11 +62,11 @@ abstract contract LockedTokenStaker_Integration_Shared_Test is Integration_Test 
 
         // Create the allocation
         Allocation memory allocation = Allocation({
-            id: "allocation1",
+            id: id,
             originalBeneficiary: beneficiary,
             totalAllocation: amount,
             cancelable: true,
-            revokable: true,
+            revokable: false,
             transferableByAdmin: false,
             transferableByBeneficiary: false
         });
@@ -90,7 +101,6 @@ abstract contract LockedTokenStaker_Integration_Shared_Test is Integration_Test 
     {
         deal(address(l2wct), user, amount);
         vm.startPrank(user);
-        l2wct.approve(address(lockedTokenStaker), amount);
         lockedTokenStaker.createLockFor(amount, _lockTime, 0, decodableArgs, proof);
         vm.stopPrank();
     }

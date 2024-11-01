@@ -3,10 +3,23 @@ pragma solidity >=0.8.25 <0.9.0;
 
 import { LockedTokenStaker_Integration_Shared_Test } from "test/integration/shared/LockedTokenStaker.t.sol";
 import { LockedTokenStaker } from "src/LockedTokenStaker.sol";
+import { IPostClaimHandler } from "src/interfaces/MerkleVester.sol";
 import { StakeWeight } from "src/StakeWeight.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract CreateLockFor_LockedTokenStaker_Integration_Concrete_Test is LockedTokenStaker_Integration_Shared_Test {
+    IPostClaimHandler public postClaimHandler;
+
+    function setUp() public override {
+        super.setUp();
+
+        postClaimHandler = IPostClaimHandler(address(lockedTokenStaker));
+
+        vm.startPrank(users.admin);
+        vester.addPostClaimHandlerToWhitelist(postClaimHandler);
+        vm.stopPrank();
+    }
+
     function test_RevertGiven_ContractIsPaused() external {
         _pause();
 
@@ -91,10 +104,20 @@ contract CreateLockFor_LockedTokenStaker_Integration_Concrete_Test is LockedToke
         // Get 50% of the allocation unlocked
         skip(30 days);
 
-        // Simulate a withdrawal
+        // Withdraw max possible amount
         uint256 withdrawnAmount = allocation / 2;
 
-        _withdrawFromUser(users.alice, withdrawnAmount, decodableArgs, proof);
+        bytes memory extraData = abi.encode(uint32(0), decodableArgs, proof);
+
+        vm.prank(users.alice);
+        vester.withdraw(
+            withdrawnAmount, // withdrawalAmount
+            0, // rootIndex (assuming 0 for this test case)
+            decodableArgs, // decodableArgs
+            proof, // proof
+            postClaimHandler, // postClaimHandler
+            extraData // extraData
+        );
 
         // Calculate the available amount
         uint256 availableAmount = allocation - withdrawnAmount;

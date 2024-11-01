@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
+import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { StakeWeight } from "src/StakeWeight.sol";
 import { WalletConnectConfig } from "src/WalletConnectConfig.sol";
 import {
@@ -32,8 +33,9 @@ contract LockedTokenStaker is IPostClaimHandler {
 
     error InvalidCaller();
     error TerminatedAllocation();
-    error CannotClaimWithActiveLock();
     error InsufficientAllocation();
+    error InvalidAllocation();
+    error CannotClaimLockedTokens(uint256 remainingAllocation, uint256 lockedAmount, uint256 claimAmount);
     error Paused();
 
     /**
@@ -149,7 +151,7 @@ contract LockedTokenStaker is IPostClaimHandler {
      * @notice Handles the post-claim action: revert if there's an active lock in the staking contract
      * @dev This function should only be called by the vester contract
      * @param claimToken The address of the vesting token being claimed
-     * @param amount The amount of vesting tokens claimed
+     * @param claimAmount The amount of vesting tokens claimed
      * @param originalBeneficiary The original owner of the vesting tokens
      * @param withdrawalAddress The current owner of the vesting tokens
      * @param allocationId The ID of the allocation
@@ -157,7 +159,7 @@ contract LockedTokenStaker is IPostClaimHandler {
      */
     function handlePostClaim(
         IERC20 claimToken,
-        uint256 amount,
+        uint256 claimAmount,
         address originalBeneficiary,
         address withdrawalAddress,
         string memory allocationId,
@@ -171,14 +173,44 @@ contract LockedTokenStaker is IPostClaimHandler {
         StakeWeight stakeWeight = StakeWeight(config.getStakeWeight());
 
         StakeWeight.LockedBalance memory lock = stakeWeight.locks(originalBeneficiary);
+
+        // If the beneficiary has a stake, check if the lock is active
         if (lock.amount > 0) {
+            // If the lock is still active
             if (lock.end > block.timestamp) {
-                revert CannotClaimWithActiveLock();
+                // Decode the extra data to get the root index, decodable args, and proof
+                (uint32 rootIndex, bytes memory decodableArgs, bytes32[] memory proof) =
+                    abi.decode(extraData, (uint32, bytes, bytes32[]));
+
+                // Get the allocation data from the vester contract
+                Allocation memory allocation = vesterContract.getLeafJustAllocationData(rootIndex, decodableArgs, proof);
+
+                // Check if the allocation ID matches to the one in the claim
+                if (keccak256(abi.encode(allocation.id)) != keccak256(abi.encode(allocationId))) {
+                    revert InvalidAllocation();
+                }
+
+                // Get the already withdrawn amount in the allocation
+                (,, uint256 withdrawn,,,) = vesterContract.schedules(allocation.id);
+                // Subtract the claim amount from the already withdrawn amount, as it's already updated in the vester
+                withdrawn = withdrawn - claimAmount;
+
+                // Calculate the available amount in the allocation
+                uint256 remainingAllocation = allocation.totalAllocation - withdrawn;
+
+                uint256 lockedAmount = SafeCast.toUint256(lock.amount);
+
+                // Check if there's enough unlocked tokens for the claim
+                if (remainingAllocation < lockedAmount + claimAmount) {
+                    revert CannotClaimLockedTokens(remainingAllocation, lockedAmount, claimAmount);
+                }
             } else {
+                // If the lock is expired, withdraw all the stake
                 stakeWeight.withdrawAllFor(originalBeneficiary);
             }
         }
 
-        claimToken.safeTransfer(withdrawalAddress, amount);
+        // Transfer the claimed amount to the withdrawal address
+        claimToken.safeTransfer(withdrawalAddress, claimAmount);
     }
 }

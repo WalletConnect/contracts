@@ -159,8 +159,7 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
         permissionedNodeRegistry =
             new PermissionedNodeRegistry({ initialAdmin: users.admin, maxNodes_: defaults.MAX_REGISTRY_NODES() });
 
-        IPostClaimHandler[] memory postClaimHandlers = new IPostClaimHandler[](1);
-        postClaimHandlers[0] = IPostClaimHandler(address(0));
+        IPostClaimHandler[] memory postClaimHandlers = new IPostClaimHandler[](0);
 
         vester = new MerkleVester(
             address(l2wct),
