@@ -1,6 +1,6 @@
 totalSupplyAtTime.t.sol
 ├── when querying supply at a time before any locks
-│   └── it should return zero
+│   └── it should revert
 ├── when querying supply at the current time
 │   └── it should match the regular totalSupply
 ├── when querying supply at a time with active locks
