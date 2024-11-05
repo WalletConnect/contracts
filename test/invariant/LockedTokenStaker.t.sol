@@ -185,12 +185,12 @@ contract LockedTokenStaker_Invariant_Test is Invariant_Test {
                 (,, CalendarUnlockSchedule memory schedule) =
                     abi.decode(allocation.decodableArgs, (string, Allocation, CalendarUnlockSchedule));
 
-                assertTrue(block.timestamp >= schedule.unlockTimestamps[0], "Withdrawal before first vesting");
+                assertGe(block.timestamp, schedule.unlockTimestamps[0], "Withdrawal before first vesting");
             }
         }
     }
 
-    function invariant_lockedAmountNotExceedAllocation() public view {
+    function invariant_lockedAmountDoesNotExceedAllocation() public view {
         address[] memory stakers = store.getAddressesWithLock();
 
         for (uint256 i = 0; i < stakers.length; i++) {
@@ -202,9 +202,8 @@ contract LockedTokenStaker_Invariant_Test is Invariant_Test {
                 Allocation memory alloc =
                     vester.getLeafJustAllocationData(0, allocation.decodableArgs, allocation.proofs);
 
-                assertTrue(
-                    uint256(uint128(nonTransferableBalance)) <= alloc.totalAllocation,
-                    "Locked amount exceeds allocation"
+                assertLe(
+                    uint256(uint128(nonTransferableBalance)), alloc.totalAllocation, "Locked amount exceeds allocation"
                 );
             }
         }
@@ -223,7 +222,7 @@ contract LockedTokenStaker_Invariant_Test is Invariant_Test {
                     abi.decode(allocation.decodableArgs, (string, Allocation, CalendarUnlockSchedule));
 
                 uint256 maxAllowedWithdrawal = _calculateVestedAmount(alloc, schedule);
-                assertTrue(withdrawnAmount <= maxAllowedWithdrawal, "Withdrawal exceeds vesting schedule");
+                assertLe(withdrawnAmount, maxAllowedWithdrawal, "Withdrawal exceeds vesting schedule");
             }
         }
     }
@@ -241,12 +240,12 @@ contract LockedTokenStaker_Invariant_Test is Invariant_Test {
                     vester.getLeafJustAllocationData(0, allocation.decodableArgs, allocation.proofs);
 
                 (, uint32 terminatedTimestamp,,,,) = vester.schedules(alloc.id);
-                assertTrue(terminatedTimestamp == 0, "Terminated allocation has active lock");
+                assertEq(terminatedTimestamp, 0, "Terminated allocation has active lock");
             }
         }
     }
 
-    function invariant_cumulativeWithdrawalsNotExceedAllocation() public view {
+    function invariant_cumulativeWithdrawalsDoNotExceedAllocation() public view {
         address[] memory stakers = store.getAddressesWithLock();
 
         for (uint256 i = 0; i < stakers.length; i++) {
@@ -260,9 +259,7 @@ contract LockedTokenStaker_Invariant_Test is Invariant_Test {
                     vester.getLeafJustAllocationData(0, allocation.decodableArgs, allocation.proofs);
 
                 uint256 totalUsed = totalWithdrawn + uint256(uint128(lock.amount));
-                assertTrue(
-                    totalUsed <= alloc.totalAllocation, "Total of withdrawals and locked amount exceeds allocation"
-                );
+                assertLe(totalUsed, alloc.totalAllocation, "Total of withdrawals and locked amount exceeds allocation");
             }
         }
     }
