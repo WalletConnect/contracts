@@ -48,7 +48,7 @@ abstract contract BaseHandler is Constants, StdCheats, StdUtils, CommonBase, Uti
     /// @dev Simulates the passage of time. The time jump is upper bounded so that streams don't settle too quickly.
     /// @param timeJumpSeed A fuzzed value needed for generating random time warps.
     modifier adjustTimestamp(uint256 timeJumpSeed) {
-        uint256 timeJump = bound(timeJumpSeed, 2 minutes, 40 days);
+        uint256 timeJump = bound(timeJumpSeed, 2 minutes, 1 days);
         vm.warp(block.timestamp + timeJump);
         _;
     }

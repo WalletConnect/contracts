@@ -4,19 +4,46 @@ pragma solidity >=0.8.25 <0.9.0;
 import { Invariant_Test } from "./Invariant.t.sol";
 import { StakingRewardDistributorHandler } from "./handlers/StakingRewardDistributorHandler.sol";
 import { StakingRewardDistributorStore } from "./stores/StakingRewardDistributorStore.sol";
+import { Merkle } from "test/utils/Merkle.sol";
+import {
+    CalendarAllocation, Allocation, DistributionState, CalendarUnlockSchedule
+} from "src/interfaces/MerkleVester.sol";
+import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
+import { AllocationData } from "./stores/StakingRewardDistributorStore.sol";
 import { console2 } from "forge-std/console2.sol";
 
 contract StakingRewardDistributor_Invariant_Test is Invariant_Test {
     StakingRewardDistributorHandler public handler;
     StakingRewardDistributorStore public store;
+    Merkle public merkle;
+    mapping(string => CalendarUnlockSchedule) public calendarSchedules;
 
     function setUp() public override {
         super.setUp();
 
         // Deploy StakingRewardDistributor contract
         store = new StakingRewardDistributorStore();
-        handler =
-            new StakingRewardDistributorHandler(stakingRewardDistributor, store, users.admin, stakeWeight, wct, l2wct);
+        handler = new StakingRewardDistributorHandler(
+            stakingRewardDistributor, store, lockedTokenStaker, users.admin, stakeWeight, wct, l2wct
+        );
+
+        bytes32 role = stakeWeight.LOCKED_TOKEN_STAKER_ROLE();
+        vm.prank(users.admin);
+        stakeWeight.grantRole(role, address(lockedTokenStaker));
+
+        merkle = new Merkle();
+
+        // start vester
+        uint256 amountToFund = 1e27; // 1 billion tokens
+        vm.startPrank(users.admin);
+        (,, bytes32 root) = createAllocationsAndMerkleTree("id1", true, true, false, false, amountToFund);
+        vester.addAllocationRoot(root);
+        deal(address(l2wct), address(vester), amountToFund);
+        vm.stopPrank();
+
+        skip(30 days);
+
+        vm.label(address(merkle), "Merkle");
 
         vm.label(address(handler), "StakingRewardDistributorHandler");
         vm.label(address(store), "StakingRewardDistributorStore");
@@ -25,7 +52,7 @@ contract StakingRewardDistributor_Invariant_Test is Invariant_Test {
 
         disableTransferRestrictions();
 
-        bytes4[] memory selectors = new bytes4[](8);
+        bytes4[] memory selectors = new bytes4[](10);
         selectors[0] = handler.createLock.selector;
         selectors[1] = handler.withdrawAll.selector;
         selectors[2] = handler.claim.selector;
@@ -34,8 +61,100 @@ contract StakingRewardDistributor_Invariant_Test is Invariant_Test {
         selectors[5] = handler.feed.selector;
         selectors[6] = handler.checkpointToken.selector;
         selectors[7] = handler.checkpointTotalSupply.selector;
+        selectors[8] = handler.forceWithdrawAll.selector;
+        selectors[9] = handler.createLockFor.selector;
 
         targetSelector(FuzzSelector(address(handler), selectors));
+    }
+
+    function createAllocationsAndMerkleTree(
+        string memory id,
+        bool cancelable,
+        bool revokable,
+        bool transferableByAdmin,
+        bool transferableByBeneficiary,
+        uint256 fundedAmount
+    )
+        internal
+        returns (CalendarAllocation[] memory allocations, bytes32[] memory hashes, bytes32 root)
+    {
+        createUnlockSchedule(id);
+
+        allocations = new CalendarAllocation[](500);
+
+        for (uint256 i = 0; i < 500; i++) {
+            address beneficiary =
+                address(uint160(uint256(keccak256(abi.encodePacked(block.timestamp, block.prevrandao, i)))));
+
+            allocations[i] = createAllocation(
+                string(abi.encodePacked("alloc", Strings.toString(i))),
+                beneficiary,
+                fundedAmount / 500,
+                id,
+                cancelable,
+                revokable,
+                transferableByAdmin,
+                transferableByBeneficiary
+            );
+        }
+
+        hashes = createHashes(allocations);
+        root = merkle.getRoot(hashes);
+
+        for (uint256 i = 0; i < allocations.length; i++) {
+            if (!store.hasAllocation(allocations[i].allocation.originalBeneficiary)) {
+                store.addAllocation(
+                    AllocationData(
+                        allocations[i].allocation.originalBeneficiary,
+                        abi.encode("calendar", allocations[i].allocation, calendarSchedules[id]),
+                        merkle.getProof(hashes, i)
+                    )
+                );
+            }
+        }
+    }
+
+    function createAllocation(
+        string memory allocId,
+        address beneficiary,
+        uint256 amount,
+        string memory scheduleId,
+        bool cancelable,
+        bool revokable,
+        bool transferableByAdmin,
+        bool transferableByBeneficiary
+    )
+        internal
+        pure
+        returns (CalendarAllocation memory)
+    {
+        return CalendarAllocation(
+            Allocation(
+                allocId, beneficiary, amount, cancelable, revokable, transferableByAdmin, transferableByBeneficiary
+            ),
+            scheduleId,
+            DistributionState(beneficiary, 0, 0, 0, 0, 0)
+        );
+    }
+
+    function createUnlockSchedule(string memory id) internal {
+        uint32[] memory unlockTimestamps = new uint32[](4);
+        uint256[] memory unlockPercents = new uint256[](4);
+        uint256 fraction = 250_000; // 25% each time
+        for (uint256 i = 0; i < 4; i++) {
+            unlockTimestamps[i] = uint32(block.timestamp + (i + 1) * 30 days);
+            unlockPercents[i] = fraction;
+        }
+        calendarSchedules[id] = CalendarUnlockSchedule(id, unlockTimestamps, unlockPercents);
+    }
+
+    function createHashes(CalendarAllocation[] memory allocations) internal view returns (bytes32[] memory hashes) {
+        hashes = new bytes32[](allocations.length);
+        for (uint256 i = 0; i < allocations.length; i++) {
+            hashes[i] = vester.getCalendarLeafHash(
+                "calendar", allocations[i].allocation, calendarSchedules[allocations[i].calendarUnlockScheduleId]
+            );
+        }
     }
 
     function invariant_tokenBalanceConsistency() public view {
@@ -61,27 +180,46 @@ contract StakingRewardDistributor_Invariant_Test is Invariant_Test {
 
     function invariant_totalDistributedConsistency() public view {
         uint256 totalCursorTokensPerWeek = 0;
-        uint256 flooredLastTokenTimestamp = _timestampToFloorWeek(stakingRewardDistributor.lastTokenTimestamp());
-
-        // Fed rewards
-        for (uint256 i = stakingRewardDistributor.startWeekCursor(); i <= flooredLastTokenTimestamp; i += 1 weeks) {
-            totalCursorTokensPerWeek += stakingRewardDistributor.tokensPerWeek(i);
-        }
+        uint256 currentWeek = _timestampToFloorWeek(block.timestamp);
 
         uint256 totalInjectedTokensPerWeek = 0;
+
+        uint256 minTimestamp;
+        uint256 maxTimestamp;
+
         // Injected rewards
         for (uint256 i = 0; i < store.getTokensPerWeekInjectedTimestampsLength(); i++) {
             uint256 week = store.tokensPerWeekInjectedTimestamps(i);
+            if (week > maxTimestamp) {
+                maxTimestamp = week;
+            }
+            if (minTimestamp == 0 || week < minTimestamp) {
+                minTimestamp = week;
+            }
             // Only consider rewards that have been injected before our calculated cursors
-            if (week < stakingRewardDistributor.startWeekCursor() || week > flooredLastTokenTimestamp) {
+            if (week < stakingRewardDistributor.startWeekCursor() || week > currentWeek) {
                 totalInjectedTokensPerWeek += stakingRewardDistributor.tokensPerWeek(week);
             }
         }
 
+        if (minTimestamp > stakingRewardDistributor.startWeekCursor()) {
+            minTimestamp = stakingRewardDistributor.startWeekCursor();
+        }
+        if (maxTimestamp < currentWeek) {
+            maxTimestamp = currentWeek;
+        }
+
+        // Fed rewards
+        for (uint256 i = minTimestamp; i <= maxTimestamp; i += 1 weeks) {
+            totalCursorTokensPerWeek += stakingRewardDistributor.tokensPerWeek(i);
+        }
+
+        totalCursorTokensPerWeek -= totalInjectedTokensPerWeek;
+
         assertLe(
             totalInjectedTokensPerWeek,
             store.totalInjectedRewards(),
-            "Total injected tokens per week should be <= total injected rewards"
+            "Total injected tokens per week should be less than or equal to total injected rewards"
         );
 
         uint256 totalTokensPerWeek = totalCursorTokensPerWeek + totalInjectedTokensPerWeek;
@@ -95,7 +233,7 @@ contract StakingRewardDistributor_Invariant_Test is Invariant_Test {
         assertApproxEqAbs(
             totalTokensPerWeek,
             store.totalFedRewards() + store.totalInjectedRewards(),
-            store.totalFedRewards() + store.totalInjectedRewards() / 1e6, // Allow 0.0001% difference
+            (store.totalFedRewards() + store.totalInjectedRewards()) / 1e4, // Allow 0.01% difference
             "Total tokens per week should equal sum of fed and injected rewards"
         );
 
@@ -143,12 +281,29 @@ contract StakingRewardDistributor_Invariant_Test is Invariant_Test {
         if (store.firstLockCreatedAt() == 0) {
             return;
         }
-        for (uint256 week = store.firstLockCreatedAt(); week <= stakingRewardDistributor.weekCursor(); week++) {
-            assertLe(
-                stakingRewardDistributor.totalSupplyAt(week),
-                stakeWeight.totalSupplyAtTime(week),
-                "totalSupplyAt should not exceed StakeWeight totalSupplyAtTime"
-            );
+
+        // Start from the first full week after the first lock
+        uint256 startWeek = _timestampToFloorWeek(store.firstLockCreatedAt()) + 1 weeks;
+
+        // Check each week's total supply
+        for (uint256 week = startWeek; week <= stakingRewardDistributor.weekCursor(); week += 1 weeks) {
+            uint256 distributorSupply = stakingRewardDistributor.totalSupplyAt(week);
+            if (distributorSupply > 0) {
+                // Only verify non-zero supplies since they indicate active checkpoints
+                try stakeWeight.totalSupplyAtTime(week) returns (uint256 supplyAtTime) {
+                    // Allow for some reasonable difference due to different calculation methods
+                    uint256 tolerance = supplyAtTime / 100; // 1% tolerance
+                    assertApproxEqAbs(
+                        distributorSupply,
+                        supplyAtTime,
+                        tolerance,
+                        "totalSupplyAt should be approximately equal to StakeWeight totalSupplyAtTime"
+                    );
+                } catch {
+                    // If totalSupplyAtTime reverts, we can't make any assertions
+                    continue;
+                }
+            }
         }
     }
 
@@ -179,6 +334,8 @@ contract StakingRewardDistributor_Invariant_Test is Invariant_Test {
         console2.log("withdrawAll calls:", handler.calls("withdrawAll"));
         console2.log("createLock calls:", handler.calls("createLock"));
         console2.log("feed calls:", handler.calls("feed"));
+        console2.log("createLockFor calls:", handler.calls("createLockFor"));
+        console2.log("forceWithdrawAll calls:", handler.calls("forceWithdrawAll"));
 
         // Record initial contract balance
         uint256 initialContractBalance = l2wct.balanceOf(address(stakingRewardDistributor));

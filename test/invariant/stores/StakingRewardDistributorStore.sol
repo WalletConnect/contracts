@@ -1,6 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.25 <0.9.0;
 
+struct AllocationData {
+    address beneficiary;
+    bytes decodableArgs;
+    bytes32[] proofs;
+}
+
 contract StakingRewardDistributorStore {
     struct UserInfo {
         uint256 claimedAmount;
@@ -9,6 +15,11 @@ contract StakingRewardDistributorStore {
         uint256 unlockTime;
         bool hasLock;
     }
+
+    AllocationData[] public allocations;
+    mapping(address => bool) public hasAllocation;
+    mapping(address => bool) public hasBeenForcedWithdrawn;
+    int128 public nonTransferableBalance;
 
     mapping(address => UserInfo) public userInfo;
     address[] public users;
@@ -23,6 +34,40 @@ contract StakingRewardDistributorStore {
             users.push(user);
             isUser[user] = true;
         }
+    }
+
+    function addAllocation(AllocationData memory allocation) public {
+        if (!hasAllocation[allocation.beneficiary]) {
+            allocations.push(allocation);
+            hasAllocation[allocation.beneficiary] = true;
+        }
+    }
+
+    function removeAllocation(address user) public {
+        if (hasAllocation[user]) {
+            for (uint256 i = 0; i < allocations.length; i++) {
+                if (allocations[i].beneficiary == user) {
+                    allocations[i] = allocations[allocations.length - 1];
+                    allocations.pop();
+                    break;
+                }
+            }
+            hasAllocation[user] = false;
+        }
+    }
+
+    function getAllocations() public view returns (AllocationData[] memory) {
+        return allocations;
+    }
+
+    function getRandomAllocation(uint256 seed) public view returns (AllocationData memory) {
+        require(allocations.length > 0, "No allocations");
+        return allocations[uint256(keccak256(abi.encodePacked(block.timestamp, block.prevrandao, msg.sender, seed)))
+            % allocations.length];
+    }
+
+    function updateNonTransferableBalance(int128 amount) public {
+        nonTransferableBalance += amount;
     }
 
     function getUsers() public view returns (address[] memory) {
