@@ -40,6 +40,7 @@ contract Claim_StakingRewardDistributor_Integration_Concrete_Test is StakeWeight
         vm.prank(users.admin);
         stakingRewardDistributor.kill();
 
+        vm.startPrank(users.alice);
         vm.expectRevert(StakingRewardDistributor.ContractKilled.selector);
         stakingRewardDistributor.claim(users.alice);
     }
@@ -48,7 +49,26 @@ contract Claim_StakingRewardDistributor_Integration_Concrete_Test is StakeWeight
         _;
     }
 
-    function test_RevertWhen_BlockTimestampIsLessThanStartWeekCursor() external whenContractLive {
+    function test_RevertWhen_UnauthorizedClaimer()
+        external
+        whenContractLive
+        whenBlockTimestampIsGreaterThanOrEqualToStartWeekCursor
+    {
+        // Try to claim as an unauthorized address
+        vm.prank(users.attacker);
+        vm.expectRevert(StakingRewardDistributor.UnauthorizedClaimer.selector);
+        stakingRewardDistributor.claim(users.alice);
+    }
+
+    modifier whenAuthorizedClaimer() {
+        _;
+    }
+
+    function test_RevertWhen_BlockTimestampIsLessThanStartWeekCursor()
+        external
+        whenContractLive
+        whenAuthorizedClaimer
+    {
         stakingRewardDistributor = newStakingRewardDistributor({
             initialOwner: users.admin,
             init: StakingRewardDistributor.Init({
@@ -60,6 +80,7 @@ contract Claim_StakingRewardDistributor_Integration_Concrete_Test is StakeWeight
         });
 
         // Underflow
+        vm.startPrank(users.alice);
         vm.expectRevert();
         stakingRewardDistributor.claim(users.alice);
     }
@@ -71,6 +92,7 @@ contract Claim_StakingRewardDistributor_Integration_Concrete_Test is StakeWeight
     function test_CheckpointTotalSupply()
         external
         whenContractLive
+        whenAuthorizedClaimer
         whenBlockTimestampIsGreaterThanOrEqualToStartWeekCursor
     {
         _createLockForUser(users.alice, 1000 ether, block.timestamp + 4 weeks);
@@ -82,6 +104,7 @@ contract Claim_StakingRewardDistributor_Integration_Concrete_Test is StakeWeight
         _mineBlocks(defaults.ONE_WEEK_IN_BLOCKS());
 
         // This should checkpoint the total supply
+        vm.prank(users.alice);
         stakingRewardDistributor.claim(users.alice);
 
         uint256 updatedWeekCursor = stakingRewardDistributor.weekCursor();
@@ -97,9 +120,11 @@ contract Claim_StakingRewardDistributor_Integration_Concrete_Test is StakeWeight
     function test_UpdateLastTokenTimestamp()
         external
         whenContractLive
+        whenAuthorizedClaimer
         whenBlockTimestampIsGreaterThanOrEqualToStartWeekCursor
     {
         uint256 initialLastTokenTimestamp = stakingRewardDistributor.lastTokenTimestamp();
+        vm.prank(users.alice);
         stakingRewardDistributor.claim(users.alice);
         uint256 updatedLastTokenTimestamp = stakingRewardDistributor.lastTokenTimestamp();
 
@@ -110,6 +135,7 @@ contract Claim_StakingRewardDistributor_Integration_Concrete_Test is StakeWeight
         external
         view
         whenContractLive
+        whenAuthorizedClaimer
         whenBlockTimestampIsGreaterThanOrEqualToStartWeekCursor
     {
         // Assume no custom recipient is set
@@ -120,6 +146,7 @@ contract Claim_StakingRewardDistributor_Integration_Concrete_Test is StakeWeight
     function test_UseCustomRecipientAddress()
         external
         whenContractLive
+        whenAuthorizedClaimer
         whenBlockTimestampIsGreaterThanOrEqualToStartWeekCursor
     {
         // Set a custom recipient
@@ -133,8 +160,10 @@ contract Claim_StakingRewardDistributor_Integration_Concrete_Test is StakeWeight
     function test_NoRewardsWhenNoStakeHistory()
         external
         whenContractLive
+        whenAuthorizedClaimer
         whenBlockTimestampIsGreaterThanOrEqualToStartWeekCursor
     {
+        vm.prank(users.carol);
         uint256 claimedAmount = stakingRewardDistributor.claim(users.carol);
         assertEq(claimedAmount, 0, "Should return 0 when user has no stake history");
     }
@@ -142,6 +171,7 @@ contract Claim_StakingRewardDistributor_Integration_Concrete_Test is StakeWeight
     function test_CalculateRewardsFromFirstStake()
         external
         whenContractLive
+        whenAuthorizedClaimer
         whenBlockTimestampIsGreaterThanOrEqualToStartWeekCursor
     {
         // Setup: Stake for users.alice after distribution start
@@ -152,6 +182,7 @@ contract Claim_StakingRewardDistributor_Integration_Concrete_Test is StakeWeight
         // Move time forward to ensure distribution has started (1 week)
         _mineBlocks(defaults.ONE_WEEK_IN_BLOCKS());
 
+        vm.prank(users.alice);
         uint256 claimedAmount = stakingRewardDistributor.claim(users.alice);
         assertGt(claimedAmount, 0, "Should calculate rewards from user's first stake");
 
@@ -169,6 +200,7 @@ contract Claim_StakingRewardDistributor_Integration_Concrete_Test is StakeWeight
     function test_IncludeInjectedRewards()
         external
         whenContractLive
+        whenAuthorizedClaimer
         whenBlockTimestampIsGreaterThanOrEqualToStartWeekCursor
     {
         // Setup: Stake for users.alice, inject rewards, wait some time
@@ -187,6 +219,7 @@ contract Claim_StakingRewardDistributor_Integration_Concrete_Test is StakeWeight
         // Move time forward by another week
         _mineBlocks(defaults.ONE_WEEK_IN_BLOCKS());
 
+        vm.prank(users.alice);
         uint256 claimedAmount = stakingRewardDistributor.claim(users.alice);
         // Weekly amount + injected amount
         uint256 expectedAmount = weeklyAmount + injectedAmount;
@@ -196,6 +229,7 @@ contract Claim_StakingRewardDistributor_Integration_Concrete_Test is StakeWeight
     function test_CalculateRewardsAcrossMultipleEpochs()
         external
         whenContractLive
+        whenAuthorizedClaimer
         whenBlockTimestampIsGreaterThanOrEqualToStartWeekCursor
     {
         // Setup: Stake for users.alice across multiple epochs
@@ -206,6 +240,7 @@ contract Claim_StakingRewardDistributor_Integration_Concrete_Test is StakeWeight
         // Move time forward by 2 week
         _mineBlocks(defaults.ONE_WEEK_IN_BLOCKS() * 2);
 
+        vm.prank(users.alice);
         uint256 claimedAmount = stakingRewardDistributor.claim(users.alice);
         // Two weeks of rewards
         uint256 expectedRewards = weeklyAmount * 2;
@@ -219,6 +254,7 @@ contract Claim_StakingRewardDistributor_Integration_Concrete_Test is StakeWeight
     function test_AccountForIncreasedStake()
         external
         whenContractLive
+        whenAuthorizedClaimer
         whenBlockTimestampIsGreaterThanOrEqualToStartWeekCursor
     {
         // Setup: Initial stake for users.alice / users.bob, then increase stake for users.alice
@@ -230,11 +266,12 @@ contract Claim_StakingRewardDistributor_Integration_Concrete_Test is StakeWeight
         // Move time forward by 1 week
         _mineBlocks(defaults.ONE_WEEK_IN_BLOCKS());
 
-        assertEq(
-            stakingRewardDistributor.claim(users.alice),
-            stakingRewardDistributor.claim(users.bob),
-            "Same amount should be claimed for both users"
-        );
+        vm.prank(users.alice);
+        uint256 aliceClaimedAmount = stakingRewardDistributor.claim(users.alice);
+        vm.prank(users.bob);
+        uint256 bobClaimedAmount = stakingRewardDistributor.claim(users.bob);
+
+        assertEq(aliceClaimedAmount, bobClaimedAmount, "Same amount should be claimed for both users");
 
         // Increase stake for users.alice
         uint256 increasedAmount = 2000 ether;
@@ -242,14 +279,20 @@ contract Claim_StakingRewardDistributor_Integration_Concrete_Test is StakeWeight
 
         _mineBlocks(defaults.ONE_WEEK_IN_BLOCKS());
 
-        assertGt(
-            stakingRewardDistributor.claim(users.alice),
-            stakingRewardDistributor.claim(users.bob),
-            "Alice should have more rewards after increasing stake"
-        );
+        vm.prank(users.alice);
+        uint256 aliceNewClaimedAmount = stakingRewardDistributor.claim(users.alice);
+        vm.prank(users.bob);
+        uint256 bobNewClaimedAmount = stakingRewardDistributor.claim(users.bob);
+
+        assertGt(aliceNewClaimedAmount, bobNewClaimedAmount, "Alice should have more rewards after increasing stake");
     }
 
-    function test_ClaimRewards() external whenContractLive whenBlockTimestampIsGreaterThanOrEqualToStartWeekCursor {
+    function test_ClaimRewards()
+        external
+        whenContractLive
+        whenAuthorizedClaimer
+        whenBlockTimestampIsGreaterThanOrEqualToStartWeekCursor
+    {
         // Setup: Ensure users.alice has rewards to claim
         uint256 initialAmount = 1000 ether;
         uint256 initialLockTime = block.timestamp + 4 weeks;
@@ -259,6 +302,7 @@ contract Claim_StakingRewardDistributor_Integration_Concrete_Test is StakeWeight
         _mineBlocks(defaults.ONE_WEEK_IN_BLOCKS());
 
         uint256 initialBalance = l2wct.balanceOf(users.alice);
+        vm.prank(users.alice);
         uint256 claimedAmount = stakingRewardDistributor.claim(users.alice);
 
         assertEq(claimedAmount, weeklyAmount, "Should claim one weeks of rewards");
@@ -270,6 +314,7 @@ contract Claim_StakingRewardDistributor_Integration_Concrete_Test is StakeWeight
     function test_EmitClaimedEvent()
         external
         whenContractLive
+        whenAuthorizedClaimer
         whenBlockTimestampIsGreaterThanOrEqualToStartWeekCursor
     {
         // Setup: Ensure users.alice has rewards to claim
@@ -289,12 +334,14 @@ contract Claim_StakingRewardDistributor_Integration_Concrete_Test is StakeWeight
         vm.expectEmit(true, true, true, true);
         // First claim is always epoch 1
         emit RewardsClaimed(users.alice, users.alice, expectedClaimAmount, 1, maxEpoch);
+        vm.prank(users.alice);
         stakingRewardDistributor.claim(users.alice);
     }
 
     function test_UpdateUserClaimCursor()
         external
         whenContractLive
+        whenAuthorizedClaimer
         whenBlockTimestampIsGreaterThanOrEqualToStartWeekCursor
     {
         // Setup: Ensure users.alice has rewards to claim
@@ -306,6 +353,7 @@ contract Claim_StakingRewardDistributor_Integration_Concrete_Test is StakeWeight
         _mineBlocks(defaults.ONE_WEEK_IN_BLOCKS());
 
         uint256 initialCursor = stakingRewardDistributor.weekCursorOf(users.alice);
+        vm.prank(users.alice);
         stakingRewardDistributor.claim(users.alice);
         uint256 updatedCursor = stakingRewardDistributor.weekCursorOf(users.alice);
 
@@ -315,6 +363,7 @@ contract Claim_StakingRewardDistributor_Integration_Concrete_Test is StakeWeight
     function test_ReturnTotalClaimedAmount()
         external
         whenContractLive
+        whenAuthorizedClaimer
         whenBlockTimestampIsGreaterThanOrEqualToStartWeekCursor
     {
         // Setup: Ensure users.alice has rewards to claim
@@ -325,8 +374,45 @@ contract Claim_StakingRewardDistributor_Integration_Concrete_Test is StakeWeight
         // Move time forward to accumulate rewards
         _mineBlocks(defaults.ONE_WEEK_IN_BLOCKS());
 
+        // Claim as user
+        vm.prank(users.alice);
         uint256 claimedAmount = stakingRewardDistributor.claim(users.alice);
         assertGt(claimedAmount, 0, "Should return the total claimed amount");
+        assertEq(claimedAmount, weeklyAmount, "Should claim one week of rewards");
+    }
+
+    function test_ClaimAsRecipient() external {
+        // Setup: Ensure users.alice has rewards to claim
+        uint256 initialAmount = 1000 ether;
+        uint256 initialLockTime = block.timestamp + 4 weeks;
+        _createLockForUser(users.alice, initialAmount, initialLockTime);
+
+        // Set a custom recipient
+        vm.prank(users.alice);
+        stakingRewardDistributor.setRecipient(users.bob);
+
+        // Mine a week
+        _mineBlocks(defaults.ONE_WEEK_IN_BLOCKS());
+
+        // Claim as recipient
+        vm.prank(users.bob);
+        uint256 claimedAmount = stakingRewardDistributor.claim(users.alice);
+        assertEq(claimedAmount, weeklyAmount, "Should claim one week of rewards");
+        assertEq(l2wct.balanceOf(users.bob), claimedAmount, "Should transfer correct amount of tokens");
+    }
+
+    function test_ClaimAsUser() external {
+        // Setup: Ensure users.alice has rewards to claim
+        uint256 initialAmount = 1000 ether;
+        uint256 initialLockTime = block.timestamp + 4 weeks;
+        _createLockForUser(users.alice, initialAmount, initialLockTime);
+
+        // Mine a week
+        _mineBlocks(defaults.ONE_WEEK_IN_BLOCKS());
+
+        // Claim as user
+        vm.prank(users.alice);
+        uint256 claimedAmount = stakingRewardDistributor.claim(users.alice);
         assertEq(claimedAmount, weeklyAmount, "Should claim one week of rewards");
     }
 }

@@ -62,6 +62,9 @@ contract StakingRewardDistributor is Initializable, Ownable2StepUpgradeable, Ree
     /// @notice Thrown when a timestamp is before startWeekCursor
     error InvalidTimestamp();
 
+    /// @notice Thrown when a user is not authorized to claim rewards for another user
+    error UnauthorizedClaimer();
+
     /// @notice The starting week cursor for the distribution
     uint256 public startWeekCursor;
 
@@ -382,16 +385,17 @@ contract StakingRewardDistributor is Initializable, Ownable2StepUpgradeable, Ree
     }
 
     /// @notice Claim rewardToken for user and user's recipient
-    /// @dev Need owner permission
     /// @param recipient_ The recipient address will be claimed to
     function claimTo(address recipient_) external nonReentrant onlyLive returns (uint256) {
         return _claimWithCustomRecipient(msg.sender, recipient_);
     }
 
     /// @notice Claim rewardToken for user and user's recipient
-    /// @dev Do not need owner permission
     /// @param user The address to claim rewards for
     function claim(address user) external nonReentrant onlyLive returns (uint256) {
+        if (msg.sender != user) {
+            if (msg.sender != recipient[user]) revert UnauthorizedClaimer();
+        }
         return _claimWithCustomRecipient(user, address(0));
     }
 

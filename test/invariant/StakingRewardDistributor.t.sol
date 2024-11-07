@@ -361,7 +361,9 @@ contract StakingRewardDistributor_Invariant_Test is Invariant_Test {
             totalLockedAmount += lockedAmount;
 
             uint256 balanceBeforeClaim = l2wct.balanceOf(address(stakingRewardDistributor));
+            vm.startPrank(users[i]);
             uint256 claimed = stakingRewardDistributor.claim(users[i]);
+            vm.stopPrank();
             uint256 balanceAfterClaim = l2wct.balanceOf(address(stakingRewardDistributor));
 
             totalClaimed += claimed;
