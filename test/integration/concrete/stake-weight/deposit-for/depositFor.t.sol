@@ -51,9 +51,9 @@ contract DepositFor_StakeWeight_Integration_Concrete_Test is StakeWeight_Integra
     {
         vm.warp(block.timestamp + 2 weeks);
 
-        (, uint256 lockEnd) = stakeWeight.locks(users.alice);
+        StakeWeight.LockedBalance memory lock = stakeWeight.locks(users.alice);
 
-        vm.expectRevert(abi.encodeWithSelector(StakeWeight.ExpiredLock.selector, block.timestamp, lockEnd));
+        vm.expectRevert(abi.encodeWithSelector(StakeWeight.ExpiredLock.selector, block.timestamp, lock.end));
         stakeWeight.depositFor(users.alice, amount);
     }
 
@@ -78,12 +78,19 @@ contract DepositFor_StakeWeight_Integration_Concrete_Test is StakeWeight_Integra
         deal(address(l2wct), users.bob, additionalAmount + amount);
         uint256 initialBalance = l2wct.balanceOf(address(users.bob));
 
-        (, uint256 lockEnd) = stakeWeight.locks(users.alice);
+        StakeWeight.LockedBalance memory initialLock = stakeWeight.locks(users.alice);
         resetPrank(users.bob);
         l2wct.approve(address(stakeWeight), additionalAmount);
 
         vm.expectEmit(true, true, true, true);
-        emit Deposit(users.alice, additionalAmount, lockEnd, stakeWeight.ACTION_DEPOSIT_FOR(), block.timestamp);
+        emit Deposit(
+            users.alice,
+            additionalAmount,
+            initialLock.end,
+            stakeWeight.ACTION_DEPOSIT_FOR(),
+            additionalAmount,
+            block.timestamp
+        );
 
         vm.expectEmit(true, true, true, true);
         emit Supply(initialSupply, initialSupply + additionalAmount);
@@ -91,8 +98,8 @@ contract DepositFor_StakeWeight_Integration_Concrete_Test is StakeWeight_Integra
         stakeWeight.depositFor(users.alice, additionalAmount);
         vm.stopPrank();
 
-        (int128 lockAmount,) = stakeWeight.locks(users.alice);
-        assertEq(SafeCast.toUint256(lockAmount), amount + additionalAmount, "Lock amount should be increased");
+        StakeWeight.LockedBalance memory currentLock = stakeWeight.locks(users.alice);
+        assertEq(SafeCast.toUint256(currentLock.amount), amount + additionalAmount, "Lock amount should be increased");
         assertEq(stakeWeight.supply(), initialSupply + additionalAmount, "Total supply should be updated");
         assertEq(
             l2wct.balanceOf(address(users.bob)),

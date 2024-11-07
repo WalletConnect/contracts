@@ -4,15 +4,27 @@ pragma solidity >=0.8.25 <0.9.0;
 import { console2 } from "forge-std/console2.sol";
 import { Timelock } from "src/Timelock.sol";
 import { L2WCT } from "src/L2WCT.sol";
+import { WalletConnectConfig } from "src/WalletConnectConfig.sol";
+import { Pauser } from "src/Pauser.sol";
+import { StakeWeight } from "src/StakeWeight.sol";
+import { StakingRewardDistributor } from "src/StakingRewardDistributor.sol";
 import { OptimismDeployments, BaseScript } from "script/Base.s.sol";
 import { Eip1967Logger } from "script/utils/Eip1967Logger.sol";
-import { newL2WCT } from "script/helpers/Proxy.sol";
+import {
+    newL2WCT,
+    newWalletConnectConfig,
+    newPauser,
+    newStakeWeight,
+    newStakingRewardDistributor
+} from "script/helpers/Proxy.sol";
 
 struct OptimismDeploymentParams {
     address admin;
     address manager;
     address timelockCanceller;
     address opBridge;
+    address pauser;
+    address emergencyReturn;
 }
 
 contract OptimismDeploy is BaseScript {
@@ -31,9 +43,20 @@ contract OptimismDeploy is BaseScript {
         logDeployments();
     }
 
+    function setConfig() public broadcast {
+        OptimismDeployments memory deps = readOptimismDeployments(block.chainid);
+        deps.config.updateL2wct(address(deps.l2wct));
+        deps.config.updatePauser(address(deps.pauser));
+        deps.config.updateStakeWeight(address(deps.stakeWeight));
+    }
+
     function logDeployments() public {
         OptimismDeployments memory deps = readOptimismDeployments(block.chainid);
         Eip1967Logger.logEip1967(vm, "L2WCT", address(deps.l2wct));
+        Eip1967Logger.logEip1967(vm, "WalletConnectConfig", address(deps.config));
+        Eip1967Logger.logEip1967(vm, "Pauser", address(deps.pauser));
+        Eip1967Logger.logEip1967(vm, "StakeWeight", address(deps.stakeWeight));
+        Eip1967Logger.logEip1967(vm, "StakingRewardDistributor", address(deps.stakingRewardDistributor));
         console2.log("Admin Timelock:", address(deps.adminTimelock));
         console2.log("Manager Timelock:", address(deps.managerTimelock));
     }
@@ -53,6 +76,24 @@ contract OptimismDeploy is BaseScript {
             })
         });
 
+        WalletConnectConfig config =
+            newWalletConnectConfig(params.admin, WalletConnectConfig.Init({ admin: params.admin }));
+
+        Pauser pauser = newPauser(params.admin, Pauser.Init({ admin: params.admin, pauser: params.pauser }));
+
+        StakeWeight stakeWeight =
+            newStakeWeight(params.admin, StakeWeight.Init({ admin: params.admin, config: address(config) }));
+
+        StakingRewardDistributor stakingRewardDistributor = newStakingRewardDistributor(
+            params.admin,
+            StakingRewardDistributor.Init({
+                admin: params.admin,
+                config: address(config),
+                startTime: block.timestamp + 2 weeks,
+                emergencyReturn: params.emergencyReturn
+            })
+        );
+
         Timelock adminTimelock = new Timelock(
             1 weeks, _singleAddressArray(params.admin), _singleAddressArray(params.admin), params.timelockCanceller
         );
@@ -60,7 +101,15 @@ contract OptimismDeploy is BaseScript {
             3 days, _singleAddressArray(params.manager), _singleAddressArray(params.manager), params.timelockCanceller
         );
 
-        return OptimismDeployments({ l2wct: l2wct, adminTimelock: adminTimelock, managerTimelock: managerTimelock });
+        return OptimismDeployments({
+            l2wct: l2wct,
+            config: config,
+            pauser: pauser,
+            stakeWeight: stakeWeight,
+            stakingRewardDistributor: stakingRewardDistributor,
+            adminTimelock: adminTimelock,
+            managerTimelock: managerTimelock
+        });
     }
 
     function _writeOptimismDeployments(OptimismDeployments memory deps) private {
@@ -72,7 +121,9 @@ contract OptimismDeploy is BaseScript {
             admin: vm.envAddress("ADMIN_ADDRESS"),
             manager: vm.envAddress("MANAGER_ADDRESS"),
             opBridge: vm.envAddress("OP_BRIDGE_ADDRESS"),
-            timelockCanceller: vm.envAddress("TIMELOCK_CANCELLER_ADDRESS")
+            timelockCanceller: vm.envAddress("TIMELOCK_CANCELLER_ADDRESS"),
+            pauser: vm.envAddress("PAUSER_ADDRESS"),
+            emergencyReturn: vm.envAddress("EMERGENCY_RETURN_ADDRESS")
         });
     }
 }

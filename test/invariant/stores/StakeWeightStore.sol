@@ -1,8 +1,15 @@
 pragma solidity >=0.8.25 <0.9.0;
 
+struct AllocationData {
+    address beneficiary;
+    bytes decodableArgs;
+    bytes32[] proofs;
+}
+
 contract StakeWeightStore {
     struct UserInfo {
-        int128 lockedAmount;
+        int128 currentLockedAmount;
+        int128 totalLockedAmount;
         uint256 withdrawnAmount;
         uint256 previousBalance;
         uint256 previousEndTime;
@@ -10,9 +17,16 @@ contract StakeWeightStore {
     }
 
     mapping(address => UserInfo) public userInfo;
+
+    AllocationData[] public allocations;
+    mapping(address => bool) public hasAllocation;
+
     address[] public addressesWithLock;
     mapping(address => bool) public hasLock;
+    mapping(address => bool) public hasBeenForcedWithdrawn;
 
+    int128 public nonTransferableBalance;
+    int128 public currentLockedAmount;
     int128 public totalLockedAmount;
     uint256 public totalWithdrawnAmount;
 
@@ -46,10 +60,48 @@ contract StakeWeightStore {
             % addressesWithLock.length];
     }
 
+    function addAllocation(AllocationData memory allocation) public {
+        if (!hasAllocation[allocation.beneficiary]) {
+            allocations.push(allocation);
+            hasAllocation[allocation.beneficiary] = true;
+        }
+    }
+
+    function removeAllocation(address user) public {
+        if (hasAllocation[user]) {
+            for (uint256 i = 0; i < allocations.length; i++) {
+                if (allocations[i].beneficiary == user) {
+                    allocations[i] = allocations[allocations.length - 1];
+                    allocations.pop();
+                    break;
+                }
+            }
+            hasAllocation[user] = false;
+        }
+    }
+
+    function getAllocations() public view returns (AllocationData[] memory) {
+        return allocations;
+    }
+
+    function getRandomAllocation(uint256 seed) public view returns (AllocationData memory) {
+        require(allocations.length > 0, "No allocations");
+        return allocations[uint256(keccak256(abi.encodePacked(block.timestamp, block.prevrandao, msg.sender, seed)))
+            % allocations.length];
+    }
+
+    function updateNonTransferableBalance(int128 amount) public {
+        nonTransferableBalance += amount;
+    }
+
     function updateLockedAmount(address user, int128 amount) public {
-        userInfo[user].previousLockedAmount = userInfo[user].lockedAmount;
-        totalLockedAmount += amount;
-        userInfo[user].lockedAmount += amount;
+        userInfo[user].previousLockedAmount = userInfo[user].currentLockedAmount;
+        userInfo[user].currentLockedAmount += amount;
+        currentLockedAmount += amount;
+        if (amount > 0) {
+            totalLockedAmount += amount;
+            userInfo[user].totalLockedAmount += amount;
+        }
     }
 
     function updateWithdrawnAmount(address user, uint256 amount) public {
@@ -65,8 +117,12 @@ contract StakeWeightStore {
         userInfo[user].previousEndTime = endTime;
     }
 
-    function lockedAmount(address user) public view returns (int128) {
-        return userInfo[user].lockedAmount;
+    function setHasBeenForcedWithdrawn(address user, bool value) public {
+        hasBeenForcedWithdrawn[user] = value;
+    }
+
+    function userTotalLockedAmount(address user) public view returns (int128) {
+        return userInfo[user].totalLockedAmount;
     }
 
     function withdrawnAmount(address user) public view returns (uint256) {

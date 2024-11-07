@@ -15,8 +15,8 @@ contract Initialize_StakeWeight_Unit_Concrete_Test is Base_Test {
     }
 
     function test_WhenInitializedWithValidInputs() public view {
-        // Check that the owner is set correctly
-        assertEq(stakeWeight.owner(), users.admin);
+        // Check that the admin is set correctly
+        assertTrue(stakeWeight.hasRole(stakeWeight.DEFAULT_ADMIN_ROLE(), users.admin));
 
         // Check that the config is set correctly
         assertEq(address(stakeWeight.config()), address(walletConnectConfig));
@@ -54,7 +54,7 @@ contract Initialize_StakeWeight_Unit_Concrete_Test is Base_Test {
     function test_RevertsWhen_ZeroAdminAddress() public {
         StakeWeight implementation = new StakeWeight();
 
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableInvalidOwner.selector, address(0)));
+        vm.expectRevert(abi.encodeWithSelector(StakeWeight.InvalidAddress.selector, address(0)));
         new ERC1967Proxy(
             address(implementation),
             abi.encodeWithSelector(

@@ -40,8 +40,8 @@ contract CreateLock_StakeWeight_Unit_Concrete_Test is StakeWeight_Integration_Sh
 
     modifier givenUserDoesNotHaveALock() {
         // Ensure the user doesn't have an existing lock
-        (int128 lockAmount,) = stakeWeight.locks(users.alice);
-        require(lockAmount == 0, "User already has a lock");
+        StakeWeight.LockedBalance memory lock = stakeWeight.locks(users.alice);
+        require(lock.amount == 0, "User already has a lock");
         _;
     }
 
@@ -83,13 +83,13 @@ contract CreateLock_StakeWeight_Unit_Concrete_Test is StakeWeight_Integration_Sh
         uint256 supplyBefore = stakeWeight.supply();
 
         vm.expectEmit(true, true, true, true);
-        emit Deposit(users.alice, amount, unlockTime, stakeWeight.ACTION_CREATE_LOCK(), block.timestamp);
+        emit Deposit(users.alice, amount, unlockTime, stakeWeight.ACTION_CREATE_LOCK(), amount, block.timestamp);
         stakeWeight.createLock(amount, unlockTime);
 
         // Check lock creation
-        (int128 lockAmount, uint256 lockEnd) = stakeWeight.locks(users.alice);
-        assertEq(uint256(int256(lockAmount)), amount, "Locked amount should match");
-        assertEq(lockEnd, _timestampToFloorWeek(unlockTime), "Unlock time should match");
+        StakeWeight.LockedBalance memory lock = stakeWeight.locks(users.alice);
+        assertEq(uint256(int256(lock.amount)), amount, "Locked amount should match");
+        assertEq(lock.end, _timestampToFloorWeek(unlockTime), "Unlock time should match");
 
         // Check total supply update
         assertGt(stakeWeight.supply(), supplyBefore, "Total supply should increase");
@@ -107,7 +107,7 @@ contract CreateLock_StakeWeight_Unit_Concrete_Test is StakeWeight_Integration_Sh
         assertEq(userPoint.blockNumber, block.number, "User point block number should match current block number");
 
         // Check slope changes
-        int128 slopeChange = stakeWeight.slopeChanges(lockEnd);
+        int128 slopeChange = stakeWeight.slopeChanges(lock.end);
         assertLt(slopeChange, 0, "Slope change at unlock time should be negative");
 
         // Check balanceOf
@@ -130,7 +130,12 @@ contract CreateLock_StakeWeight_Unit_Concrete_Test is StakeWeight_Integration_Sh
 
         vm.expectEmit(true, true, true, true);
         emit Deposit(
-            users.alice, amount, _timestampToFloorWeek(unlockTime), stakeWeight.ACTION_CREATE_LOCK(), block.timestamp
+            users.alice,
+            amount,
+            _timestampToFloorWeek(unlockTime),
+            stakeWeight.ACTION_CREATE_LOCK(),
+            amount,
+            block.timestamp
         );
         stakeWeight.createLock(amount, unlockTime);
     }

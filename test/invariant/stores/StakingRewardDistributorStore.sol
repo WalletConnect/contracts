@@ -1,6 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.25 <0.9.0;
 
+struct AllocationData {
+    address beneficiary;
+    bytes decodableArgs;
+    bytes32[] proofs;
+}
+
 contract StakingRewardDistributorStore {
     struct UserInfo {
         uint256 claimedAmount;
@@ -9,6 +15,11 @@ contract StakingRewardDistributorStore {
         uint256 unlockTime;
         bool hasLock;
     }
+
+    AllocationData[] public allocations;
+    mapping(address => bool) public hasAllocation;
+    mapping(address => bool) public hasBeenForcedWithdrawn;
+    int128 public nonTransferableBalance;
 
     mapping(address => UserInfo) public userInfo;
     address[] public users;
@@ -23,6 +34,40 @@ contract StakingRewardDistributorStore {
             users.push(user);
             isUser[user] = true;
         }
+    }
+
+    function addAllocation(AllocationData memory allocation) public {
+        if (!hasAllocation[allocation.beneficiary]) {
+            allocations.push(allocation);
+            hasAllocation[allocation.beneficiary] = true;
+        }
+    }
+
+    function removeAllocation(address user) public {
+        if (hasAllocation[user]) {
+            for (uint256 i = 0; i < allocations.length; i++) {
+                if (allocations[i].beneficiary == user) {
+                    allocations[i] = allocations[allocations.length - 1];
+                    allocations.pop();
+                    break;
+                }
+            }
+            hasAllocation[user] = false;
+        }
+    }
+
+    function getAllocations() public view returns (AllocationData[] memory) {
+        return allocations;
+    }
+
+    function getRandomAllocation(uint256 seed) public view returns (AllocationData memory) {
+        require(allocations.length > 0, "No allocations");
+        return allocations[uint256(keccak256(abi.encodePacked(block.timestamp, block.prevrandao, msg.sender, seed)))
+            % allocations.length];
+    }
+
+    function updateNonTransferableBalance(int128 amount) public {
+        nonTransferableBalance += amount;
     }
 
     function getUsers() public view returns (address[] memory) {
@@ -44,27 +89,16 @@ contract StakingRewardDistributorStore {
     }
 
     function getRandomAddressWithLock() public view returns (address) {
-        uint256 lockCount = 0;
-        for (uint256 i = 0; i < users.length; i++) {
-            if (userInfo[users[i]].hasLock) {
-                lockCount++;
-            }
-        }
-        require(lockCount > 0, "No users with lock");
+        // Get array of users with locks
+        address[] memory usersWithLocks = getUsersWithLocks();
+        require(usersWithLocks.length > 0, "No users with lock");
 
-        uint256 randomIndex = uint256(keccak256(abi.encodePacked(block.timestamp, block.prevrandao))) % lockCount;
-        uint256 currentIndex = 0;
+        // Generate pseudo-random index
+        uint256 randomIndex =
+            uint256(keccak256(abi.encodePacked(block.timestamp, block.prevrandao))) % usersWithLocks.length;
 
-        for (uint256 i = 0; i < users.length; i++) {
-            if (userInfo[users[i]].hasLock) {
-                if (currentIndex == randomIndex) {
-                    return users[i];
-                }
-                currentIndex++;
-            }
-        }
-
-        revert("No user found");
+        // Return the randomly selected user
+        return usersWithLocks[randomIndex];
     }
 
     function updateClaimedAmount(address user, uint256 amount) public {
@@ -139,5 +173,26 @@ contract StakingRewardDistributorStore {
             }
         }
         tokensPerWeekInjectedTimestamps.push(timestamp);
+    }
+
+    function getUsersWithLocks() public view returns (address[] memory) {
+        uint256 lockCount = 0;
+        address[] memory tempUsers = new address[](users.length);
+
+        // Count and collect users with locks
+        for (uint256 i = 0; i < users.length; i++) {
+            if (userInfo[users[i]].hasLock) {
+                tempUsers[lockCount] = users[i];
+                lockCount++;
+            }
+        }
+
+        // Create and populate final array of exact size
+        address[] memory usersWithLocks = new address[](lockCount);
+        for (uint256 i = 0; i < lockCount; i++) {
+            usersWithLocks[i] = tempUsers[i];
+        }
+
+        return usersWithLocks;
     }
 }

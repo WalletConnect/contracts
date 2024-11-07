@@ -58,8 +58,18 @@ abstract contract Events {
     /*//////////////////////////////////////////////////////////////////////////
                                 STAKE-WEIGHT
     //////////////////////////////////////////////////////////////////////////*/
-    event Deposit(address indexed provider, uint256 value, uint256 locktime, uint256 type_, uint256 timestamp);
-    event Withdraw(address indexed provider, uint256 value, uint256 timestamp);
+    event Deposit(
+        address indexed provider,
+        uint256 value,
+        uint256 locktime,
+        uint256 type_,
+        uint256 transferredValue,
+        uint256 timestamp
+    );
+    event Withdraw(address indexed provider, uint256 value, uint256 transferredValue, uint256 timestamp);
+    event ForcedWithdraw(
+        address indexed provider, uint256 value, uint256 transferredValue, uint256 timestamp, uint256 end
+    );
     event Supply(uint256 previousSupply, uint256 newSupply);
     event MaxLockUpdated(uint256 previousMaxLock, uint256 newMaxLock);
     /*//////////////////////////////////////////////////////////////////////////

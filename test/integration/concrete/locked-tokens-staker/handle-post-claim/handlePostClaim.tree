@@ -1,0 +1,20 @@
+handlePostClaim.t.sol
+├── given contract is paused
+│   └── it should revert with Paused error
+└── given contract is not paused
+    ├── when caller is not the vester contract
+    │   └── it should revert with InvalidCaller error
+    └── when caller is the vester contract
+        ├── when user has no lock
+        │   └── it should transfer claimed tokens to withdrawal address
+        └── when user has a lock
+            ├── when lock is active
+            │   ├── when allocation ID does not match
+            │   │   └── it should revert with InvalidAllocation error
+            │   ├── when claim amount exceeds remaining amount
+            │   │   └── it should revert with CannotClaimLockedTokens error
+            │   └── when claim amount is within remaining amount
+            │       └── it should transfer claimed tokens to withdrawal address
+            └── when lock is expired
+                ├── it should call withdrawAllFor on StakeWeight contract
+                └── it should transfer claimed tokens to withdrawal address

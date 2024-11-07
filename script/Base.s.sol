@@ -5,7 +5,11 @@ import { console2 } from "forge-std/console2.sol";
 import { Script } from "forge-std/Script.sol";
 import { WCT } from "src/WCT.sol";
 import { L2WCT } from "src/L2WCT.sol";
+import { StakeWeight } from "src/StakeWeight.sol";
+import { WalletConnectConfig } from "src/WalletConnectConfig.sol";
+import { StakingRewardDistributor } from "src/StakingRewardDistributor.sol";
 import { Timelock } from "src/Timelock.sol";
+import { Pauser } from "src/Pauser.sol";
 import { Eip1967Logger } from "script/utils/Eip1967Logger.sol";
 import { StdCheats } from "forge-std/StdCheats.sol";
 
@@ -16,6 +20,10 @@ struct EthereumDeployments {
 
 struct OptimismDeployments {
     L2WCT l2wct;
+    WalletConnectConfig config;
+    Pauser pauser;
+    StakeWeight stakeWeight;
+    StakingRewardDistributor stakingRewardDistributor;
     Timelock adminTimelock;
     Timelock managerTimelock;
 }
@@ -79,7 +87,11 @@ abstract contract BaseScript is Script, StdCheats {
             return OptimismDeployments({
                 l2wct: L2WCT(address(0)),
                 adminTimelock: Timelock(payable(address(0))),
-                managerTimelock: Timelock(payable(address(0)))
+                managerTimelock: Timelock(payable(address(0))),
+                config: WalletConnectConfig(address(0)),
+                pauser: Pauser(address(0)),
+                stakeWeight: StakeWeight(address(0)),
+                stakingRewardDistributor: StakingRewardDistributor(address(0))
             });
         }
         return abi.decode(data, (OptimismDeployments));

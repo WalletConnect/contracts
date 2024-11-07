@@ -11,6 +11,8 @@ import { RewardManager } from "src/RewardManager.sol";
 import { StakeWeight } from "src/StakeWeight.sol";
 import { Staking } from "src/Staking.sol";
 import { StakingRewardDistributor } from "src/StakingRewardDistributor.sol";
+import { LockedTokenStaker } from "src/LockedTokenStaker.sol";
+import { MerkleVester, IPostClaimHandler } from "src/interfaces/MerkleVester.sol";
 import { MockBridge } from "./mocks/MockBridge.sol";
 import {
     newPauser,
@@ -54,6 +56,8 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
     Staking internal staking;
     StakeWeight internal stakeWeight;
     StakingRewardDistributor internal stakingRewardDistributor;
+    LockedTokenStaker internal lockedTokenStaker;
+    MerkleVester internal vester;
     /*//////////////////////////////////////////////////////////////////////////
                                    MOCKS
     //////////////////////////////////////////////////////////////////////////*/
@@ -155,6 +159,22 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
         permissionedNodeRegistry =
             new PermissionedNodeRegistry({ initialAdmin: users.admin, maxNodes_: defaults.MAX_REGISTRY_NODES() });
 
+        IPostClaimHandler[] memory postClaimHandlers = new IPostClaimHandler[](0);
+
+        vester = new MerkleVester(
+            address(l2wct),
+            users.admin,
+            0, // No claim fee
+            address(0), // No fee collector
+            address(0), // No fee setter
+            postClaimHandlers, // No post claim handlers
+            0, // Max claim fee
+            true // Direct claim allowed
+        );
+
+        lockedTokenStaker =
+            new LockedTokenStaker({ vesterContract_: MerkleVester(address(vester)), config_: walletConnectConfig });
+
         // Update the WalletConnectConfig with the necessary contracts.
         walletConnectConfig.updateWCT(address(wct));
         walletConnectConfig.updateL2wct(address(l2wct));
@@ -176,6 +196,8 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
         vm.label({ account: address(stakeWeight), newLabel: "StakeWeight" });
         vm.label({ account: address(mockBridge), newLabel: "MockBridge" });
         vm.label({ account: address(stakingRewardDistributor), newLabel: "StakingRewardDistributor" });
+        vm.label({ account: address(vester), newLabel: "MerkleVester" });
+        vm.label({ account: address(lockedTokenStaker), newLabel: "LockedTokenStaker" });
     }
 
     function deployMockBridge() internal {

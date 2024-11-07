@@ -1,0 +1,25 @@
+increaseLockAmountFor.t.sol
+├── given contract is paused
+│   └── it should revert with Paused error
+└── given contract is not paused
+    ├── when caller is not the original beneficiary
+    │   └── it should revert with InvalidCaller error
+    └── when caller is the original beneficiary
+        ├── when user has no existing lock
+        │   └── it should revert with NonExistentLock error
+        └── when user has an existing lock
+            ├── when lock has expired
+            │   └── it should revert with ExpiredLock error
+            ├── when amount is zero
+            │   └── it should revert with InvalidAmount error
+            ├── when allocation is terminated
+            │   └── it should revert with TerminatedAllocation
+            └── when amount is greater than zero
+                ├── when new total amount exceeds available amount (totalAllocation - withdrawn)
+                │   └── it should revert with InsufficientAllocation error
+                └── when new total amount is within available amount
+                    ├── it should increase the lock amount
+                    ├── it should update the supply
+                    ├── it should not transfer tokens from the user
+                    ├── it should emit a Deposit event
+                    └── it should emit a Supply event

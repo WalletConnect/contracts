@@ -2,39 +2,42 @@ claim.t.sol
 ├── when contract is killed
 │   └── it should revert
 └── when contract is live
-    ├── when block.timestamp is greater than or equal to weekCursor
-    │   └── it should checkpoint total supply
-    ├── when block.timestamp is less than weekCursor
-    │   └── it should not checkpoint total supply
-    ├── it should checkpoint token
-    ├── it should update lastTokenTimestamp
-    ├── when user has no custom recipient set
-    │   └── it should use user's address as recipient
-    ├── when user has custom recipient set
-    │   └── it should use custom recipient address
-    ├── when user has no stake history
-    │   ├── it should return 0
-    │   └── it should not transfer any tokens
-    └── when user has stake history
-        ├── when user's first stake is after the start of the distribution
-        │   └── it should only calculate rewards from the user's first stake timestamp
-        ├── when user's first stake is before the start of the distribution
-        │   └── it should calculate rewards from the start of the distribution
-        ├── when rewards were injected during user's staking period
-        │   └── it should include injected rewards in the calculation
-        ├── when rewards were injected after user's staking period
-        │   └── it should not include those injected rewards in the calculation
-        ├── when user has multiple staking epochs
-        │   └── it should correctly calculate rewards across all epochs
-        ├── when user has increased stake during the period
-        │   └── it should correctly account for the increased stake in reward calculation
-        ├── when there are no rewards to claim in the calculated period
+    ├── when block.timestamp is less than the startWeekCursor
+    │   └── revert with underflow
+    └── when block.timestamp is greater than or equal to startWeekCursor
+        ├── when block.timestamp is greater than or equal to weekCursor
+        │   └── it should checkpoint total supply
+        ├── when block.timestamp is less than weekCursor
+        │   └── it should not checkpoint total supply
+        ├── it should checkpoint token
+        ├── it should update lastTokenTimestamp
+        ├── when user has no custom recipient set
+        │   └── it should use user's address as recipient
+        ├── when user has custom recipient set
+        │   └── it should use custom recipient address
+        ├── when user has no stake history
         │   ├── it should return 0
         │   └── it should not transfer any tokens
-        └── when there are rewards to claim in the calculated period
-            ├── it should calculate correct reward amount
-            ├── it should update lastTokenBalance
-            ├── it should transfer tokens to recipient
-            ├── it should emit Claimed event with correct parameters
-            ├── it should return the total claimed amount
-            └── it should update user's claim cursor to the latest claimed week
+        └── when user has stake history
+            ├── when user's first stake is after the start of the distribution
+            │   └── it should only calculate rewards from the user's first stake timestamp
+            ├── when user's first stake is before the start of the distribution
+            │   └── it should calculate rewards from the start of the distribution
+            ├── when rewards were injected during user's staking period
+            │   └── it should include injected rewards in the calculation
+            ├── when rewards were injected after user's staking period
+            │   └── it should not include those injected rewards in the calculation
+            ├── when user has multiple staking epochs
+            │   └── it should correctly calculate rewards across all epochs
+            ├── when user has increased stake during the period
+            │   └── it should correctly account for the increased stake in reward calculation
+            ├── when there are no rewards to claim in the calculated period
+            │   ├── it should return 0
+            │   └── it should not transfer any tokens
+            └── when there are rewards to claim in the calculated period
+                ├── it should calculate correct reward amount
+                ├── it should update lastTokenBalance
+                ├── it should transfer tokens to recipient
+                ├── it should emit Claimed event with correct parameters
+                ├── it should return the total claimed amount
+                └── it should update user's claim cursor to the latest claimed week
