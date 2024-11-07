@@ -47,6 +47,16 @@ contract InjectReward_StakingRewardDistributor_Integration_Concrete_Test is Stak
         _;
     }
 
+    function test_RevertWhen_TimestampIsBeforeStartWeekCursor()
+        external
+        whenCallerIsOwner
+        whenAmountIsGreaterThanZero
+    {
+        uint256 pastTimestamp = stakingRewardDistributor.startWeekCursor() - 1 weeks;
+        vm.expectRevert(StakingRewardDistributor.InvalidTimestamp.selector);
+        stakingRewardDistributor.injectReward(pastTimestamp, INJECTION_AMOUNT);
+    }
+
     function test_InjectRewardInThePast() external whenCallerIsOwner whenAmountIsGreaterThanZero {
         uint256 pastTimestamp = block.timestamp - 1 weeks;
         uint256 initialBalance = l2wct.balanceOf(address(stakingRewardDistributor));
