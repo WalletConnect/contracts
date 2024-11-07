@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import { Ownable2StepUpgradeable } from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -18,7 +18,7 @@ import { Math128 } from "./library/Math128.sol";
  * and PancakeSwap's RevenueSharingPool)
  * @author WalletConnect
  */
-contract StakingRewardDistributor is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
+contract StakingRewardDistributor is Initializable, Ownable2StepUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20 for IERC20;
 
     /// @notice Emitted when the contract is killed and emergency return is triggered
@@ -121,6 +121,7 @@ contract StakingRewardDistributor is Initializable, OwnableUpgradeable, Reentran
     /// @param init Initialization parameters
     function initialize(Init memory init) public initializer {
         __Ownable_init(init.admin);
+        __Ownable2Step_init();
         __ReentrancyGuard_init();
 
         if (init.config == address(0)) revert InvalidConfig();
