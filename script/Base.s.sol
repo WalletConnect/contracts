@@ -10,6 +10,7 @@ import { WalletConnectConfig } from "src/WalletConnectConfig.sol";
 import { StakingRewardDistributor } from "src/StakingRewardDistributor.sol";
 import { Timelock } from "src/Timelock.sol";
 import { Pauser } from "src/Pauser.sol";
+import { Airdrop } from "src/Airdrop.sol";
 import { Eip1967Logger } from "script/utils/Eip1967Logger.sol";
 import { StdCheats } from "forge-std/StdCheats.sol";
 
@@ -24,6 +25,7 @@ struct OptimismDeployments {
     Pauser pauser;
     StakeWeight stakeWeight;
     StakingRewardDistributor stakingRewardDistributor;
+    Airdrop airdrop;
     Timelock adminTimelock;
     Timelock managerTimelock;
 }
@@ -91,7 +93,8 @@ abstract contract BaseScript is Script, StdCheats {
                 config: WalletConnectConfig(address(0)),
                 pauser: Pauser(address(0)),
                 stakeWeight: StakeWeight(address(0)),
-                stakingRewardDistributor: StakingRewardDistributor(address(0))
+                stakingRewardDistributor: StakingRewardDistributor(address(0)),
+                airdrop: Airdrop(address(0))
             });
         }
         return abi.decode(data, (OptimismDeployments));

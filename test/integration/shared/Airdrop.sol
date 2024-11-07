@@ -3,30 +3,9 @@ pragma solidity >=0.8.25 <0.9.0;
 
 import { Airdrop } from "src/Airdrop.sol";
 import { Integration_Test } from "../Integration.t.sol";
-
+import { AirdropJsonHandler, ClaimWithProof } from "script/utils/AirdropJsonHandler.sol";
 import { stdJson } from "forge-std/StdJson.sol";
 
-struct RawClaim {
-    bytes amount;
-    bytes index;
-    address recipient;
-}
-
-struct RawClaimWithProof {
-    RawClaim rawClaim;
-    bytes32[] proof;
-}
-
-struct Claim {
-    uint256 amount;
-    uint256 index;
-    address recipient;
-}
-
-struct ClaimWithProof {
-    Claim claim;
-    bytes32[] proof;
-}
 /// @notice Common logic needed by all integration tests, both concrete and fuzz tests.
 
 abstract contract Airdrop_Test is Integration_Test {
@@ -46,32 +25,15 @@ abstract contract Airdrop_Test is Integration_Test {
         l2wct.disableTransferRestrictions();
     }
 
-    function _jsonToMerkleRoot() internal {
+    function _jsonToMerkleRoot() internal returns (bytes32) {
         // Import the JSON file
-        string memory jsonFilePath =
-            string.concat(vm.projectRoot(), "/test/integration/concrete/airdrop/claim/airdrop_data.json");
-        string memory json = vm.readFile(jsonFilePath);
-
-        // Parse the JSON file
-        RawClaimWithProof[] memory rawClaimsWithProof =
-            abi.decode(json.parseRaw(".claimsWithProof"), (RawClaimWithProof[]));
-
-        // Parse rawClaimsWithProof to the storage claimsWithProof
-        for (uint256 i = 0; i < rawClaimsWithProof.length; i++) {
-            RawClaimWithProof memory rawClaimWithProof = rawClaimsWithProof[i];
-            ClaimWithProof memory claimWithProof = ClaimWithProof(
-                Claim(
-                    bytesToUint(rawClaimWithProof.rawClaim.amount),
-                    bytesToUint(rawClaimWithProof.rawClaim.index),
-                    rawClaimWithProof.rawClaim.recipient
-                ),
-                rawClaimWithProof.proof
-            );
-            claimsWithProof.push(claimWithProof);
+        string memory jsonFilePath = "/test/integration/concrete/airdrop/claim/airdrop_data.json";
+        (bytes32 merkleRoot, ClaimWithProof[] memory intermediaryClaimsWithProof) =
+            AirdropJsonHandler.jsonToMerkleRoot(vm, jsonFilePath);
+        for (uint256 i = 0; i < intermediaryClaimsWithProof.length; i++) {
+            claimsWithProof.push(intermediaryClaimsWithProof[i]);
         }
-        bytes32 merkleRoot = json.readBytes32(".merkleRoot");
-
-        _deployAirdrop(merkleRoot);
+        return merkleRoot;
     }
 
     function _deployAirdrop(bytes32 merkleRoot) internal {

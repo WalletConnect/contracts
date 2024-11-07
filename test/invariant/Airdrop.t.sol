@@ -14,7 +14,8 @@ contract Airdrop_Invariant_Test is Invariant_Test, Airdrop_Test {
         // Deploy Airdrop contract
         Airdrop_Test.setUp();
         // Load the merkle root and create airdrop from JSON file
-        _jsonToMerkleRoot();
+        bytes32 merkleRoot = _jsonToMerkleRoot();
+        _deployAirdrop(merkleRoot);
 
         store = new AirdropStore();
         handler = new AirdropHandler(airdrop, store, users.admin, users.pauser, wct, l2wct);

@@ -8,6 +8,8 @@ import { WalletConnectConfig } from "src/WalletConnectConfig.sol";
 import { Pauser } from "src/Pauser.sol";
 import { StakeWeight } from "src/StakeWeight.sol";
 import { StakingRewardDistributor } from "src/StakingRewardDistributor.sol";
+import { Airdrop } from "src/Airdrop.sol";
+import { AirdropJsonHandler } from "script/utils/AirdropJsonHandler.sol";
 import { OptimismDeployments, BaseScript } from "script/Base.s.sol";
 import { Eip1967Logger } from "script/utils/Eip1967Logger.sol";
 import {
@@ -18,13 +20,14 @@ import {
     newStakingRewardDistributor
 } from "script/helpers/Proxy.sol";
 
-struct OptimismDeploymentParams {
+struct AnvilDeploymentParams {
     address admin;
     address manager;
     address timelockCanceller;
     address opBridge;
     address pauser;
     address emergencyReturn;
+    address treasury;
 }
 
 contract AnvilDeploy is BaseScript {
@@ -43,11 +46,12 @@ contract AnvilDeploy is BaseScript {
             _writeOptimismDeployments(deps);
         }
 
+        _setConfig(deps);
+
         logDeployments();
     }
 
-    function setConfig() public broadcast {
-        OptimismDeployments memory deps = readOptimismDeployments(block.chainid);
+    function _setConfig(OptimismDeployments memory deps) private {
         deps.config.updateL2wct(address(deps.l2wct));
         deps.config.updatePauser(address(deps.pauser));
         deps.config.updateStakeWeight(address(deps.stakeWeight));
@@ -60,11 +64,12 @@ contract AnvilDeploy is BaseScript {
         Eip1967Logger.logEip1967(vm, "Pauser", address(deps.pauser));
         Eip1967Logger.logEip1967(vm, "StakeWeight", address(deps.stakeWeight));
         Eip1967Logger.logEip1967(vm, "StakingRewardDistributor", address(deps.stakingRewardDistributor));
+        console2.log("Airdrop:", address(deps.airdrop));
         console2.log("Admin Timelock:", address(deps.adminTimelock));
         console2.log("Manager Timelock:", address(deps.managerTimelock));
     }
 
-    function _deployAll(OptimismDeploymentParams memory params) private returns (OptimismDeployments memory) {
+    function _deployAll(AnvilDeploymentParams memory params) private returns (OptimismDeployments memory) {
         L2WCT l2wct = L2WCT(address(newMockERC20(params.admin)));
 
         WalletConnectConfig config =
@@ -92,12 +97,17 @@ contract AnvilDeploy is BaseScript {
             3 days, _singleAddressArray(params.manager), _singleAddressArray(params.manager), params.timelockCanceller
         );
 
+        (bytes32 merkleRoot,) = AirdropJsonHandler.jsonToMerkleRoot(vm, "/script/data/airdrop_data.json");
+
+        Airdrop airdrop = new Airdrop(params.admin, params.pauser, params.treasury, merkleRoot, address(l2wct));
+
         return OptimismDeployments({
             l2wct: l2wct,
             config: config,
             pauser: pauser,
             stakeWeight: stakeWeight,
             stakingRewardDistributor: stakingRewardDistributor,
+            airdrop: airdrop,
             adminTimelock: adminTimelock,
             managerTimelock: managerTimelock
         });
@@ -107,14 +117,15 @@ contract AnvilDeploy is BaseScript {
         _writeDeployments(abi.encode(deps));
     }
 
-    function _readDeploymentParamsFromEnv() private view returns (OptimismDeploymentParams memory) {
-        return OptimismDeploymentParams({
+    function _readDeploymentParamsFromEnv() private view returns (AnvilDeploymentParams memory) {
+        return AnvilDeploymentParams({
             admin: vm.envAddress("ADMIN_ADDRESS"),
             manager: vm.envAddress("MANAGER_ADDRESS"),
             opBridge: vm.envAddress("OP_BRIDGE_ADDRESS"),
             timelockCanceller: vm.envAddress("TIMELOCK_CANCELLER_ADDRESS"),
             pauser: vm.envAddress("PAUSER_ADDRESS"),
-            emergencyReturn: vm.envAddress("EMERGENCY_RETURN_ADDRESS")
+            emergencyReturn: vm.envAddress("EMERGENCY_RETURN_ADDRESS"),
+            treasury: vm.envAddress("TREASURY_ADDRESS")
         });
     }
 }
