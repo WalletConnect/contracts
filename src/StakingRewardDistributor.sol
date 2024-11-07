@@ -512,7 +512,7 @@ contract StakingRewardDistributor is Initializable, OwnableUpgradeable, Reentran
     }
 
     /// @notice Emergency stop the contract and transfer remaining tokens to the emergency return address
-    function kill() external onlyOwner {
+    function kill() external onlyOwner nonReentrant {
         IERC20 rewardToken = IERC20(config.getL2wct());
         isKilled = true;
         rewardToken.safeTransfer(emergencyReturn, rewardToken.balanceOf(address(this)));
@@ -529,13 +529,13 @@ contract StakingRewardDistributor is Initializable, OwnableUpgradeable, Reentran
     /// @notice Inject rewardToken into the contract
     /// @param timestamp The timestamp of the rewardToken to be distributed
     /// @param amount The amount of rewardToken to be distributed
-    function injectReward(uint256 timestamp, uint256 amount) external onlyOwner {
+    function injectReward(uint256 timestamp, uint256 amount) external onlyOwner nonReentrant {
         _injectReward(timestamp, amount);
     }
 
     /// @notice Inject rewardToken for currect week into the contract
     /// @param amount The amount of rewardToken to be distributed
-    function injectRewardForCurrentWeek(uint256 amount) external onlyOwner {
+    function injectRewardForCurrentWeek(uint256 amount) external onlyOwner nonReentrant {
         _injectReward(block.timestamp, amount);
     }
 
