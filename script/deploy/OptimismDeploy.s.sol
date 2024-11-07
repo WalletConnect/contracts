@@ -8,6 +8,8 @@ import { WalletConnectConfig } from "src/WalletConnectConfig.sol";
 import { Pauser } from "src/Pauser.sol";
 import { StakeWeight } from "src/StakeWeight.sol";
 import { StakingRewardDistributor } from "src/StakingRewardDistributor.sol";
+import { Airdrop } from "src/Airdrop.sol";
+import { AirdropJsonHandler } from "script/utils/AirdropJsonHandler.sol";
 import { OptimismDeployments, BaseScript } from "script/Base.s.sol";
 import { Eip1967Logger } from "script/utils/Eip1967Logger.sol";
 import {
@@ -25,6 +27,7 @@ struct OptimismDeploymentParams {
     address opBridge;
     address pauser;
     address emergencyReturn;
+    address treasury;
 }
 
 contract OptimismDeploy is BaseScript {
@@ -101,6 +104,10 @@ contract OptimismDeploy is BaseScript {
             3 days, _singleAddressArray(params.manager), _singleAddressArray(params.manager), params.timelockCanceller
         );
 
+        (bytes32 merkleRoot,) = AirdropJsonHandler.jsonToMerkleRoot(vm, "/script/data/airdrop.json");
+
+        Airdrop airdrop = new Airdrop(params.admin, params.pauser, params.treasury, merkleRoot, address(l2wct));
+
         return OptimismDeployments({
             l2wct: l2wct,
             config: config,
@@ -108,7 +115,8 @@ contract OptimismDeploy is BaseScript {
             stakeWeight: stakeWeight,
             stakingRewardDistributor: stakingRewardDistributor,
             adminTimelock: adminTimelock,
-            managerTimelock: managerTimelock
+            managerTimelock: managerTimelock,
+            airdrop: airdrop
         });
     }
 
@@ -123,7 +131,8 @@ contract OptimismDeploy is BaseScript {
             opBridge: vm.envAddress("OP_BRIDGE_ADDRESS"),
             timelockCanceller: vm.envAddress("TIMELOCK_CANCELLER_ADDRESS"),
             pauser: vm.envAddress("PAUSER_ADDRESS"),
-            emergencyReturn: vm.envAddress("EMERGENCY_RETURN_ADDRESS")
+            emergencyReturn: vm.envAddress("EMERGENCY_RETURN_ADDRESS"),
+            treasury: vm.envAddress("TREASURY_ADDRESS")
         });
     }
 }

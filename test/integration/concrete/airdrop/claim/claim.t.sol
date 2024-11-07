@@ -12,7 +12,8 @@ contract Claim_Airdrop_Integration_Concrete_Test is Airdrop_Test {
         super.setUp();
 
         // Use the Merkle tree from the JSON file
-        _jsonToMerkleRoot();
+        bytes32 merkleRoot = _jsonToMerkleRoot();
+        _deployAirdrop(merkleRoot);
 
         defaultClaimWithProof = claimsWithProof[0];
     }

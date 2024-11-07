@@ -16,6 +16,8 @@ package-lock.json
 pnpm-lock.yaml
 yarn.lock
 
+airdrop_data.json
+
 # broadcasts
 !broadcast
 broadcast/*

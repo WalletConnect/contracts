@@ -71,6 +71,7 @@ fund-deployer:
 	@echo "Funding deployer account on Anvil"
 	$(eval include .anvil.env)
 	@cast rpc anvil_setBalance $(ETH_FROM) $(shell cast --to-wei 10)
+	@cast rpc anvil_setBalance $(TREASURY_ADDRESS) $(shell cast --to-wei 10)
 
 # Internal deploy function
 _deploy:
@@ -92,7 +93,6 @@ endif
 			--sender ${ETH_FROM} \
 			--mnemonic-indexes ${MNEMONIC_INDEX} \
 			--ledger \
-			--force \
 			$(BROADCAST_FLAGS); \
 	else \
 		$(FORGE_CMD) $(SCRIPT) \
@@ -100,7 +100,6 @@ endif
 			--rpc-url $(RPC_URL) \
 			--sender ${ETH_FROM} \
 			--account ${KEYSTORE_ACCOUNT} \
-			--force \
 			$(BROADCAST_FLAGS); \
 	fi
 
@@ -135,7 +134,7 @@ help:
 	@echo "  log-optimism              - Log deployments for Optimism Mainnet"
 	@echo "  log-optimism-sepolia      - Log deployments for Optimism Sepolia testnet"
 	@echo "  log-anvil                 - Log deployments for Anvil local network"
-	@echo "  fund-deployer             - Fund deployer account on Anvil"
+	@echo "  fund-anvil                - Fund admin/treasury account on Anvil"
 	@echo "  help                      - Show this help message"
 	@echo ""
 	@echo "Flags:"
