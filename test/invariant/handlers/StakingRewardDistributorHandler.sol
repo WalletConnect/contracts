@@ -46,6 +46,7 @@ contract StakingRewardDistributorHandler is BaseHandler {
 
     function claim(uint256 seed) public adjustTimestamp(seed) instrument("claim") {
         address user = store.getRandomAddressWithLock();
+        vm.prank(user);
         uint256 claimedAmount = stakingRewardDistributor.claim(user);
         store.updateClaimedAmount(user, claimedAmount);
     }
