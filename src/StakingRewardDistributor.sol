@@ -59,6 +59,9 @@ contract StakingRewardDistributor is Initializable, OwnableUpgradeable, Reentran
     /// @notice Thrown when an unauthorized action is attempted
     error Unauthorized();
 
+    /// @notice Thrown when a timestamp is before startWeekCursor
+    error InvalidTimestamp();
+
     /// @notice The starting week cursor for the distribution
     uint256 public startWeekCursor;
 
@@ -540,10 +543,13 @@ contract StakingRewardDistributor is Initializable, OwnableUpgradeable, Reentran
     }
 
     function _injectReward(uint256 timestamp, uint256 amount) internal {
+        uint256 weekTimestamp = _timestampToFloorWeek(timestamp);
+        if (weekTimestamp < startWeekCursor) {
+            revert InvalidTimestamp();
+        }
         IERC20(config.getL2wct()).safeTransferFrom(msg.sender, address(this), amount);
         lastTokenBalance += amount;
         totalDistributed += amount;
-        uint256 weekTimestamp = _timestampToFloorWeek(timestamp);
         tokensPerWeek[weekTimestamp] += amount;
     }
 

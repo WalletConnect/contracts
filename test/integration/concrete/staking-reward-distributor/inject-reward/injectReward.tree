@@ -4,10 +4,13 @@ injectReward.t.sol
 └── when caller is owner
     ├── when amount is greater than zero
     │   ├── when timestamp is in the past
-    │   │   ├── it should transfer tokens from caller to contract
-    │   │   ├── it should increase lastTokenBalance
-    │   │   ├── it should increase totalDistributed
-    │   │   └── it should increase tokensPerWeek for the corresponding week
+    │   │   ├── when timestamp is before startWeekCursor
+    │   │   │   └── it should revert with InvalidTimestamp
+    │   │   └── when timestamp is after startWeekCursor
+    │   │       ├── it should transfer tokens from caller to contract
+    │   │       ├── it should increase lastTokenBalance
+    │   │       ├── it should increase totalDistributed
+    │   │       └── it should increase tokensPerWeek for the corresponding week
     │   ├── when timestamp is in the future
     │   │   ├── it should transfer tokens from caller to contract
     │   │   ├── it should increase lastTokenBalance
