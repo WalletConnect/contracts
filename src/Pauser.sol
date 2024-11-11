@@ -31,6 +31,12 @@ contract Pauser is Initializable, AccessControlUpgradeable {
     /// @notice Flag indicating if locked token staker is paused
     bool public isLockedTokenStakerPaused;
 
+    /// @notice Flag indicating if node reward manager is paused
+    bool public isNodeRewardManagerPaused;
+
+    /// @notice Flag indicating if wallet reward manager is paused
+    bool public isWalletRewardManagerPaused;
+
     /// @notice Configuration for contract initialization
     struct Init {
         address admin;
@@ -83,6 +89,50 @@ contract Pauser is Initializable, AccessControlUpgradeable {
         _setIsSubmitOracleRecordsPaused(isPaused);
     }
 
+    /// @notice Pauses or unpauses node reward manager
+    /// @param isPaused The new pause state
+    function setIsNodeRewardManagerPaused(bool isPaused) external {
+        if (isPaused) {
+            _checkRole(PAUSER_ROLE);
+        } else {
+            _checkRole(UNPAUSER_ROLE);
+        }
+        _setIsNodeRewardManagerPaused(isPaused);
+    }
+
+    /// @notice Pauses or unpauses wallet reward manager
+    /// @param isPaused The new pause state
+    function setIsWalletRewardManagerPaused(bool isPaused) external {
+        if (isPaused) {
+            _checkRole(PAUSER_ROLE);
+        } else {
+            _checkRole(UNPAUSER_ROLE);
+        }
+        _setIsWalletRewardManagerPaused(isPaused);
+    }
+
+    /// @dev Sets the node reward manager pause state
+    /// @param isPaused The new pause state
+    function _setIsNodeRewardManagerPaused(bool isPaused) private {
+        isNodeRewardManagerPaused = isPaused;
+        emit FlagUpdated({
+            selector: this.isNodeRewardManagerPaused.selector,
+            isPaused: isPaused,
+            flagName: "isNodeRewardManagerPaused"
+        });
+    }
+
+    /// @dev Sets the wallet reward manager pause state
+    /// @param isPaused The new pause state
+    function _setIsWalletRewardManagerPaused(bool isPaused) private {
+        isWalletRewardManagerPaused = isPaused;
+        emit FlagUpdated({
+            selector: this.isWalletRewardManagerPaused.selector,
+            isPaused: isPaused,
+            flagName: "isWalletRewardManagerPaused"
+        });
+    }
+
     /// @notice Pauses all actions
     function pauseAll() external onlyRole(PAUSER_ROLE) {
         _setIsStakeWeightPaused(true);
@@ -121,5 +171,10 @@ contract Pauser is Initializable, AccessControlUpgradeable {
     /// @param isPaused The new pause state
     function _setIsLockedTokenStakerPaused(bool isPaused) private {
         isLockedTokenStakerPaused = isPaused;
+        emit FlagUpdated({
+            selector: this.isLockedTokenStakerPaused.selector,
+            isPaused: isPaused,
+            flagName: "isLockedTokenStakerPaused"
+        });
     }
 }
