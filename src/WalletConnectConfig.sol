@@ -34,12 +34,12 @@ contract WalletConnectConfig is Initializable, AccessControlUpgradeable {
     mapping(bytes32 => address) private _accountsMap;
     mapping(bytes32 => address) private _contractsMap;
 
-    bytes32 public constant WALLETCONNECT_REWARDS_VAULT = keccak256("WALLETCONNECT_REWARDS_VAULT");
-    bytes32 public constant WCT_TOKEN = keccak256("WCT_TOKEN");
     bytes32 public constant L2WCT_TOKEN = keccak256("L2WCT_TOKEN");
     bytes32 public constant PERMISSIONED_NODE_REGISTRY = keccak256("PERMISSIONED_NODE_REGISTRY");
-    bytes32 public constant REWARD_MANAGER = keccak256("REWARD_MANAGER");
+    bytes32 public constant NODE_REWARD_MANAGER = keccak256("NODE_REWARD_MANAGER");
+    bytes32 public constant WALLET_REWARD_MANAGER = keccak256("WALLET_REWARD_MANAGER");
     bytes32 public constant STAKE_WEIGHT = keccak256("STAKE_WEIGHT");
+    bytes32 public constant ORACLE = keccak256("ORACLE");
     bytes32 public constant PAUSER = keccak256("PAUSER");
 
     /// @notice Initializes the contract
@@ -48,12 +48,6 @@ contract WalletConnectConfig is Initializable, AccessControlUpgradeable {
     function initialize(Init memory init) public initializer {
         __AccessControl_init();
         _grantRole(DEFAULT_ADMIN_ROLE, init.admin);
-    }
-
-    /// @notice Gets the WCT token address
-    /// @return The address of the WCT token contract
-    function getWCT() external view returns (address) {
-        return _contractsMap[WCT_TOKEN];
     }
 
     /// @notice Gets the L2WCT token address
@@ -74,10 +68,16 @@ contract WalletConnectConfig is Initializable, AccessControlUpgradeable {
         return _contractsMap[PERMISSIONED_NODE_REGISTRY];
     }
 
-    /// @notice Gets the Reward Manager address
-    /// @return The address of the Reward Manager contract
-    function getRewardManager() external view returns (address) {
-        return _contractsMap[REWARD_MANAGER];
+    /// @notice Gets the Node Reward Manager address
+    /// @return The address of the Node Reward Manager contract
+    function getNodeRewardManager() external view returns (address) {
+        return _contractsMap[NODE_REWARD_MANAGER];
+    }
+
+    /// @notice Gets the Wallet Reward Manager address
+    /// @return The address of the Wallet Reward Manager contract
+    function getWalletRewardManager() external view returns (address) {
+        return _contractsMap[WALLET_REWARD_MANAGER];
     }
 
     /// @notice Gets the StakeWeight address
@@ -86,16 +86,10 @@ contract WalletConnectConfig is Initializable, AccessControlUpgradeable {
         return _contractsMap[STAKE_WEIGHT];
     }
 
-    /// @notice Gets the WalletConnect Rewards Vault address
-    /// @return The address of the WalletConnect Rewards Vault
-    function getWalletConnectRewardsVault() external view returns (address) {
-        return _accountsMap[WALLETCONNECT_REWARDS_VAULT];
-    }
-
-    /// @notice Updates the WCT token address
-    /// @param wct The new WCT token address
-    function updateWCT(address wct) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        _setContract({ key: WCT_TOKEN, val: wct });
+    /// @notice Gets the Oracle address
+    /// @return The address of the Oracle contract
+    function getOracle() external view returns (address) {
+        return _contractsMap[ORACLE];
     }
 
     /// @notice Updates the L2WCT token address
@@ -116,22 +110,28 @@ contract WalletConnectConfig is Initializable, AccessControlUpgradeable {
         _setContract({ key: PERMISSIONED_NODE_REGISTRY, val: permissionedNodeRegistry });
     }
 
-    /// @notice Updates the Reward Manager address
-    /// @param rewardManager The new Reward Manager address
-    function updateRewardManager(address rewardManager) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        _setContract({ key: REWARD_MANAGER, val: rewardManager });
+    /// @notice Updates the Node Reward Manager address
+    /// @param nodeRewardManager The new Node Reward Manager address
+    function updateNodeRewardManager(address nodeRewardManager) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _setContract({ key: NODE_REWARD_MANAGER, val: nodeRewardManager });
+    }
+
+    /// @notice Updates the Wallet Reward Manager address
+    /// @param walletRewardManager The new Wallet Reward Manager address
+    function updateWalletRewardManager(address walletRewardManager) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _setContract({ key: WALLET_REWARD_MANAGER, val: walletRewardManager });
+    }
+
+    /// @notice Updates the Oracle address
+    /// @param oracle The new Oracle address
+    function updateOracle(address oracle) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _setContract({ key: ORACLE, val: oracle });
     }
 
     /// @notice Updates the StakeWeight address
     /// @param stakeWeight The new StakeWeight address
     function updateStakeWeight(address stakeWeight) external onlyRole(DEFAULT_ADMIN_ROLE) {
         _setContract({ key: STAKE_WEIGHT, val: stakeWeight });
-    }
-
-    /// @notice Updates the WalletConnect Rewards Vault address
-    /// @param walletConnectRewardsVault The new WalletConnect Rewards Vault address
-    function updateWalletConnectRewardsVault(address walletConnectRewardsVault) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        _setAccount({ key: WALLETCONNECT_REWARDS_VAULT, val: walletConnectRewardsVault });
     }
 
     /// @notice Checks if the given address is a recognized WalletConnect contract
@@ -154,19 +154,5 @@ contract WalletConnectConfig is Initializable, AccessControlUpgradeable {
         }
         _contractsMap[key] = val;
         emit ContractSet({ key: key, val: val });
-    }
-
-    /// @dev Sets an account address
-    /// @param key The key identifying the account
-    /// @param val The new account address
-    function _setAccount(bytes32 key, address val) private {
-        if (val == address(0)) {
-            revert InvalidAddress();
-        }
-        if (_accountsMap[key] == val) {
-            revert IdenticalValue();
-        }
-        _accountsMap[key] = val;
-        emit AccountSet({ key: key, val: val });
     }
 }

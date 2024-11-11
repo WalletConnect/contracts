@@ -52,7 +52,7 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
     Pauser internal pauser;
     PermissionedNodeRegistry internal permissionedNodeRegistry;
     WalletConnectConfig internal walletConnectConfig;
-    RewardManager internal rewardManager;
+    RewardManager internal nodeRewardManager;
     Staking internal staking;
     StakeWeight internal stakeWeight;
     StakingRewardDistributor internal stakingRewardDistributor;
@@ -113,7 +113,7 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
         pauser =
             newPauser({ initialOwner: users.admin, init: Pauser.Init({ admin: users.admin, pauser: users.pauser }) });
 
-        rewardManager = newRewardManager({
+        nodeRewardManager = newRewardManager({
             initialOwner: users.admin,
             init: RewardManager.Init({
                 owner: users.admin,
@@ -176,13 +176,11 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
             new LockedTokenStaker({ vesterContract_: MerkleVester(address(vester)), config_: walletConnectConfig });
 
         // Update the WalletConnectConfig with the necessary contracts.
-        walletConnectConfig.updateWCT(address(wct));
         walletConnectConfig.updateL2wct(address(l2wct));
         walletConnectConfig.updatePermissionedNodeRegistry(address(permissionedNodeRegistry));
-        walletConnectConfig.updateRewardManager(address(rewardManager));
+        walletConnectConfig.updateNodeRewardManager(address(nodeRewardManager));
         walletConnectConfig.updatePauser(address(pauser));
         walletConnectConfig.updateStakeWeight(address(stakeWeight));
-        walletConnectConfig.updateWalletConnectRewardsVault(users.treasury);
 
         vm.stopPrank();
 
@@ -192,7 +190,7 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
         vm.label({ account: address(l2wct), newLabel: "L2WCT" });
         vm.label({ account: address(pauser), newLabel: "Pauser" });
         vm.label({ account: address(permissionedNodeRegistry), newLabel: "PermissionedNodeRegistry" });
-        vm.label({ account: address(rewardManager), newLabel: "RewardManager" });
+        vm.label({ account: address(nodeRewardManager), newLabel: "NodeRewardManager" });
         vm.label({ account: address(stakeWeight), newLabel: "StakeWeight" });
         vm.label({ account: address(mockBridge), newLabel: "MockBridge" });
         vm.label({ account: address(stakingRewardDistributor), newLabel: "StakingRewardDistributor" });
