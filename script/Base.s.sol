@@ -97,11 +97,13 @@ abstract contract BaseScript is Script, StdCheats {
             });
         }
         // Length per address is 32 bytes => 64 characters
-        // If the length is not 0 nor 64 * 8, we assume the deployments are missing the airdrop and we append a zeroed
-        // airdrop
+        // If the length is not 0 nor 64 * 8, we assume the deployments are missing contracts and we append as much
+        // as needed to make it 64 * 8 bytes
         if (data.length != 64 * 8) {
-            console2.log("Appending zeroed airdrop to deployments");
-            data = bytes.concat(data, abi.encode(bytes32(0)));
+            console2.log("Appending zeroes to deployments");
+            while (data.length < 64 * 8) {
+                data = bytes.concat(data, abi.encode(bytes32(0)));
+            }
         }
         return abi.decode(data, (OptimismDeployments));
     }
