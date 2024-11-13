@@ -11,7 +11,6 @@ import { StakingRewardDistributor } from "src/StakingRewardDistributor.sol";
 import { Timelock } from "src/Timelock.sol";
 import { Pauser } from "src/Pauser.sol";
 import { Airdrop } from "src/Airdrop.sol";
-import { Eip1967Logger } from "script/utils/Eip1967Logger.sol";
 import { StdCheats } from "forge-std/StdCheats.sol";
 
 struct EthereumDeployments {
@@ -25,9 +24,9 @@ struct OptimismDeployments {
     Pauser pauser;
     StakeWeight stakeWeight;
     StakingRewardDistributor stakingRewardDistributor;
-    Airdrop airdrop;
     Timelock adminTimelock;
     Timelock managerTimelock;
+    Airdrop airdrop;
 }
 
 abstract contract BaseScript is Script, StdCheats {
@@ -88,14 +87,21 @@ abstract contract BaseScript is Script, StdCheats {
         if (data.length == 0) {
             return OptimismDeployments({
                 l2wct: L2WCT(address(0)),
-                adminTimelock: Timelock(payable(address(0))),
-                managerTimelock: Timelock(payable(address(0))),
                 config: WalletConnectConfig(address(0)),
                 pauser: Pauser(address(0)),
                 stakeWeight: StakeWeight(address(0)),
                 stakingRewardDistributor: StakingRewardDistributor(address(0)),
+                adminTimelock: Timelock(payable(address(0))),
+                managerTimelock: Timelock(payable(address(0))),
                 airdrop: Airdrop(address(0))
             });
+        }
+        // Length per address is 32 bytes => 64 characters
+        // If the length is not 0 nor 64 * 8, we assume the deployments are missing the airdrop and we append a zeroed
+        // airdrop
+        if (data.length != 64 * 8) {
+            console2.log("Appending zeroed airdrop to deployments");
+            data = bytes.concat(data, abi.encode(bytes32(0)));
         }
         return abi.decode(data, (OptimismDeployments));
     }

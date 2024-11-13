@@ -62,6 +62,7 @@ contract OptimismDeploy is BaseScript {
         Eip1967Logger.logEip1967(vm, "StakingRewardDistributor", address(deps.stakingRewardDistributor));
         console2.log("Admin Timelock:", address(deps.adminTimelock));
         console2.log("Manager Timelock:", address(deps.managerTimelock));
+        console2.log("Airdrop:", address(deps.airdrop));
     }
 
     function _deployAll(OptimismDeploymentParams memory params) private returns (OptimismDeployments memory) {
@@ -104,20 +105,28 @@ contract OptimismDeploy is BaseScript {
             3 days, _singleAddressArray(params.manager), _singleAddressArray(params.manager), params.timelockCanceller
         );
 
-        (bytes32 merkleRoot,) = AirdropJsonHandler.jsonToMerkleRoot(vm, "/script/data/airdrop.json");
-
-        Airdrop airdrop = new Airdrop(params.admin, params.pauser, params.treasury, merkleRoot, address(l2wct));
-
         return OptimismDeployments({
             l2wct: l2wct,
+            adminTimelock: adminTimelock,
+            managerTimelock: managerTimelock,
             config: config,
             pauser: pauser,
             stakeWeight: stakeWeight,
             stakingRewardDistributor: stakingRewardDistributor,
-            adminTimelock: adminTimelock,
-            managerTimelock: managerTimelock,
-            airdrop: airdrop
+            airdrop: Airdrop(address(0))
         });
+    }
+
+    function deployAirdrop() public broadcast {
+        OptimismDeployments memory deps = readOptimismDeployments(block.chainid);
+        OptimismDeploymentParams memory params = _readDeploymentParamsFromEnv();
+
+        (bytes32 merkleRoot,) = AirdropJsonHandler.jsonToMerkleRoot(vm, "/script/data/airdrop_data.json");
+        Airdrop airdrop = new Airdrop(params.admin, params.pauser, params.treasury, merkleRoot, address(deps.l2wct));
+
+        deps.airdrop = airdrop;
+
+        _writeOptimismDeployments(deps);
     }
 
     function _writeOptimismDeployments(OptimismDeployments memory deps) private {
