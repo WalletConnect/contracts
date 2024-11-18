@@ -137,12 +137,18 @@ contract Pauser is Initializable, AccessControlUpgradeable {
     function pauseAll() external onlyRole(PAUSER_ROLE) {
         _setIsStakeWeightPaused(true);
         _setIsSubmitOracleRecordsPaused(true);
+        _setIsLockedTokenStakerPaused(true);
+        _setIsNodeRewardManagerPaused(true);
+        _setIsWalletRewardManagerPaused(true);
     }
 
     /// @notice Unpauses all actions
     function unpauseAll() external onlyRole(UNPAUSER_ROLE) {
         _setIsStakeWeightPaused(false);
         _setIsSubmitOracleRecordsPaused(false);
+        _setIsLockedTokenStakerPaused(false);
+        _setIsNodeRewardManagerPaused(false);
+        _setIsWalletRewardManagerPaused(false);
     }
 
     /// @dev Sets the staking pause state
