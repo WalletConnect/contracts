@@ -19,11 +19,6 @@ contract WalletConnectConfig is Initializable, AccessControlUpgradeable {
     /// @param val The new contract address
     event ContractSet(bytes32 indexed key, address val);
 
-    /// @notice Emitted when an account address is set
-    /// @param key The key identifying the account
-    /// @param val The new account address
-    event AccountSet(bytes32 indexed key, address val);
-
     /// @notice Role for administrative actions
     /// @notice Configuration for contract initialization
     struct Init {
@@ -31,7 +26,6 @@ contract WalletConnectConfig is Initializable, AccessControlUpgradeable {
     }
 
     // Storage
-    mapping(bytes32 => address) private _accountsMap;
     mapping(bytes32 => address) private _contractsMap;
 
     bytes32 public constant L2WCT_TOKEN = keccak256("L2WCT_TOKEN");
