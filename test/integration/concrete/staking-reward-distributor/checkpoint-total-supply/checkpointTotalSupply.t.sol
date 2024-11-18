@@ -4,9 +4,6 @@ pragma solidity >=0.8.25 <0.9.0;
 import { StakeWeight } from "src/StakeWeight.sol";
 import { StakingRewardDistributor } from "src/StakingRewardDistributor.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { console2 } from "forge-std/console2.sol";
-import { Eip1967Logger } from "script/utils/Eip1967Logger.sol";
 import { WalletConnectConfig } from "src/WalletConnectConfig.sol";
 import { StakeWeight_Integration_Shared_Test } from "../../../shared/StakeWeight.t.sol";
 
@@ -109,7 +106,7 @@ contract CheckpointTotalSupply_StakingRewardDistributor_Integration_Concrete_Tes
 
     function test_RevertWhenStakeWeightNotSet() external {
         // Get the storage slot for the STAKE_WEIGHT
-        bytes32 slot = keccak256(abi.encode(walletConnectConfig.STAKE_WEIGHT(), uint256(1)));
+        bytes32 slot = keccak256(abi.encode(walletConnectConfig.STAKE_WEIGHT(), uint256(0)));
 
         // Load the current stake weight address from storage
         address firstStakeWeight = address(uint160(uint256(vm.load(address(walletConnectConfig), slot))));
