@@ -512,7 +512,7 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
         StakeWeightStorage storage s = _getStakeWeightStorage();
         LockedBalance memory locked = s.locks[for_];
 
-        if (amount <= 0) revert InvalidAmount(amount);
+        if (amount == 0) revert InvalidAmount(amount);
         if (locked.amount != 0) revert AlreadyCreatedLock();
         if (unlockTime <= block.timestamp) revert InvalidUnlockTime(unlockTime);
         if (unlockTime > block.timestamp + s.maxLock) {
