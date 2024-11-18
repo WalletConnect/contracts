@@ -3,9 +3,9 @@ pragma solidity >=0.8.25 <0.9.0;
 
 import { Base_Test } from "test/Base.t.sol";
 import { StakingRewardDistributor } from "src/StakingRewardDistributor.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { WalletConnectConfig } from "src/WalletConnectConfig.sol";
 import { StakeWeight } from "src/StakeWeight.sol";
+import { newStakingRewardDistributor, newStakeWeight } from "script/helpers/Proxy.sol";
+import { console2 } from "forge-std/console2.sol";
 
 contract StakingRewardDistributor_Test is Base_Test {
     uint256 public constant YEAR = 365 days;
@@ -627,6 +627,219 @@ contract StakingRewardDistributor_Test is Base_Test {
         assertApproxEqAbs(
             totalTokensPerWeek, injectAmount, 1e6, "Total tokens per week should be equal to injected amount"
         );
+    }
+
+    function testClaimAssumptions() public {
+        // We deploy stakeWeight and stakingRewardDistributor at the same time (tuesday),
+        // with the startWeekCursor of SRD being 1 week after the deploy time
+
+        // Warp to tuesday (timestamp 0 is a thursday, so 5 days later is tuesday)
+        vm.warp(5 days);
+
+        // Deploy stakeWeight
+        stakeWeight =
+            newStakeWeight(users.admin, StakeWeight.Init({ admin: users.admin, config: address(walletConnectConfig) }));
+
+        // Deploy stakingRewardDistributor
+        stakingRewardDistributor = newStakingRewardDistributor({
+            initialOwner: users.admin,
+            init: StakingRewardDistributor.Init({
+                admin: users.admin,
+                startTime: block.timestamp + 1 weeks,
+                emergencyReturn: users.emergencyHolder,
+                config: address(walletConnectConfig)
+            })
+        });
+
+        // inject reward for week 1
+        uint256 injectAmount = 1000 ether;
+        deal(address(l2wct), address(users.admin), injectAmount);
+        vm.startPrank(users.admin);
+        walletConnectConfig.updateStakeWeight(address(stakeWeight));
+        l2wct.approve(address(stakingRewardDistributor), injectAmount);
+        stakingRewardDistributor.injectReward(block.timestamp + 1 weeks, injectAmount);
+        vm.stopPrank();
+
+        // For a user who stakes on tuesday for 2 weeks, they should be able to claim on thursday of the next week
+        _setupUserLock(users.alice, block.timestamp + 2 weeks, 100 ether);
+        uint256 claimAmount;
+
+        // Skip to wednesday of the next week, still not eligible to claim
+        skip(8 days);
+        vm.prank(users.alice);
+        try stakingRewardDistributor.claim(users.alice) returns (uint256 amount) {
+            claimAmount = amount;
+        } catch {
+            claimAmount = 0;
+        }
+        assertEq(claimAmount, 0, "User should not be able to claim before the next week cursor");
+
+        // Skip to thursday of the next week, now eligible to claim
+        skip(1 days);
+        vm.prank(users.alice);
+        claimAmount = stakingRewardDistributor.claim(users.alice);
+        assertGt(claimAmount, 0, "User should be able to claim on the next week cursor");
+    }
+
+    function testRewardDistributionRules() public {
+        // Start on Thursday 00:00 UTC (timestamp 7 days)
+        uint256 startTime = 7 days;
+        vm.warp(startTime);
+
+        // Deploy contracts
+        stakeWeight =
+            newStakeWeight(users.admin, StakeWeight.Init({ admin: users.admin, config: address(walletConnectConfig) }));
+
+        stakingRewardDistributor = newStakingRewardDistributor({
+            initialOwner: users.admin,
+            init: StakingRewardDistributor.Init({
+                admin: users.admin,
+                startTime: startTime,
+                emergencyReturn: users.emergencyHolder,
+                config: address(walletConnectConfig)
+            })
+        });
+
+        vm.startPrank(users.admin);
+        walletConnectConfig.updateStakeWeight(address(stakeWeight));
+        vm.stopPrank();
+
+        // Setup reward amount for each week
+        uint256 weeklyReward = 1000 ether;
+
+        // Test Position 1: Lock ends at start of week 2 - Should get rewards for week 1 only
+        _setupUserLock(users.alice, startTime + 1 weeks, 100 ether);
+
+        // Test Position 4: Lock ends at start of week 7 - Should get rewards for weeks 1-6
+        address payable userDave = payable(address(420));
+        _setupUserLock(userDave, startTime + 6 weeks, 100 ether);
+
+        // Test Position 2: Lock ends at start of week 4 - Should get rewards for week 2-3
+        // Starts Tuesday week 1, ends start of week 4 - Eligible for week 2 and 3
+        vm.warp(startTime + 5 days); // Tuesday of week 1
+        _setupUserLock(users.bob, startTime + 3 weeks, 100 ether);
+
+        // Test Position 3: Should get rewards for weeks 2-5
+        // Starts at week 2, ends start of week 7 - Eligible for weeks 2-6
+        vm.warp(startTime + 1 weeks);
+        _setupUserLock(users.carol, startTime + 6 weeks, 100 ether);
+
+        // Inject rewards for weeks 1-7
+        for (uint256 i = 0; i < 7; i++) {
+            uint256 weekTimestamp = startTime + (i * 1 weeks);
+            deal(address(l2wct), users.admin, weeklyReward);
+            vm.startPrank(users.admin);
+            l2wct.approve(address(stakingRewardDistributor), weeklyReward);
+            stakingRewardDistributor.injectReward(weekTimestamp, weeklyReward);
+            vm.stopPrank();
+        }
+
+        // Start testing claims from week 2 cursor (when week 1 rewards become claimable)
+        vm.warp(startTime + 1 weeks);
+        _assertClaim(users.alice, "Alice should be able to claim week 1 rewards");
+        _assertNoClaim(users.bob, "Bob should not be able to claim yet");
+        _assertNoClaim(users.carol, "Carol should not be able to claim yet");
+        _assertClaim(userDave, "Dave should be able to claim week 1 rewards");
+
+        // Week 3 cursor (week 2 rewards become claimable)
+        vm.warp(startTime + 2 weeks);
+        _assertNoClaim(users.alice, "Alice should not be able to claim anymore");
+        _assertClaim(users.bob, "Bob should be able to claim week 2 rewards");
+        _assertClaim(users.carol, "Carol should be able to claim week 2 rewards");
+        _assertClaim(userDave, "Dave should be able to claim week 2 rewards");
+
+        // Week 4 cursor
+        vm.warp(startTime + 3 weeks);
+        _assertNoClaim(users.alice, "Alice should not be able to claim");
+        _assertClaim(users.bob, "Bob should be able to claim week 3 rewards");
+        _assertClaim(users.carol, "Carol should be able to claim week 3 rewards");
+        _assertClaim(userDave, "Dave should be able to claim week 3 rewards");
+
+        // Week 5 cursor
+        vm.warp(startTime + 4 weeks);
+        _assertNoClaim(users.alice, "Alice should not be able to claim");
+        _assertNoClaim(users.bob, "Bob should not be able to claim anymore");
+        _assertClaim(users.carol, "Carol should be able to claim week 4 rewards");
+        _assertClaim(userDave, "Dave should be able to claim week 4 rewards");
+
+        // Week 6 cursor
+        vm.warp(startTime + 5 weeks);
+        _assertNoClaim(users.alice, "Alice should not be able to claim");
+        _assertNoClaim(users.bob, "Bob should not be able to claim");
+        _assertClaim(users.carol, "Carol should be able to claim week 5 rewards");
+        _assertClaim(userDave, "Dave should be able to claim week 5 rewards");
+
+        // Week 7 cursor
+        vm.warp(startTime + 6 weeks);
+        _assertNoClaim(users.alice, "Alice should not be able to claim");
+        _assertNoClaim(users.bob, "Bob should not be able to claim");
+        _assertClaim(users.carol, "Carol should be able to claim week 6 rewards");
+        _assertClaim(userDave, "Dave should be able to claim week 6 rewards");
+
+        // Week 8 cursor
+        vm.warp(startTime + 7 weeks);
+        _assertNoClaim(users.alice, "Alice should not be able to claim");
+        _assertNoClaim(users.bob, "Bob should not be able to claim");
+        _assertNoClaim(users.carol, "Carol should not be able to claim");
+        _assertNoClaim(userDave, "Dave should not be able to claim anymore");
+    }
+
+    function testMinimumClaim() public {
+        // We start on week 30
+        uint256 startTime = _timestampToFloorWeek(block.timestamp + 30 weeks);
+        // On Wednesday of week 29th at 23:59:59 UTC, user locks for 2 weeks (1 second left of this week + 1 week)
+        // So user is fully locked for week 30 (beginning to end)
+        vm.warp(startTime - 1);
+        _setupUserLock(users.alice, startTime + 2 weeks, 100 ether);
+
+        // inject reward for week 30
+        uint256 injectAmount = 1000 ether;
+        deal(address(l2wct), address(users.admin), injectAmount);
+        vm.startPrank(users.admin);
+        l2wct.approve(address(stakingRewardDistributor), injectAmount);
+        stakingRewardDistributor.injectReward(startTime, injectAmount);
+        vm.stopPrank();
+
+        vm.warp(startTime + 1 weeks);
+        _assertClaim(users.alice, "Alice should be able to claim week 30 rewards");
+    }
+
+    function testExactMinimumClaim() public {
+        // We start on week 30
+        uint256 startTime = _timestampToFloorWeek(block.timestamp + 30 weeks);
+        // On start of week 30, user locks for 1 weeks
+        // So user is fully locked for week 30 (beginning to end)
+        vm.warp(startTime);
+        _setupUserLock(users.alice, startTime + 1 weeks, 100 ether);
+
+        // inject reward for week 30
+        uint256 injectAmount = 1000 ether;
+        deal(address(l2wct), address(users.admin), injectAmount);
+        vm.startPrank(users.admin);
+        l2wct.approve(address(stakingRewardDistributor), injectAmount);
+        stakingRewardDistributor.injectReward(startTime, injectAmount);
+        vm.stopPrank();
+
+        vm.warp(startTime + 1 weeks);
+        _assertClaim(users.alice, "Alice should be able to claim week 30 rewards");
+    }
+
+    function _assertNoClaim(address user, string memory message) internal {
+        uint256 claimAmount;
+        vm.prank(user);
+        try stakingRewardDistributor.claim(user) returns (uint256 amount) {
+            claimAmount = amount;
+        } catch {
+            claimAmount = 0;
+        }
+        assertEq(claimAmount, 0, message);
+    }
+
+    function _assertClaim(address user, string memory message) internal {
+        uint256 claimAmount;
+        vm.prank(user);
+        claimAmount = stakingRewardDistributor.claim(user);
+        assertGt(claimAmount, 0, message);
     }
 
     function _setupUsersAndLocksWithSetUnlockTimes(
