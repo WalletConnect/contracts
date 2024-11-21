@@ -9,9 +9,11 @@ import { Pauser } from "src/Pauser.sol";
 import { StakeWeight } from "src/StakeWeight.sol";
 import { StakingRewardDistributor } from "src/StakingRewardDistributor.sol";
 import { Airdrop } from "src/Airdrop.sol";
-import { AirdropJsonHandler } from "script/utils/AirdropJsonHandler.sol";
+import { LockedTokenStaker } from "src/LockedTokenStaker.sol";
+import { MerkleVester } from "src/interfaces/MerkleVester.sol";
 import { OptimismDeployments, BaseScript } from "script/Base.s.sol";
 import { Eip1967Logger } from "script/utils/Eip1967Logger.sol";
+import { ProxyAdmin } from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import {
     newL2WCT,
     newWalletConnectConfig,
@@ -28,14 +30,12 @@ struct OptimismDeploymentParams {
     address pauser;
     address emergencyReturn;
     address treasury;
+    bytes32 merkleRoot;
+    address merkleVester;
 }
 
 contract OptimismDeploy is BaseScript {
     function run() public broadcast {
-        if (address(readOptimismDeployments(block.chainid).l2wct) != address(0)) {
-            return console2.log("%s contracts already deployed", getChain(block.chainid).name);
-        }
-
         console2.log("Deploying %s contracts", getChain(block.chainid).name);
         OptimismDeployments memory deps = _deployAll(_readDeploymentParamsFromEnv());
 
@@ -43,11 +43,30 @@ contract OptimismDeploy is BaseScript {
             _writeOptimismDeployments(deps);
         }
 
+        _setConfig(deps);
+
         logDeployments();
     }
 
     function setConfig() public broadcast {
         OptimismDeployments memory deps = readOptimismDeployments(block.chainid);
+        _setConfig(deps);
+    }
+
+    function changeOwnership() public broadcast {
+        OptimismDeployments memory deps = readOptimismDeployments(block.chainid);
+
+        // Config
+        deps.config.grantRole(deps.config.DEFAULT_ADMIN_ROLE(), address(deps.adminTimelock));
+        deps.config.revokeRole(deps.config.DEFAULT_ADMIN_ROLE(), broadcaster);
+
+        // Pauser
+        deps.pauser.revokeRole(deps.pauser.UNPAUSER_ROLE(), broadcaster);
+        deps.pauser.grantRole(deps.pauser.PAUSER_ROLE(), address(deps.managerTimelock));
+        deps.pauser.grantRole(deps.pauser.DEFAULT_ADMIN_ROLE(), address(deps.adminTimelock));
+    }
+
+    function _setConfig(OptimismDeployments memory deps) private {
         deps.config.updateL2wct(address(deps.l2wct));
         deps.config.updatePauser(address(deps.pauser));
         deps.config.updateStakeWeight(address(deps.stakeWeight));
@@ -63,6 +82,8 @@ contract OptimismDeploy is BaseScript {
         console2.log("Admin Timelock:", address(deps.adminTimelock));
         console2.log("Manager Timelock:", address(deps.managerTimelock));
         console2.log("Airdrop:", address(deps.airdrop));
+        console2.log("MerkleVester:", address(deps.merkleVester));
+        console2.log("LockedTokenStaker:", address(deps.lockedTokenStaker));
     }
 
     function _deployAll(OptimismDeploymentParams memory params) private returns (OptimismDeployments memory) {
@@ -70,63 +91,234 @@ contract OptimismDeploy is BaseScript {
             block.chainid == getChain("optimism").chainId ? getChain("mainnet").chainId : getChain("sepolia").chainId;
         address remoteToken = address(readEthereumDeployments(parentChainId).wct);
 
-        L2WCT l2wct = newL2WCT({
-            initialOwner: params.admin,
-            init: L2WCT.Init({
-                initialAdmin: params.admin,
-                initialManager: params.manager,
-                bridge: address(params.opBridge),
-                remoteToken: remoteToken
-            })
-        });
+        OptimismDeployments memory deployments = readOptimismDeployments(block.chainid);
 
-        WalletConnectConfig config =
-            newWalletConnectConfig(params.admin, WalletConnectConfig.Init({ admin: params.admin }));
+        if (address(deployments.adminTimelock) == address(0)) {
+            console2.log("Deploying Admin Timelock...");
+            deployments.adminTimelock = new Timelock(
+                1 weeks, _singleAddressArray(params.admin), _singleAddressArray(params.admin), params.timelockCanceller
+            );
+        }
 
-        Pauser pauser = newPauser(params.admin, Pauser.Init({ admin: params.admin, pauser: params.pauser }));
+        if (address(deployments.managerTimelock) == address(0)) {
+            console2.log("Deploying Manager Timelock...");
+            deployments.managerTimelock = new Timelock(
+                3 days,
+                _singleAddressArray(params.manager),
+                _singleAddressArray(params.manager),
+                params.timelockCanceller
+            );
+        }
 
-        StakeWeight stakeWeight =
-            newStakeWeight(params.admin, StakeWeight.Init({ admin: params.admin, config: address(config) }));
+        if (address(deployments.l2wct) == address(0)) {
+            console2.log("Deploying L2WCT...");
+            deployments.l2wct = newL2WCT({
+                initialOwner: address(deployments.adminTimelock),
+                init: L2WCT.Init({
+                    initialAdmin: params.admin,
+                    initialManager: params.manager,
+                    bridge: address(params.opBridge),
+                    remoteToken: remoteToken
+                })
+            });
+        }
 
-        StakingRewardDistributor stakingRewardDistributor = newStakingRewardDistributor(
-            params.admin,
-            StakingRewardDistributor.Init({
-                admin: params.admin,
-                config: address(config),
-                startTime: block.timestamp + 2 weeks,
-                emergencyReturn: params.emergencyReturn
-            })
-        );
+        if (address(deployments.config) == address(0)) {
+            console2.log("Deploying WalletConnectConfig...");
+            deployments.config = newWalletConnectConfig(
+                address(deployments.adminTimelock), WalletConnectConfig.Init({ admin: broadcaster })
+            );
+        }
 
-        Timelock adminTimelock = new Timelock(
-            1 weeks, _singleAddressArray(params.admin), _singleAddressArray(params.admin), params.timelockCanceller
-        );
-        Timelock managerTimelock = new Timelock(
-            3 days, _singleAddressArray(params.manager), _singleAddressArray(params.manager), params.timelockCanceller
-        );
+        if (address(deployments.pauser) == address(0)) {
+            console2.log("Deploying Pauser...");
+            deployments.pauser = newPauser(
+                address(deployments.adminTimelock), Pauser.Init({ admin: broadcaster, pauser: params.pauser })
+            );
+        }
 
-        return OptimismDeployments({
-            l2wct: l2wct,
-            adminTimelock: adminTimelock,
-            managerTimelock: managerTimelock,
-            config: config,
-            pauser: pauser,
-            stakeWeight: stakeWeight,
-            stakingRewardDistributor: stakingRewardDistributor,
-            airdrop: Airdrop(address(0))
-        });
+        if (address(deployments.stakeWeight) == address(0)) {
+            console2.log("Deploying StakeWeight...");
+            deployments.stakeWeight = newStakeWeight(
+                address(deployments.adminTimelock),
+                StakeWeight.Init({ admin: broadcaster, config: address(deployments.config) })
+            );
+        }
+
+        if (address(deployments.stakingRewardDistributor) == address(0)) {
+            console2.log("Deploying StakingRewardDistributor...");
+            deployments.stakingRewardDistributor = newStakingRewardDistributor(
+                address(deployments.adminTimelock),
+                StakingRewardDistributor.Init({
+                    admin: params.treasury,
+                    config: address(deployments.config),
+                    startTime: 1_733_961_600, // 2024-12-12 00:00:00 UTC
+                    emergencyReturn: params.emergencyReturn
+                })
+            );
+        }
+
+        return deployments;
     }
 
     function deployAirdrop() public broadcast {
         OptimismDeployments memory deps = readOptimismDeployments(block.chainid);
         OptimismDeploymentParams memory params = _readDeploymentParamsFromEnv();
 
-        (bytes32 merkleRoot,) = AirdropJsonHandler.jsonToMerkleRoot(vm, "/script/data/airdrop_data.json");
-        Airdrop airdrop = new Airdrop(params.admin, params.pauser, params.treasury, merkleRoot, address(deps.l2wct));
+        if (address(deps.airdrop) == address(0)) {
+            deps.airdrop =
+                new Airdrop(params.admin, params.pauser, params.treasury, params.merkleRoot, address(deps.l2wct));
+        }
 
-        deps.airdrop = airdrop;
+        if (vm.envOr("BROADCAST", false)) {
+            _writeOptimismDeployments(deps);
+        }
+    }
 
-        _writeOptimismDeployments(deps);
+    function deployLockedTokenStaker() public broadcast {
+        OptimismDeploymentParams memory params = _readDeploymentParamsFromEnv();
+        OptimismDeployments memory deps = readOptimismDeployments(block.chainid);
+
+        if (address(deps.adminTimelock) == address(0)) {
+            revert("Admin Timelock not deployed");
+        }
+
+        if (params.merkleVester == address(0)) {
+            revert("Merkle Vester not set");
+        }
+
+        if (address(deps.merkleVester) == address(0)) {
+            deps.merkleVester = MerkleVester(params.merkleVester);
+        }
+
+        if (address(deps.lockedTokenStaker) == address(0)) {
+            deps.lockedTokenStaker = new LockedTokenStaker{
+                salt: keccak256(abi.encodePacked("walletconnect.lockedtokenstaker"))
+            }(deps.merkleVester, WalletConnectConfig(address(deps.config)));
+        }
+
+        if (vm.envOr("BROADCAST", false)) {
+            _writeOptimismDeployments(deps);
+        }
+
+        // Grant lockedTokenStaker role to LockedTokenStaker
+        deps.stakeWeight.grantRole(deps.stakeWeight.LOCKED_TOKEN_STAKER_ROLE(), address(deps.lockedTokenStaker));
+        deps.stakeWeight.grantRole(deps.config.DEFAULT_ADMIN_ROLE(), address(deps.adminTimelock));
+        deps.stakeWeight.revokeRole(deps.config.DEFAULT_ADMIN_ROLE(), broadcaster);
+    }
+
+    function verifyDeployments() public {
+        OptimismDeployments memory deps = readOptimismDeployments(block.chainid);
+        OptimismDeploymentParams memory params = _readDeploymentParamsFromEnv();
+        // Verify all deployed
+        if (address(deps.adminTimelock) == address(0)) {
+            revert("Admin Timelock not deployed");
+        }
+        if (address(deps.managerTimelock) == address(0)) {
+            revert("Manager Timelock not deployed");
+        }
+        if (address(deps.l2wct) == address(0)) {
+            revert("L2WCT not deployed");
+        }
+        if (address(deps.config) == address(0)) {
+            revert("WalletConnectConfig not deployed");
+        }
+        if (address(deps.pauser) == address(0)) {
+            revert("Pauser not deployed");
+        }
+        if (address(deps.stakeWeight) == address(0)) {
+            revert("StakeWeight not deployed");
+        }
+
+        if (address(deps.airdrop) == address(0)) {
+            console2.log("Airdrop not deployed");
+        }
+        if (address(deps.merkleVester) == address(0)) {
+            console2.log("MerkleVester not deployed");
+        }
+        if (address(deps.lockedTokenStaker) == address(0)) {
+            console2.log("LockedTokenStaker not deployed");
+        }
+
+        // Proxy admin owner is deps.adminTimelock
+        ProxyAdmin l2wctProxyAdmin = ProxyAdmin(Eip1967Logger.getAdmin(vm, address(deps.l2wct)));
+        if (l2wctProxyAdmin.owner() != address(deps.adminTimelock)) {
+            console2.log("L2WCT Proxy Admin owner is not Admin Timelock");
+        }
+
+        ProxyAdmin configProxyAdmin = ProxyAdmin(Eip1967Logger.getAdmin(vm, address(deps.config)));
+        if (configProxyAdmin.owner() != address(deps.adminTimelock)) {
+            revert("WalletConnectConfig Proxy Admin owner is not Admin Timelock");
+        }
+
+        ProxyAdmin pauserProxyAdmin = ProxyAdmin(Eip1967Logger.getAdmin(vm, address(deps.pauser)));
+        if (pauserProxyAdmin.owner() != address(deps.adminTimelock)) {
+            revert("Pauser Proxy Admin owner is not Admin Timelock");
+        }
+
+        ProxyAdmin stakeWeightProxyAdmin = ProxyAdmin(Eip1967Logger.getAdmin(vm, address(deps.stakeWeight)));
+        if (stakeWeightProxyAdmin.owner() != address(deps.adminTimelock)) {
+            revert("StakeWeight Proxy Admin owner is not Admin Timelock");
+        }
+
+        ProxyAdmin stakingRewardDistributorProxyAdmin =
+            ProxyAdmin(Eip1967Logger.getAdmin(vm, address(deps.stakingRewardDistributor)));
+        if (stakingRewardDistributorProxyAdmin.owner() != address(params.treasury)) {
+            revert("StakingRewardDistributor Proxy Admin owner is not Treasury");
+        }
+
+        // L2WCT
+        if (!deps.l2wct.hasRole(deps.l2wct.DEFAULT_ADMIN_ROLE(), address(deps.adminTimelock))) {
+            console2.log("L2WCT default admin is not Admin Timelock");
+        }
+        if (!deps.l2wct.hasRole(deps.l2wct.MANAGER_ROLE(), address(deps.managerTimelock))) {
+            console2.log("L2WCT manager role is not Manager Timelock");
+        }
+
+        // StakingRewardDistributor
+        if (deps.stakingRewardDistributor.owner() != address(params.treasury)) {
+            revert("StakingRewardDistributor owner is not Treasury");
+        }
+        // Config
+        if (!deps.config.hasRole(deps.config.DEFAULT_ADMIN_ROLE(), address(deps.adminTimelock))) {
+            revert("WalletConnectConfig default admin is not Admin Timelock");
+        }
+        // StakeWeight
+        if (!deps.stakeWeight.hasRole(deps.stakeWeight.DEFAULT_ADMIN_ROLE(), address(deps.adminTimelock))) {
+            revert("StakeWeight default admin is not Admin Timelock");
+        }
+        // Pauser
+        if (!deps.pauser.hasRole(deps.pauser.PAUSER_ROLE(), address(params.pauser))) {
+            revert("Pauser pauser role is not Pauser");
+        }
+        if (!deps.pauser.hasRole(deps.pauser.UNPAUSER_ROLE(), address(deps.managerTimelock))) {
+            revert("Pauser unpauser role is not Manager Timelock");
+        }
+        if (!deps.pauser.hasRole(deps.pauser.DEFAULT_ADMIN_ROLE(), address(deps.adminTimelock))) {
+            revert("Pauser default admin is not Admin Timelock");
+        }
+        if (deps.pauser.hasRole(deps.pauser.DEFAULT_ADMIN_ROLE(), broadcaster)) {
+            console2.log("Pauser default admin is broadcaster");
+        }
+        if (deps.pauser.hasRole(deps.pauser.UNPAUSER_ROLE(), broadcaster)) {
+            console2.log("Pauser unpauser role is broadcaster");
+        }
+        // Airdrop
+        if (deps.airdrop.merkleRoot() != params.merkleRoot) {
+            console2.log("Airdrop merkleRoot is not Merkle Root");
+        }
+        if (deps.airdrop.reserveAddress() != params.treasury) {
+            console2.log("Airdrop reserveAddress is not Treasury");
+        }
+        // LockedTokenStaker
+        if (!deps.stakeWeight.hasRole(deps.stakeWeight.LOCKED_TOKEN_STAKER_ROLE(), address(deps.lockedTokenStaker))) {
+            console2.log("StakeWeight lockedTokenStaker role is not LockedTokenStaker");
+        }
+        // address[] memory postClaimHandlers = deps.merkleVester.getPostClaimHandlers();
+        // if (postClaimHandlers.length != 1 || postClaimHandlers[0] != address(deps.lockedTokenStaker)) {
+        //     console2.log("MerkleVester postClaimHandlerWhitelist is not LockedTokenStaker");
+        // }
+        console2.log("Good to go!");
     }
 
     function _writeOptimismDeployments(OptimismDeployments memory deps) private {
@@ -141,7 +333,9 @@ contract OptimismDeploy is BaseScript {
             timelockCanceller: vm.envAddress("TIMELOCK_CANCELLER_ADDRESS"),
             pauser: vm.envAddress("PAUSER_ADDRESS"),
             emergencyReturn: vm.envAddress("EMERGENCY_RETURN_ADDRESS"),
-            treasury: vm.envAddress("TREASURY_ADDRESS")
+            treasury: vm.envAddress("TREASURY_ADDRESS"),
+            merkleRoot: vm.envBytes32("MERKLE_ROOT"),
+            merkleVester: vm.envAddress("MERKLE_VESTER_ADDRESS")
         });
     }
 }

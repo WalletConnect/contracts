@@ -9,6 +9,8 @@ import { Pauser } from "src/Pauser.sol";
 import { StakeWeight } from "src/StakeWeight.sol";
 import { StakingRewardDistributor } from "src/StakingRewardDistributor.sol";
 import { Airdrop } from "src/Airdrop.sol";
+import { LockedTokenStaker } from "src/LockedTokenStaker.sol";
+import { MerkleVester } from "src/interfaces/MerkleVester.sol";
 import { AirdropJsonHandler } from "script/utils/AirdropJsonHandler.sol";
 import { OptimismDeployments, BaseScript } from "script/Base.s.sol";
 import { Eip1967Logger } from "script/utils/Eip1967Logger.sol";
@@ -107,9 +109,11 @@ contract AnvilDeploy is BaseScript {
             pauser: pauser,
             stakeWeight: stakeWeight,
             stakingRewardDistributor: stakingRewardDistributor,
-            airdrop: airdrop,
             adminTimelock: adminTimelock,
-            managerTimelock: managerTimelock
+            managerTimelock: managerTimelock,
+            airdrop: airdrop,
+            lockedTokenStaker: LockedTokenStaker(address(0)),
+            merkleVester: MerkleVester(address(0))
         });
     }
 

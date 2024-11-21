@@ -11,7 +11,6 @@ import { RewardManager } from "src/RewardManager.sol";
 import { Staking } from "src/Staking.sol";
 import { StakeWeight } from "src/StakeWeight.sol";
 import { StakingRewardDistributor } from "src/StakingRewardDistributor.sol";
-import { LockedTokenStaker } from "src/LockedTokenStaker.sol";
 import { MockERC20 } from "test/mocks/MockERC20.sol";
 
 function newWCT(address initialOwner, WCT.Init memory init) returns (WCT) {

@@ -11,6 +11,8 @@ import { StakingRewardDistributor } from "src/StakingRewardDistributor.sol";
 import { Timelock } from "src/Timelock.sol";
 import { Pauser } from "src/Pauser.sol";
 import { Airdrop } from "src/Airdrop.sol";
+import { LockedTokenStaker } from "src/LockedTokenStaker.sol";
+import { MerkleVester } from "src/interfaces/MerkleVester.sol";
 import { StdCheats } from "forge-std/StdCheats.sol";
 
 struct EthereumDeployments {
@@ -27,6 +29,8 @@ struct OptimismDeployments {
     Timelock adminTimelock;
     Timelock managerTimelock;
     Airdrop airdrop;
+    LockedTokenStaker lockedTokenStaker;
+    MerkleVester merkleVester;
 }
 
 abstract contract BaseScript is Script, StdCheats {
@@ -93,7 +97,9 @@ abstract contract BaseScript is Script, StdCheats {
                 stakingRewardDistributor: StakingRewardDistributor(address(0)),
                 adminTimelock: Timelock(payable(address(0))),
                 managerTimelock: Timelock(payable(address(0))),
-                airdrop: Airdrop(address(0))
+                airdrop: Airdrop(address(0)),
+                lockedTokenStaker: LockedTokenStaker(address(0)),
+                merkleVester: MerkleVester(address(0))
             });
         }
         // Length per address is 32 bytes => 64 characters
