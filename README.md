@@ -11,13 +11,14 @@ the decentralization of the storage layer.
 - WCT Token: Incentivizes node operators and wallets
 - Node Operator Network: Initially permissioned, transitioning to permissionless
 - Performance-based Rewards System
-- Oracle Network: Reports node performance
+- Oracle Network: Reporting of node performance
 
 ## System Architecture
 
 ### On-chain Components
 
-- Smart Contracts: WCT Token, Staking, Node/Wallet Registries, Reward Managers, Oracle, Config Management
+- Smart Contracts: WCT Token, StakeWeight, StakingRewardDistributor, Node/Wallet Registries, Reward Managers, Oracle,
+  Config Management
 - Utilizes upgradeable contracts and role-based access control
 
 ### Off-chain Components
@@ -46,4 +47,5 @@ the decentralization of the storage layer.
 - Follows Solidity best practices
 - Implements Branching Tree Technique (BTT) for thorough testing
 
-For more detailed information, please refer to the full [architecture document](./docs/system-architecture.md).
+For more detailed information, please refer to the full [architecture document](./docs/system-architecture.md). For
+deployment addresses, please refer to the [deployment addresses](./DEPLOYMENT_ADDRESSES.md).
