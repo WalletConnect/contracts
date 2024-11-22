@@ -131,4 +131,36 @@ contract UpdateLock_StakeWeight_Integration_Concrete_Test is StakeWeight_Integra
             l2wct.balanceOf(users.alice), initialBalance - INCREASE_AMOUNT, "Tokens should be transferred from user"
         );
     }
+
+    function test_WhenTimeIsMaxLock() external {
+        uint256 maxLock = stakeWeight.maxLock();
+
+        deal(address(l2wct), users.alice, INCREASE_AMOUNT);
+        vm.startPrank(users.alice);
+        IERC20(address(l2wct)).approve(address(stakeWeight), INCREASE_AMOUNT);
+
+        uint256 initialBalance = l2wct.balanceOf(users.alice);
+        uint256 newUnlockTime = block.timestamp + maxLock;
+        uint256 newUnlockTimeFloored = _timestampToFloorWeek(newUnlockTime);
+
+        vm.expectEmit(true, true, true, true);
+        emit Deposit(
+            users.alice,
+            INCREASE_AMOUNT,
+            newUnlockTimeFloored,
+            stakeWeight.ACTION_UPDATE_LOCK(),
+            INCREASE_AMOUNT,
+            block.timestamp
+        );
+
+        stakeWeight.updateLock(INCREASE_AMOUNT, newUnlockTime);
+
+        StakeWeight.LockedBalance memory lock = stakeWeight.locks(users.alice);
+        assertEq(lock.end, newUnlockTimeFloored, "Lock end time should be updated");
+        assertEq(uint256(int256(lock.amount)), INITIAL_LOCK_AMOUNT + INCREASE_AMOUNT, "Lock amount should be increased");
+        assertEq(
+            l2wct.balanceOf(users.alice), initialBalance - INCREASE_AMOUNT, "Tokens should be transferred from user"
+        );
+        vm.stopPrank();
+    }
 }

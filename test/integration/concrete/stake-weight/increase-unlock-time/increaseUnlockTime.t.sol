@@ -83,4 +83,13 @@ contract IncreaseUnlockTime_StakeWeight_Integration_Concrete_Test is StakeWeight
         assertGt(stakeWeight.balanceOf(users.alice), initialStakeWeight, "Stake weight should increase");
         assertGt(stakeWeight.totalSupply(), initialTotalSupply, "Total supply should increase");
     }
+
+    function test_WhenTimeIsMaxLock() external {
+        uint256 maxLock = stakeWeight.maxLock();
+        vm.startPrank(users.alice);
+        stakeWeight.increaseUnlockTime(block.timestamp + maxLock);
+
+        StakeWeight.LockedBalance memory lock = stakeWeight.locks(users.alice);
+        assertEq(lock.end, _timestampToFloorWeek(block.timestamp + maxLock), "Lock end time should be updated");
+    }
 }
