@@ -37,13 +37,16 @@ struct OptimismDeploymentParams {
 contract OptimismDeploy is BaseScript {
     function run() public broadcast {
         console2.log("Deploying %s contracts", getChain(block.chainid).name);
-        OptimismDeployments memory deps = _deployAll(_readDeploymentParamsFromEnv());
+        OptimismDeploymentParams memory params = _readDeploymentParamsFromEnv();
+        OptimismDeployments memory deps = _deployAll(params);
 
         if (vm.envOr("BROADCAST", false)) {
             _writeOptimismDeployments(deps);
         }
 
         _setConfig(deps);
+
+        _changeOwnership(params, deps);
 
         logDeployments();
     }
@@ -53,17 +56,18 @@ contract OptimismDeploy is BaseScript {
         _setConfig(deps);
     }
 
-    function changeOwnership() public broadcast {
-        OptimismDeployments memory deps = readOptimismDeployments(block.chainid);
-
-        // Config
+    function _changeOwnership(OptimismDeploymentParams memory params, OptimismDeployments memory deps) private {
+        // Config: Broadcaster -> Admin Timelock and Admin
         deps.config.grantRole(deps.config.DEFAULT_ADMIN_ROLE(), address(deps.adminTimelock));
+        deps.config.revokeRole(deps.config.DEFAULT_ADMIN_ROLE(), params.admin);
         deps.config.revokeRole(deps.config.DEFAULT_ADMIN_ROLE(), broadcaster);
 
-        // Pauser
+        // Pauser: Broadcaster -> Admin Timelock, Admin and Manager Timelock
         deps.pauser.revokeRole(deps.pauser.UNPAUSER_ROLE(), broadcaster);
-        deps.pauser.grantRole(deps.pauser.PAUSER_ROLE(), address(deps.managerTimelock));
+        deps.pauser.grantRole(deps.pauser.UNPAUSER_ROLE(), address(deps.managerTimelock));
+        deps.pauser.grantRole(deps.pauser.DEFAULT_ADMIN_ROLE(), params.admin);
         deps.pauser.grantRole(deps.pauser.DEFAULT_ADMIN_ROLE(), address(deps.adminTimelock));
+        deps.pauser.revokeRole(deps.pauser.DEFAULT_ADMIN_ROLE(), broadcaster);
     }
 
     function _setConfig(OptimismDeployments memory deps) private {
@@ -141,7 +145,7 @@ contract OptimismDeploy is BaseScript {
             console2.log("Deploying StakeWeight...");
             deployments.stakeWeight = newStakeWeight(
                 address(deployments.adminTimelock),
-                StakeWeight.Init({ admin: broadcaster, config: address(deployments.config) })
+                StakeWeight.Init({ admin: params.admin, config: address(deployments.config) })
             );
         }
 
@@ -152,7 +156,7 @@ contract OptimismDeploy is BaseScript {
                 StakingRewardDistributor.Init({
                     admin: params.treasury,
                     config: address(deployments.config),
-                    startTime: 1_733_961_600, // 2024-12-12 00:00:00 UTC
+                    startTime: 1_732_752_000, // 2024-11-28 00:00:00 UTC
                     emergencyReturn: params.emergencyReturn
                 })
             );
@@ -200,11 +204,6 @@ contract OptimismDeploy is BaseScript {
         if (vm.envOr("BROADCAST", false)) {
             _writeOptimismDeployments(deps);
         }
-
-        // Grant lockedTokenStaker role to LockedTokenStaker
-        deps.stakeWeight.grantRole(deps.stakeWeight.LOCKED_TOKEN_STAKER_ROLE(), address(deps.lockedTokenStaker));
-        deps.stakeWeight.grantRole(deps.config.DEFAULT_ADMIN_ROLE(), address(deps.adminTimelock));
-        deps.stakeWeight.revokeRole(deps.config.DEFAULT_ADMIN_ROLE(), broadcaster);
     }
 
     function verifyDeployments() public {
@@ -229,7 +228,6 @@ contract OptimismDeploy is BaseScript {
         if (address(deps.stakeWeight) == address(0)) {
             revert("StakeWeight not deployed");
         }
-
         if (address(deps.airdrop) == address(0)) {
             console2.log("Airdrop not deployed");
         }
@@ -263,8 +261,9 @@ contract OptimismDeploy is BaseScript {
 
         ProxyAdmin stakingRewardDistributorProxyAdmin =
             ProxyAdmin(Eip1967Logger.getAdmin(vm, address(deps.stakingRewardDistributor)));
-        if (stakingRewardDistributorProxyAdmin.owner() != address(params.treasury)) {
-            revert("StakingRewardDistributor Proxy Admin owner is not Treasury");
+
+        if (stakingRewardDistributorProxyAdmin.owner() != address(deps.adminTimelock)) {
+            revert("StakingRewardDistributor Proxy Admin owner is not Admin Timelock");
         }
 
         // L2WCT
@@ -274,22 +273,52 @@ contract OptimismDeploy is BaseScript {
         if (!deps.l2wct.hasRole(deps.l2wct.MANAGER_ROLE(), address(deps.managerTimelock))) {
             console2.log("L2WCT manager role is not Manager Timelock");
         }
+        if (deps.l2wct.hasRole(deps.l2wct.MANAGER_ROLE(), params.manager)) {
+            console2.log("L2WCT manager role is Manager MultiSig");
+        }
+        if (deps.l2wct.hasRole(deps.l2wct.DEFAULT_ADMIN_ROLE(), params.admin)) {
+            console2.log("L2WCT default admin is Admin MultiSig");
+        }
 
         // StakingRewardDistributor
         if (deps.stakingRewardDistributor.owner() != address(params.treasury)) {
             revert("StakingRewardDistributor owner is not Treasury");
         }
+
         // Config
+        // Role checks
         if (!deps.config.hasRole(deps.config.DEFAULT_ADMIN_ROLE(), address(deps.adminTimelock))) {
             revert("WalletConnectConfig default admin is not Admin Timelock");
         }
+        if (deps.config.hasRole(deps.config.DEFAULT_ADMIN_ROLE(), broadcaster)) {
+            revert("WalletConnectConfig default admin is broadcaster");
+        }
+        if (deps.config.hasRole(deps.config.DEFAULT_ADMIN_ROLE(), params.admin)) {
+            console2.log("WalletConnectConfig default admin is Admin MultiSig");
+        }
+        // Value checks
+        if (deps.config.getL2wct() != address(deps.l2wct)) {
+            console2.log("WalletConnectConfig l2wct is not L2WCT");
+        }
+        if (deps.config.getPauser() != address(deps.pauser)) {
+            console2.log("WalletConnectConfig pauser is not Pauser");
+        }
+        if (deps.config.getStakeWeight() != address(deps.stakeWeight)) {
+            console2.log("WalletConnectConfig stakeWeight is not StakeWeight");
+        }
         // StakeWeight
         if (!deps.stakeWeight.hasRole(deps.stakeWeight.DEFAULT_ADMIN_ROLE(), address(deps.adminTimelock))) {
-            revert("StakeWeight default admin is not Admin Timelock");
+            console2.log("StakeWeight default admin is not Admin Timelock");
+        }
+        if (deps.stakeWeight.hasRole(deps.stakeWeight.DEFAULT_ADMIN_ROLE(), broadcaster)) {
+            revert("StakeWeight default admin is broadcaster");
+        }
+        if (deps.stakeWeight.hasRole(deps.stakeWeight.DEFAULT_ADMIN_ROLE(), params.admin)) {
+            console2.log("StakeWeight default admin is Admin MultiSig");
         }
         // Pauser
         if (!deps.pauser.hasRole(deps.pauser.PAUSER_ROLE(), address(params.pauser))) {
-            revert("Pauser pauser role is not Pauser");
+            revert("Pauser pauser role is not Pauser MultiSig");
         }
         if (!deps.pauser.hasRole(deps.pauser.UNPAUSER_ROLE(), address(deps.managerTimelock))) {
             revert("Pauser unpauser role is not Manager Timelock");
@@ -297,23 +326,28 @@ contract OptimismDeploy is BaseScript {
         if (!deps.pauser.hasRole(deps.pauser.DEFAULT_ADMIN_ROLE(), address(deps.adminTimelock))) {
             revert("Pauser default admin is not Admin Timelock");
         }
+        if (deps.pauser.hasRole(deps.pauser.DEFAULT_ADMIN_ROLE(), params.admin)) {
+            console2.log("Pauser default admin is Admin MultiSig");
+        }
         if (deps.pauser.hasRole(deps.pauser.DEFAULT_ADMIN_ROLE(), broadcaster)) {
-            console2.log("Pauser default admin is broadcaster");
+            revert("Pauser default admin is broadcaster");
         }
         if (deps.pauser.hasRole(deps.pauser.UNPAUSER_ROLE(), broadcaster)) {
-            console2.log("Pauser unpauser role is broadcaster");
+            revert("Pauser unpauser role is broadcaster");
         }
+
         // Airdrop
-        if (deps.airdrop.merkleRoot() != params.merkleRoot) {
-            console2.log("Airdrop merkleRoot is not Merkle Root");
-        }
-        if (deps.airdrop.reserveAddress() != params.treasury) {
-            console2.log("Airdrop reserveAddress is not Treasury");
-        }
-        // LockedTokenStaker
-        if (!deps.stakeWeight.hasRole(deps.stakeWeight.LOCKED_TOKEN_STAKER_ROLE(), address(deps.lockedTokenStaker))) {
-            console2.log("StakeWeight lockedTokenStaker role is not LockedTokenStaker");
-        }
+        // if (deps.airdrop.merkleRoot() != params.merkleRoot) {
+        //     console2.log("Airdrop merkleRoot is not Merkle Root");
+        // }
+        // if (deps.airdrop.reserveAddress() != params.treasury) {
+        //     console2.log("Airdrop reserveAddress is not Treasury");
+        // }
+        // // LockedTokenStaker
+        // if (!deps.stakeWeight.hasRole(deps.stakeWeight.LOCKED_TOKEN_STAKER_ROLE(), address(deps.lockedTokenStaker)))
+        // {
+        //     console2.log("StakeWeight lockedTokenStaker role is not LockedTokenStaker");
+        // }
         // address[] memory postClaimHandlers = deps.merkleVester.getPostClaimHandlers();
         // if (postClaimHandlers.length != 1 || postClaimHandlers[0] != address(deps.lockedTokenStaker)) {
         //     console2.log("MerkleVester postClaimHandlerWhitelist is not LockedTokenStaker");
