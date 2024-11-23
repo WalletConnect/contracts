@@ -215,4 +215,34 @@ contract CreateLockFor_LockedTokenStaker_Integration_Concrete_Test is LockedToke
 
         vm.stopPrank();
     }
+
+    function test_CanAddTokensToLock()
+        external
+        whenContractIsNotPaused
+        givenUserIsTheOriginalBeneficiary
+        givenUserDoesNotHaveALock
+    {
+        uint256 amount = 100 ether;
+        uint256 unlockTime = _timestampToFloorWeek(block.timestamp + 52 weeks);
+
+        (bytes memory decodableArgs, bytes32[] memory proof) = _createAllocation(users.alice, amount);
+
+        vm.startPrank(users.alice);
+        vm.expectEmit(true, true, true, true);
+        emit Deposit(users.alice, amount, unlockTime, stakeWeight.ACTION_CREATE_LOCK(), 0, block.timestamp);
+        lockedTokenStaker.createLockFor(amount, unlockTime, 0, decodableArgs, proof);
+
+        deal(address(l2wct), users.alice, amount);
+        l2wct.approve(address(stakeWeight), amount);
+
+        uint256 initialBalance = l2wct.balanceOf(users.alice);
+        uint256 initialStakeWeight = stakeWeight.balanceOf(users.alice);
+        uint256 initialSupply = stakeWeight.supply();
+
+        stakeWeight.increaseLockAmount(amount);
+
+        assertEq(l2wct.balanceOf(users.alice), initialBalance - amount, "Tokens should be transferred from user");
+        assertGt(stakeWeight.balanceOf(users.alice), initialStakeWeight, "Stake weight should increase");
+        assertGt(stakeWeight.supply(), initialSupply, "Total supply should increase");
+    }
 }

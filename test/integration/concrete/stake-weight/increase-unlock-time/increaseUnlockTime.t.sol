@@ -85,11 +85,20 @@ contract IncreaseUnlockTime_StakeWeight_Integration_Concrete_Test is StakeWeight
     }
 
     function test_WhenTimeIsMaxLock() external {
+        skip(2 weeks);
+
+        uint256 initialSupply = stakeWeight.supply();
+        uint256 initialTotalSupply = stakeWeight.totalSupply();
+        uint256 initialStakeWeight = stakeWeight.balanceOf(users.alice);
+
         uint256 maxLock = stakeWeight.maxLock();
         vm.startPrank(users.alice);
         stakeWeight.increaseUnlockTime(block.timestamp + maxLock);
 
         StakeWeight.LockedBalance memory lock = stakeWeight.locks(users.alice);
         assertEq(lock.end, _timestampToFloorWeek(block.timestamp + maxLock), "Lock end time should be updated");
+        assertEq(stakeWeight.supply(), initialSupply, "Supply should remain the same");
+        assertGt(stakeWeight.balanceOf(users.alice), initialStakeWeight, "Stake weight should increase");
+        assertGt(stakeWeight.totalSupply(), initialTotalSupply, "Total supply should increase");
     }
 }
