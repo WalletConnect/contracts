@@ -337,12 +337,18 @@ contract OptimismDeploy is BaseScript {
         }
 
         // Airdrop
-        // if (deps.airdrop.merkleRoot() != params.merkleRoot) {
-        //     console2.log("Airdrop merkleRoot is not Merkle Root");
-        // }
-        // if (deps.airdrop.reserveAddress() != params.treasury) {
-        //     console2.log("Airdrop reserveAddress is not Treasury");
-        // }
+        if (deps.airdrop.merkleRoot() != params.merkleRoot) {
+            revert("Airdrop merkleRoot is not Merkle Root");
+        }
+        if (deps.airdrop.reserveAddress() != params.treasury) {
+            revert("Airdrop reserveAddress is not Treasury");
+        }
+        if (!deps.airdrop.hasRole(deps.airdrop.DEFAULT_ADMIN_ROLE(), params.admin)) {
+            revert("Airdrop default admin is not Admin MultiSig");
+        }
+        if (!deps.airdrop.hasRole(deps.airdrop.PAUSER_ROLE(), address(params.pauser))) {
+            revert("Airdrop pauser role is not Pauser MultiSig");
+        }
         // // LockedTokenStaker
         // if (!deps.stakeWeight.hasRole(deps.stakeWeight.LOCKED_TOKEN_STAKER_ROLE(), address(deps.lockedTokenStaker)))
         // {
