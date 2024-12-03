@@ -420,41 +420,6 @@ contract StakingRewardDistributor is Initializable, Ownable2StepUpgradeable, Ree
         return total;
     }
 
-    /// @notice Claim rewardToken for multiple users
-    /// @param users The array of addresses to claim reward for
-    function claimMany(address[] calldata users) external nonReentrant onlyLive returns (bool) {
-        if (users.length > 20) revert TooManyUsers();
-
-        if (block.timestamp >= weekCursor) _checkpointTotalSupply();
-
-        uint256 lastTokenTimestamp_ = lastTokenTimestamp;
-
-        _checkpointToken();
-        lastTokenTimestamp_ = block.timestamp;
-
-        lastTokenTimestamp_ = _timestampToFloorWeek(lastTokenTimestamp_);
-        uint256 total = 0;
-
-        for (uint256 i = 0; i < users.length; i++) {
-            address user = users[i];
-            if (user == address(0)) revert InvalidUser();
-
-            address recipient_ = getRecipient(user);
-            uint256 amount = _claim(user, recipient_, lastTokenTimestamp_);
-
-            if (amount != 0) {
-                IERC20(config.getL2wct()).safeTransfer(recipient_, amount);
-                total = total + amount;
-            }
-        }
-
-        if (total != 0) {
-            lastTokenBalance = lastTokenBalance - total;
-        }
-
-        return true;
-    }
-
     /// @notice Receive rewardTokens into the contract and trigger token checkpoint
     function feed(uint256 amount) external nonReentrant onlyLive returns (bool) {
         IERC20(config.getL2wct()).safeTransferFrom(msg.sender, address(this), amount);
