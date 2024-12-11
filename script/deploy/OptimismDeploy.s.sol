@@ -349,15 +349,14 @@ contract OptimismDeploy is BaseScript {
         if (!deps.airdrop.hasRole(deps.airdrop.PAUSER_ROLE(), address(params.pauser))) {
             revert("Airdrop pauser role is not Pauser MultiSig");
         }
-        // // LockedTokenStaker
-        // if (!deps.stakeWeight.hasRole(deps.stakeWeight.LOCKED_TOKEN_STAKER_ROLE(), address(deps.lockedTokenStaker)))
-        // {
-        //     console2.log("StakeWeight lockedTokenStaker role is not LockedTokenStaker");
-        // }
-        // address[] memory postClaimHandlers = deps.merkleVester.getPostClaimHandlers();
-        // if (postClaimHandlers.length != 1 || postClaimHandlers[0] != address(deps.lockedTokenStaker)) {
-        //     console2.log("MerkleVester postClaimHandlerWhitelist is not LockedTokenStaker");
-        // }
+        // LockedTokenStaker
+        if (!deps.stakeWeight.hasRole(deps.stakeWeight.LOCKED_TOKEN_STAKER_ROLE(), address(deps.lockedTokenStaker))) {
+            console2.log("StakeWeight lockedTokenStaker role is not LockedTokenStaker");
+        }
+        address[] memory postClaimHandlers = deps.merkleVester.getPostClaimHandlers();
+        if (postClaimHandlers.length != 1 || postClaimHandlers[0] != address(deps.lockedTokenStaker)) {
+            console2.log("MerkleVester postClaimHandlerWhitelist is not LockedTokenStaker");
+        }
         console2.log("Good to go!");
     }
 
