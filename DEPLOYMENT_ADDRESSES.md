@@ -19,6 +19,8 @@
 | StakeWeight              | [`0x521B4C065Bbdbe3E20B3727340730936912DfA46`](https://optimistic.etherscan.io/address/0x521B4C065Bbdbe3E20B3727340730936912DfA46) |
 | StakingRewardDistributor | [`0xF368F535e329c6d08DFf0d4b2dA961C4e7F3fCAF`](https://optimistic.etherscan.io/address/0xF368F535e329c6d08DFf0d4b2dA961C4e7F3fCAF) |
 | Airdrop                  | [`0x4ee97a759AACa2EdF9c1445223b6Cd17c2eD3fb4`](https://optimistic.etherscan.io/address/0x4ee97a759AACa2EdF9c1445223b6Cd17c2eD3fb4) |
+| MerkleVester             | [`0x648bddEE207da25e19918460c1Dc9F462F657a19`](https://optimistic.etherscan.io/address/0x648bddEE207da25e19918460c1Dc9F462F657a19) |
+| LockedTokenStaker        | [`0x5f630a47DE14e346fC28deB8fE379833A6F6B9B2`](https://optimistic.etherscan.io/address/0x5f630a47DE14e346fC28deB8fE379833A6F6B9B2) |
 
 Note: All addresses are verified on their respective block explorers. Click on any address to view it on the blockchain
 explorer.
@@ -26,10 +28,3 @@ explorer.
 ## Token Supply Information
 
 The WCT token has a total supply of 1,000,000,000 tokens (1e27 in wei).
-
-## Undeployed Contracts (Optimism)
-
-The following contracts are not yet deployed on Optimism:
-
-- MerkleVester
-- LockedTokenStaker
