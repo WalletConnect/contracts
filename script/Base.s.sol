@@ -29,8 +29,12 @@ struct OptimismDeployments {
     Timelock adminTimelock;
     Timelock managerTimelock;
     Airdrop airdrop;
-    LockedTokenStaker lockedTokenStaker;
-    MerkleVester merkleVester;
+    LockedTokenStaker lockedTokenStakerReown;
+    MerkleVester merkleVesterReown;
+    LockedTokenStaker lockedTokenStakerWalletConnect;
+    MerkleVester merkleVesterWalletConnect;
+    LockedTokenStaker lockedTokenStakerBackers;
+    MerkleVester merkleVesterBackers;
 }
 
 abstract contract BaseScript is Script, StdCheats {
@@ -98,17 +102,21 @@ abstract contract BaseScript is Script, StdCheats {
                 adminTimelock: Timelock(payable(address(0))),
                 managerTimelock: Timelock(payable(address(0))),
                 airdrop: Airdrop(address(0)),
-                lockedTokenStaker: LockedTokenStaker(address(0)),
-                merkleVester: MerkleVester(address(0))
+                lockedTokenStakerReown: LockedTokenStaker(address(0)),
+                merkleVesterReown: MerkleVester(address(0)),
+                lockedTokenStakerWalletConnect: LockedTokenStaker(address(0)),
+                merkleVesterWalletConnect: MerkleVester(address(0)),
+                lockedTokenStakerBackers: LockedTokenStaker(address(0)),
+                merkleVesterBackers: MerkleVester(address(0))
             });
         }
         // Length per address is 32 bytes => 64 characters
         // 10 addresses are needed for the Optimism deployments
-        // If the length is not 0 nor 64 * 10, we assume the deployments are missing contracts and we append as much
-        // as needed to make it 64 * 10 bytes
-        if (data.length != 64 * 10) {
+        // If the length is not 0 nor 64 * 14, we assume the deployments are missing contracts and we append as much
+        // as needed to make it 64 * 14 bytes
+        if (data.length != 64 * 14) {
             console2.log("Appending zeroes to deployments");
-            while (data.length < 64 * 10) {
+            while (data.length < 64 * 14) {
                 data = bytes.concat(data, abi.encode(bytes32(0)));
             }
         }

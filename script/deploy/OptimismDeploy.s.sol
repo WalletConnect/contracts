@@ -31,7 +31,9 @@ struct OptimismDeploymentParams {
     address emergencyReturn;
     address treasury;
     bytes32 merkleRoot;
-    address merkleVester;
+    address merkleVesterReown;
+    address merkleVesterWalletConnect;
+    address merkleVesterBackers;
 }
 
 contract OptimismDeploy is BaseScript {
@@ -86,8 +88,12 @@ contract OptimismDeploy is BaseScript {
         console2.log("Admin Timelock:", address(deps.adminTimelock));
         console2.log("Manager Timelock:", address(deps.managerTimelock));
         console2.log("Airdrop:", address(deps.airdrop));
-        console2.log("MerkleVester:", address(deps.merkleVester));
-        console2.log("LockedTokenStaker:", address(deps.lockedTokenStaker));
+        console2.log("MerkleVester Reown:", address(deps.merkleVesterReown));
+        console2.log("LockedTokenStaker Reown:", address(deps.lockedTokenStakerReown));
+        console2.log("MerkleVester WalletConnect:", address(deps.merkleVesterWalletConnect));
+        console2.log("LockedTokenStaker WalletConnect:", address(deps.lockedTokenStakerWalletConnect));
+        console2.log("MerkleVester Backers:", address(deps.merkleVesterBackers));
+        console2.log("LockedTokenStaker Backers:", address(deps.lockedTokenStakerBackers));
     }
 
     function _deployAll(OptimismDeploymentParams memory params) private returns (OptimismDeployments memory) {
@@ -187,18 +193,40 @@ contract OptimismDeploy is BaseScript {
             revert("Admin Timelock not deployed");
         }
 
-        if (params.merkleVester == address(0)) {
-            revert("Merkle Vester not set");
+        if (params.merkleVesterReown == address(0)) {
+            revert("Merkle Vester Reown not set");
+        }
+        if (params.merkleVesterWalletConnect == address(0)) {
+            revert("Merkle Vester WalletConnect not set");
+        }
+        if (params.merkleVesterBackers == address(0)) {
+            revert("Merkle Vester Backers not set");
         }
 
-        if (address(deps.merkleVester) == address(0)) {
-            deps.merkleVester = MerkleVester(params.merkleVester);
+        if (address(deps.merkleVesterReown) == address(0)) {
+            deps.merkleVesterReown = MerkleVester(params.merkleVesterReown);
+        }
+        if (address(deps.merkleVesterWalletConnect) == address(0)) {
+            deps.merkleVesterWalletConnect = MerkleVester(params.merkleVesterWalletConnect);
+        }
+        if (address(deps.merkleVesterBackers) == address(0)) {
+            deps.merkleVesterBackers = MerkleVester(params.merkleVesterBackers);
         }
 
-        if (address(deps.lockedTokenStaker) == address(0)) {
-            deps.lockedTokenStaker = new LockedTokenStaker{
+        if (address(deps.lockedTokenStakerReown) == address(0)) {
+            deps.lockedTokenStakerReown = new LockedTokenStaker{
                 salt: keccak256(abi.encodePacked("walletconnect.lockedtokenstaker"))
-            }(deps.merkleVester, WalletConnectConfig(address(deps.config)));
+            }(deps.merkleVesterReown, WalletConnectConfig(address(deps.config)));
+        }
+
+        if (address(deps.lockedTokenStakerWalletConnect) == address(0)) {
+            deps.lockedTokenStakerWalletConnect =
+                new LockedTokenStaker(deps.merkleVesterWalletConnect, WalletConnectConfig(address(deps.config)));
+        }
+
+        if (address(deps.lockedTokenStakerBackers) == address(0)) {
+            deps.lockedTokenStakerBackers =
+                new LockedTokenStaker(deps.merkleVesterBackers, WalletConnectConfig(address(deps.config)));
         }
 
         if (vm.envOr("BROADCAST", false)) {
@@ -231,11 +259,25 @@ contract OptimismDeploy is BaseScript {
         if (address(deps.airdrop) == address(0)) {
             console2.log("Airdrop not deployed");
         }
-        if (address(deps.merkleVester) == address(0)) {
-            console2.log("MerkleVester not deployed");
+        if (address(deps.merkleVesterReown) == address(0)) {
+            console2.log("MerkleVester Reown not deployed");
         }
-        if (address(deps.lockedTokenStaker) == address(0)) {
-            console2.log("LockedTokenStaker not deployed");
+        if (address(deps.lockedTokenStakerReown) == address(0)) {
+            console2.log("LockedTokenStaker Reown not deployed");
+        }
+
+        if (address(deps.merkleVesterWalletConnect) == address(0)) {
+            console2.log("MerkleVester WalletConnect not deployed");
+        }
+        if (address(deps.lockedTokenStakerWalletConnect) == address(0)) {
+            console2.log("LockedTokenStaker WalletConnect not deployed");
+        }
+
+        if (address(deps.merkleVesterBackers) == address(0)) {
+            console2.log("MerkleVester Backers not deployed");
+        }
+        if (address(deps.lockedTokenStakerBackers) == address(0)) {
+            console2.log("LockedTokenStaker Backers not deployed");
         }
 
         // Proxy admin owner is deps.adminTimelock
@@ -350,14 +392,41 @@ contract OptimismDeploy is BaseScript {
             revert("Airdrop pauser role is not Pauser MultiSig");
         }
         // LockedTokenStaker
-        if (!deps.stakeWeight.hasRole(deps.stakeWeight.LOCKED_TOKEN_STAKER_ROLE(), address(deps.lockedTokenStaker))) {
-            console2.log("StakeWeight lockedTokenStaker role is not LockedTokenStaker");
-        }
-        address[] memory postClaimHandlers = deps.merkleVester.getPostClaimHandlers();
-        if (postClaimHandlers.length != 1 || postClaimHandlers[0] != address(deps.lockedTokenStaker)) {
-            console2.log("MerkleVester postClaimHandlerWhitelist is not LockedTokenStaker");
-        }
+        _verifyLockedTokenStakerRole(
+            deps.stakeWeight, "Reown", address(deps.lockedTokenStakerReown), deps.merkleVesterReown
+        );
+        _verifyLockedTokenStakerRole(
+            deps.stakeWeight,
+            "WalletConnect",
+            address(deps.lockedTokenStakerWalletConnect),
+            deps.merkleVesterWalletConnect
+        );
+        _verifyLockedTokenStakerRole(
+            deps.stakeWeight, "Backers", address(deps.lockedTokenStakerBackers), deps.merkleVesterBackers
+        );
+
         console2.log("Good to go!");
+    }
+
+    function _verifyLockedTokenStakerRole(
+        StakeWeight stakeWeight,
+        string memory identifier,
+        address lockedTokenStaker,
+        MerkleVester merkleVester
+    )
+        private
+        view
+    {
+        if (!stakeWeight.hasRole(stakeWeight.LOCKED_TOKEN_STAKER_ROLE(), lockedTokenStaker)) {
+            console2.log("StakeWeight lockedTokenStaker role is not LockedTokenStaker %s", identifier);
+        }
+
+        address[] memory postClaimHandlers = merkleVester.getPostClaimHandlers();
+        if (postClaimHandlers.length != 1 || postClaimHandlers[0] != lockedTokenStaker) {
+            console2.log(
+                "MerkleVester %s postClaimHandlerWhitelist is not LockedTokenStaker %s", identifier, identifier
+            );
+        }
     }
 
     function _writeOptimismDeployments(OptimismDeployments memory deps) private {
@@ -374,7 +443,9 @@ contract OptimismDeploy is BaseScript {
             emergencyReturn: vm.envAddress("EMERGENCY_RETURN_ADDRESS"),
             treasury: vm.envAddress("TREASURY_ADDRESS"),
             merkleRoot: vm.envBytes32("MERKLE_ROOT"),
-            merkleVester: vm.envAddress("MERKLE_VESTER_ADDRESS")
+            merkleVesterReown: vm.envAddress("MERKLE_VESTER_REOWN_ADDRESS"),
+            merkleVesterWalletConnect: vm.envAddress("MERKLE_VESTER_WALLETCONNECT_ADDRESS"),
+            merkleVesterBackers: vm.envAddress("MERKLE_VESTER_BACKERS_ADDRESS")
         });
     }
 }
