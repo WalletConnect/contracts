@@ -15,7 +15,19 @@ contract SetRecipient_StakingRewardDistributor_Unit_Concrete_Test is Base_Test {
         newRecipient = users.bob;
     }
 
-    function test_WhenNewRecipientIsSameAsOldRecipient() public {
+    function test_RevertWhen_TransferRestrictionsEnabled() external {
+        vm.prank(user);
+        vm.expectRevert(StakingRewardDistributor.TransferRestrictionsEnabled.selector);
+        stakingRewardDistributor.setRecipient(newRecipient);
+    }
+
+    modifier whenTransferRestrictionsDisabled() {
+        vm.prank(users.admin);
+        l2wct.disableTransferRestrictions();
+        _;
+    }
+
+    function test_WhenNewRecipientIsSameAsOldRecipient() public whenTransferRestrictionsDisabled {
         vm.startPrank(user);
 
         address oldRecipient = stakingRewardDistributor.getRecipient(user);
@@ -32,7 +44,7 @@ contract SetRecipient_StakingRewardDistributor_Unit_Concrete_Test is Base_Test {
         );
     }
 
-    function test_WhenNewRecipientIsDifferentFromOldRecipient() public {
+    function test_WhenNewRecipientIsDifferentFromOldRecipient() public whenTransferRestrictionsDisabled {
         vm.startPrank(user);
 
         address oldRecipient = stakingRewardDistributor.getRecipient(user);
@@ -50,7 +62,7 @@ contract SetRecipient_StakingRewardDistributor_Unit_Concrete_Test is Base_Test {
         );
     }
 
-    function test_WhenUserAlreadyHasCustomRecipientSet() public {
+    function test_WhenUserAlreadyHasCustomRecipientSet() public whenTransferRestrictionsDisabled {
         vm.startPrank(user);
 
         stakingRewardDistributor.setRecipient(newRecipient);
