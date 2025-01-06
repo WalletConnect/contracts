@@ -9,6 +9,12 @@ contract IncreaseLockAmount_StakeWeight_Integration_Concrete_Test is StakeWeight
     uint256 constant INITIAL_LOCK_AMOUNT = 100 ether;
     uint256 constant INCREASE_AMOUNT = 50 ether;
 
+    function setUp() public override {
+        super.setUp();
+        vm.prank(users.admin);
+        l2wct.disableTransferRestrictions();
+    }
+
     function test_RevertWhen_ContractIsPaused() external {
         _pause();
 

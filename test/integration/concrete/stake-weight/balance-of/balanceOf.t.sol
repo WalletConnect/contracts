@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.25 <0.9.0;
 
-import { Base_Test } from "test/Base.t.sol";
 import { StakeWeight } from "src/StakeWeight.sol";
-import { console2 } from "forge-std/console2.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { StakeWeight_Integration_Shared_Test } from "test/integration/shared/StakeWeight.t.sol";
 
 contract BalanceOf_StakeWeight_Integration_Concrete_Test is StakeWeight_Integration_Shared_Test {
@@ -15,8 +12,10 @@ contract BalanceOf_StakeWeight_Integration_Concrete_Test is StakeWeight_Integrat
         super.setUp();
         // make max lock the cap
         uint256 newMaxLock = stakeWeight.MAX_LOCK_CAP();
-        vm.prank(users.admin);
+        vm.startPrank(users.admin);
         stakeWeight.setMaxLock(newMaxLock);
+        l2wct.disableTransferRestrictions();
+        vm.stopPrank();
     }
 
     function test_BalanceForUserWithoutLock() external view {

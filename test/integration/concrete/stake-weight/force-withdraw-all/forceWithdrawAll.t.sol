@@ -10,6 +10,12 @@ contract ForceWithdrawAll_StakeWeight_Integration_Concrete_Test is StakeWeight_I
     uint256 constant LOCK_AMOUNT = 100e18;
     uint256 constant LOCK_DURATION = 1 weeks;
 
+    function setUp() public override {
+        super.setUp();
+        vm.prank(users.admin);
+        l2wct.disableTransferRestrictions();
+    }
+
     function test_RevertWhen_CallerIsNotAdmin() external {
         bytes32 role = stakeWeight.DEFAULT_ADMIN_ROLE();
         vm.expectRevert(abi.encodeWithSignature("AccessControlUnauthorizedAccount(address,bytes32)", users.alice, role));

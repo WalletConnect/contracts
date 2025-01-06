@@ -10,7 +10,7 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 
 import { Pauser } from "./Pauser.sol";
 import { WalletConnectConfig } from "./WalletConnectConfig.sol";
-
+import { L2WCT } from "./L2WCT.sol";
 /**
  * @title StakeWeight
  * @notice This contract implements a vote-escrowed token model for WCT (WalletConnect Token)
@@ -18,6 +18,7 @@ import { WalletConnectConfig } from "./WalletConnectConfig.sol";
  * @dev This contract was inspired by Curve's veCRV and PancakeSwap's veCake implementations.
  * @author WalletConnect
  */
+
 contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20 for IERC20;
 
@@ -191,6 +192,9 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
 
     /// @notice Thrown when attempting to perform an action while the contract is paused
     error Paused();
+
+    /// @notice Thrown when attempting to perform an action while transfer restrictions are enabled
+    error TransferRestrictionsEnabled();
 
     /*//////////////////////////////////////////////////////////////////////////
                                 INITIALIZER
@@ -529,6 +533,9 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
     function depositFor(address for_, uint256 amount) external nonReentrant {
         StakeWeightStorage storage s = _getStakeWeightStorage();
         if (Pauser(s.config.getPauser()).isStakeWeightPaused()) revert Paused();
+        if (L2WCT(s.config.getL2wct()).transferRestrictionsDisabledAfter() >= block.timestamp) {
+            revert TransferRestrictionsEnabled();
+        }
         LockedBalance memory lock = LockedBalance({
             amount: s.locks[for_].amount,
             end: s.locks[for_].end,

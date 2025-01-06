@@ -112,8 +112,12 @@ contract AnvilDeploy is BaseScript {
             adminTimelock: adminTimelock,
             managerTimelock: managerTimelock,
             airdrop: airdrop,
-            lockedTokenStaker: LockedTokenStaker(address(0)),
-            merkleVester: MerkleVester(address(0))
+            lockedTokenStakerReown: LockedTokenStaker(address(0)),
+            merkleVesterReown: MerkleVester(address(0)),
+            lockedTokenStakerWalletConnect: LockedTokenStaker(address(0)),
+            merkleVesterWalletConnect: MerkleVester(address(0)),
+            lockedTokenStakerBackers: LockedTokenStaker(address(0)),
+            merkleVesterBackers: MerkleVester(address(0))
         });
     }
 

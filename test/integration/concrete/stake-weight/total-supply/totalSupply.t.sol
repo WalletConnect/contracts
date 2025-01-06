@@ -5,6 +5,12 @@ import { StakeWeight } from "src/StakeWeight.sol";
 import { StakeWeight_Integration_Shared_Test } from "test/integration/shared/StakeWeight.t.sol";
 
 contract TotalSupply_StakeWeight_Integration_Concrete_Test is StakeWeight_Integration_Shared_Test {
+    function setUp() public override {
+        super.setUp();
+        vm.prank(users.admin);
+        l2wct.disableTransferRestrictions();
+    }
+
     function test_GivenNoLocksExist() external view {
         assertEq(stakeWeight.totalSupply(), 0, "Total supply should be zero when no locks exist");
     }

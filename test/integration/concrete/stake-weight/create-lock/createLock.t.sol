@@ -6,6 +6,12 @@ import { StakeWeight } from "src/StakeWeight.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract CreateLock_StakeWeight_Unit_Concrete_Test is StakeWeight_Integration_Shared_Test {
+    function setUp() public override {
+        super.setUp();
+        vm.prank(users.admin);
+        l2wct.disableTransferRestrictions();
+    }
+
     function test_RevertWhen_ContractIsPaused() external {
         _pause();
 
