@@ -5,6 +5,12 @@ import { StakingRewardDistributor } from "src/StakingRewardDistributor.sol";
 import { StakeWeight_Integration_Shared_Test } from "../../../shared/StakeWeight.t.sol";
 
 contract BalanceOfAt_StakingRewardDistributor_Integration_Concrete_Test is StakeWeight_Integration_Shared_Test {
+    function setUp() public override {
+        super.setUp();
+        vm.prank(users.admin);
+        l2wct.disableTransferRestrictions();
+    }
+
     function test_WhenUserHasNoEpochs() external view {
         uint256 balance = stakingRewardDistributor.balanceOfAt(users.alice, block.timestamp);
         assertEq(balance, 0, "Balance should be 0 when user has no epochs");

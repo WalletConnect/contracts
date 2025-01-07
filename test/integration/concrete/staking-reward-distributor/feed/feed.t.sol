@@ -2,15 +2,17 @@
 pragma solidity >=0.8.25 <0.9.0;
 
 import { StakingRewardDistributor } from "src/StakingRewardDistributor.sol";
-import { IERC20, IERC20Errors } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import { IERC20Errors } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { StakeWeight_Integration_Shared_Test } from "../../../shared/StakeWeight.t.sol";
-import { console2 } from "forge-std/console2.sol";
 
 contract Feed_StakingRewardDistributor_Integration_Concrete_Test is StakeWeight_Integration_Shared_Test {
     uint256 constant FEED_AMOUNT = 1000 ether;
 
     function setUp() public override {
         super.setUp();
+
+        vm.prank(users.admin);
+        l2wct.disableTransferRestrictions();
 
         vm.startPrank(users.alice);
         l2wct.approve(address(stakingRewardDistributor), FEED_AMOUNT);

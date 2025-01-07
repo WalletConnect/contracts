@@ -12,6 +12,9 @@ contract CheckpointTotalSupply_StakingRewardDistributor_Integration_Concrete_Tes
 {
     function setUp() public override {
         super.setUp();
+
+        vm.prank(users.admin);
+        l2wct.disableTransferRestrictions();
     }
 
     function test_CallCheckpointOnStakeWeight() external {
