@@ -35,6 +35,7 @@ contract WalletConnectConfig is Initializable, AccessControlUpgradeable {
     bytes32 public constant STAKE_WEIGHT = keccak256("STAKE_WEIGHT");
     bytes32 public constant ORACLE = keccak256("ORACLE");
     bytes32 public constant PAUSER = keccak256("PAUSER");
+    bytes32 public constant STAKING_REWARD_DISTRIBUTOR = keccak256("STAKING_REWARD_DISTRIBUTOR");
 
     /// @notice Initializes the contract
     /// @dev MUST be called during the contract upgrade to set up the proxies state
@@ -86,6 +87,12 @@ contract WalletConnectConfig is Initializable, AccessControlUpgradeable {
         return _contractsMap[ORACLE];
     }
 
+    /// @notice Gets the StakingRewardDistributor address
+    /// @return The address of the StakingRewardDistributor contract
+    function getStakingRewardDistributor() external view returns (address) {
+        return _contractsMap[STAKING_REWARD_DISTRIBUTOR];
+    }
+
     /// @notice Updates the L2WCT token address
     /// @param l2wct The new L2WCT token address
     function updateL2wct(address l2wct) external onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -126,6 +133,12 @@ contract WalletConnectConfig is Initializable, AccessControlUpgradeable {
     /// @param stakeWeight The new StakeWeight address
     function updateStakeWeight(address stakeWeight) external onlyRole(DEFAULT_ADMIN_ROLE) {
         _setContract({ key: STAKE_WEIGHT, val: stakeWeight });
+    }
+
+    /// @notice Updates the StakingRewardDistributor address
+    /// @param stakingRewardDistributor The new StakingRewardDistributor address
+    function updateStakingRewardDistributor(address stakingRewardDistributor) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _setContract({ key: STAKING_REWARD_DISTRIBUTOR, val: stakingRewardDistributor });
     }
 
     /// @notice Checks if the given address is a recognized WalletConnect contract
