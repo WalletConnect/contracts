@@ -8,6 +8,9 @@ contract GetRecipient_StakingRewardDistributor_Unit_Concrete_Test is Base_Test {
     function setUp() public override {
         super.setUp();
         deployCoreConditionally();
+
+        vm.prank(users.admin);
+        l2wct.disableTransferRestrictions();
     }
 
     function test_WhenUserHasNoCustomRecipientSet() public view {

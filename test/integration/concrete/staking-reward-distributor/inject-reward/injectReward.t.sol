@@ -2,7 +2,7 @@
 pragma solidity >=0.8.25 <0.9.0;
 
 import { StakingRewardDistributor } from "src/StakingRewardDistributor.sol";
-import { IERC20, IERC20Errors } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import { IERC20Errors } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { StakeWeight_Integration_Shared_Test } from "../../../shared/StakeWeight.t.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
@@ -12,6 +12,9 @@ contract InjectReward_StakingRewardDistributor_Integration_Concrete_Test is Stak
     function setUp() public override {
         super.setUp();
         vm.warp(_timestampToFloorWeek(block.timestamp + 1 weeks));
+
+        vm.prank(users.admin);
+        l2wct.disableTransferRestrictions();
 
         vm.startPrank(users.admin);
         l2wct.approve(address(stakingRewardDistributor), INJECTION_AMOUNT);

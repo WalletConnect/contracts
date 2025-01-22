@@ -10,6 +10,8 @@ contract IncreaseUnlockTime_StakeWeight_Integration_Concrete_Test is StakeWeight
 
     function setUp() public override {
         super.setUp();
+        vm.prank(users.admin);
+        l2wct.disableTransferRestrictions();
         _createLockForUser(users.alice, INITIAL_LOCK_AMOUNT, block.timestamp + INITIAL_LOCK_DURATION);
     }
 

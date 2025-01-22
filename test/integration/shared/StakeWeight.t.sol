@@ -10,13 +10,6 @@ abstract contract StakeWeight_Integration_Shared_Test is Integration_Test {
     /*//////////////////////////////////////////////////////////////////////////
                                   SET-UP FUNCTION
     //////////////////////////////////////////////////////////////////////////*/
-    function setUp() public virtual override {
-        super.setUp();
-
-        // Disable transfer restrictions.
-        vm.prank(address(users.admin));
-        l2wct.disableTransferRestrictions();
-    }
 
     function _createLockForUser(address user, uint256 amount, uint256 _lockTime) internal {
         deal(address(l2wct), user, amount);

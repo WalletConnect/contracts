@@ -1,0 +1,9 @@
+claimTo.t.sol
+├── given transfer restrictions are enabled
+│   └── it should revert with TransferRestrictionsEnabled
+└── given transfer restrictions are disabled
+    ├── given contract is killed
+    │   └── it should revert with ContractKilled
+    └── given contract is live
+        ├── it should allow claiming to a custom recipient
+        └── it should emit Claimed event with custom recipient

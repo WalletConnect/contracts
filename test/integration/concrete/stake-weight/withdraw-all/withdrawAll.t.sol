@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 
 import { StakeWeight } from "src/StakeWeight.sol";
-import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { StakeWeight_Integration_Shared_Test } from "test/integration/shared/StakeWeight.t.sol";
 
@@ -10,6 +9,12 @@ pragma solidity >=0.8.25 <0.9.0;
 contract WithdrawAll_StakeWeight_Integration_Concrete_Test is StakeWeight_Integration_Shared_Test {
     uint256 constant LOCK_AMOUNT = 100e18;
     uint256 constant LOCK_DURATION = 1 weeks;
+
+    function setUp() public override {
+        super.setUp();
+        vm.prank(users.admin);
+        l2wct.disableTransferRestrictions();
+    }
 
     function test_RevertWhen_ContractIsPaused() external {
         _pause();

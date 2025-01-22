@@ -10,7 +10,7 @@ import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { WalletConnectConfig } from "./WalletConnectConfig.sol";
 import { StakeWeight } from "./StakeWeight.sol";
 import { Math128 } from "./library/Math128.sol";
-
+import { L2WCT } from "./L2WCT.sol";
 /**
  * @title StakingRewardDistributor
  * @notice This contract manages the distribution of staking rewards for the WalletConnect token.
@@ -18,6 +18,7 @@ import { Math128 } from "./library/Math128.sol";
  * and PancakeSwap's RevenueSharingPool)
  * @author WalletConnect
  */
+
 contract StakingRewardDistributor is Initializable, Ownable2StepUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20 for IERC20;
 
@@ -64,6 +65,9 @@ contract StakingRewardDistributor is Initializable, Ownable2StepUpgradeable, Ree
 
     /// @notice Thrown when a user is not authorized to claim rewards for another user
     error UnauthorizedClaimer();
+
+    /// @notice Thrown when transfer restrictions are still enabled
+    error TransferRestrictionsEnabled();
 
     /// @notice The starting week cursor for the distribution
     uint256 public startWeekCursor;
@@ -387,6 +391,10 @@ contract StakingRewardDistributor is Initializable, Ownable2StepUpgradeable, Ree
     /// @notice Claim rewardToken for user and user's recipient
     /// @param recipient_ The recipient address will be claimed to
     function claimTo(address recipient_) external nonReentrant onlyLive returns (uint256) {
+        // Prevent claiming to arbitrary address if transfer restrictions are enabled
+        if (L2WCT(config.getL2wct()).transferRestrictionsDisabledAfter() >= block.timestamp) {
+            revert TransferRestrictionsEnabled();
+        }
         return _claimWithCustomRecipient(msg.sender, recipient_);
     }
 
@@ -526,6 +534,11 @@ contract StakingRewardDistributor is Initializable, Ownable2StepUpgradeable, Ree
     /// @notice Set recipient address
     /// @param recipient_ Recipient address
     function setRecipient(address recipient_) external {
+        // Prevent setting recipient if transfer restrictions are enabled
+        if (L2WCT(config.getL2wct()).transferRestrictionsDisabledAfter() >= block.timestamp) {
+            revert TransferRestrictionsEnabled();
+        }
+
         address oldRecipient = recipient[msg.sender];
         recipient[msg.sender] = recipient_;
         emit RecipientUpdated(msg.sender, oldRecipient, recipient_);

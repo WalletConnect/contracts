@@ -2,11 +2,15 @@
 pragma solidity >=0.8.25 <0.9.0;
 
 import { StakeWeight } from "src/StakeWeight.sol";
-import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { StakeWeight_Integration_Shared_Test } from "test/integration/shared/StakeWeight.t.sol";
-import { console2 } from "forge-std/console2.sol";
 
 contract TotalSupplyAt_StakeWeight_Integration_Concrete_Test is StakeWeight_Integration_Shared_Test {
+    function setUp() public override {
+        super.setUp();
+        vm.prank(users.admin);
+        l2wct.disableTransferRestrictions();
+    }
+
     function test_WhenQueryingSupplyAtBlockBeforeAnyLocks() external view {
         assertEq(stakeWeight.totalSupplyAt(block.number), 0, "Total supply should be zero before any locks");
     }

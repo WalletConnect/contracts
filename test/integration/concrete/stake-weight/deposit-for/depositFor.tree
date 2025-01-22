@@ -2,22 +2,25 @@ depositFor.t.sol
 ├── given contract is paused
 │   └── it should revert
 └── given contract is not paused
-    ├── when _for address is zero
-    │   └── it should revert
-    └── when _for address is not zero
-        ├── given recipient has no existing lock
-        │   └── it should revert with NonExistentLock
-        └── given recipient has an expired lock
-        │   └── it should revert with ExpiredLock
-        └── given recipient has an existing lock
-            ├── when amount is zero
-            │   └── it should revert
-            └── when amount is greater than zero
-                ├── when amount exceeds caller's balance
+    ├── given transfer restrictions are enabled
+    │   └── it should revert with TransferRestrictionsEnabled
+    └── given transfer restrictions are disabled
+        ├── when _for address is zero
+        │   └── it should revert
+        └── when _for address is not zero
+            ├── given recipient has no existing lock
+            │   └── it should revert with NonExistentLock
+            └── given recipient has an expired lock
+            │   └── it should revert with ExpiredLock
+            └── given recipient has an existing lock
+                ├── when amount is zero
                 │   └── it should revert
-                └── when amount is within caller's balance
-                    ├── it should increase the lock amount
-                    ├── it should update the supply
-                    ├── it should transfer tokens from the caller
-                    ├── it should emit a Deposit event
-                    └── it should emit a Supply event
+                └── when amount is greater than zero
+                    ├── when amount exceeds caller's balance
+                    │   └── it should revert
+                    └── when amount is within caller's balance
+                        ├── it should increase the lock amount
+                        ├── it should update the supply
+                        ├── it should transfer tokens from the caller
+                        ├── it should emit a Deposit event
+                        └── it should emit a Supply event

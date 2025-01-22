@@ -10,6 +10,7 @@ import { StakeWeight } from "src/StakeWeight.sol";
 import { LockedTokenStaker } from "src/LockedTokenStaker.sol";
 import { WCT } from "src/WCT.sol";
 import { L2WCT } from "src/L2WCT.sol";
+import { Eip1967Logger } from "script/utils/Eip1967Logger.sol";
 
 contract StakingRewardDistributorHandler is BaseHandler {
     StakingRewardDistributor public stakingRewardDistributor;
@@ -92,7 +93,12 @@ contract StakingRewardDistributorHandler is BaseHandler {
     }
 
     function createLock(address user, uint256 amount, uint256 unlockTime) public instrument("createLock") {
-        vm.assume(user != address(stakeWeight) && user != address(stakingRewardDistributor));
+        address srdProxyAdmin = Eip1967Logger.getAdmin(vm, address(stakingRewardDistributor));
+        address swProxyAdmin = Eip1967Logger.getAdmin(vm, address(stakeWeight));
+        vm.assume(
+            user != address(stakeWeight) && user != address(stakingRewardDistributor) && user != srdProxyAdmin
+                && user != swProxyAdmin
+        );
         (,,,, bool hasLock) = store.userInfo(user);
         if (!hasLock && l2wct.balanceOf(user) == 0) {
             // Set a reasonable range for initial token amounts

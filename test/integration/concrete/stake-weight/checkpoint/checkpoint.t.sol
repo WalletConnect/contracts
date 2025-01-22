@@ -3,15 +3,14 @@ pragma solidity >=0.8.25 <0.9.0;
 
 import { StakeWeight_Integration_Shared_Test } from "test/integration/shared/StakeWeight.t.sol";
 import { StakeWeight } from "src/StakeWeight.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract Checkpoint_StakeWeight_Integration_Concrete_Test is StakeWeight_Integration_Shared_Test {
     uint256 checkpointCallCount;
 
     function setUp() public override {
         super.setUp();
-
-        checkpointCallCount = 0;
+        vm.prank(users.admin);
+        l2wct.disableTransferRestrictions();
     }
 
     function test_checkpoint_noExistingLocks() public {
