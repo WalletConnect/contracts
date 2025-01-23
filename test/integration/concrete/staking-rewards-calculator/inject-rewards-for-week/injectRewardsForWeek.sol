@@ -107,13 +107,49 @@ contract InjectRewardsForWeek_StakingRewardsCalculator_Integration_Test is
     }
 
     modifier whenExistingRewardsAreLessThanCalculatedRewards() {
-        vm.prank(users.admin);
+        // Approve and inject initial rewards
+        vm.startPrank(users.admin);
+        l2wct.approve(address(stakingRewardDistributor), 1 ether);
         stakingRewardDistributor.injectReward(defaultTimestamp, 1 ether);
+        vm.stopPrank();
         _;
     }
 
     modifier whenRewardsDontExistForWeek() {
         _;
+    }
+
+    function test_ExistingRewardsLessThanCalculated()
+        external
+        whenConfigIsNotZeroAddress
+        whenTimestampIsPresentOrBefore
+        whenTotalSupplyOfStakeWeightIsNotZero
+        whenTokenApprovalSucceedsOrNotRequired
+        whenExistingRewardsAreLessThanCalculatedRewards
+    {
+        // Given: Existing rewards of 1 ether
+        // And: Expected rewards of ~2816 ether
+        uint256 timestamp = defaultTimestamp;
+        (uint256 expectedRewards,) = calculator.previewRewards(address(walletConnectConfig), timestamp);
+        uint256 existingRewards = 1 ether;
+
+        // When: We inject rewards
+        uint256 rewards = _calculateAndInjectRewards(address(walletConnectConfig), timestamp, false, bytes(""));
+
+        // Then: Should inject the difference between expected and existing rewards
+        assertEq(rewards, expectedRewards - existingRewards, "Should inject difference between expected and existing");
+
+        // And: Should transfer tokens from caller to distributor
+        assertEq(
+            l2wct.balanceOf(address(stakingRewardDistributor)),
+            rewards + existingRewards,
+            "Distributor should have total rewards"
+        );
+        assertEq(
+            stakingRewardDistributor.tokensPerWeek(timestamp),
+            rewards + existingRewards,
+            "Distributor should record total rewards"
+        );
     }
 
     function test_CalculateAndInjectRewards_SingleStaker()
@@ -132,6 +168,14 @@ contract InjectRewardsForWeek_StakingRewardsCalculator_Integration_Test is
 
         // Then: Rewards should be 2816 tokens (1000 * 12% / 52)
         assertApproxEqAbs(rewards, EXPECTED_WEEKLY_REWARD, 1e16, "Rewards should match known calculation");
+
+        // And: Should transfer tokens from caller to distributor
+        assertEq(l2wct.balanceOf(address(stakingRewardDistributor)), rewards, "Distributor should have rewards");
+        assertEq(
+            stakingRewardDistributor.tokensPerWeek(_timestampToFloorWeek(block.timestamp)),
+            rewards,
+            "Distributor should record rewards"
+        );
     }
 
     function test_CalculateAndInjectRewards_TwoStakers()
@@ -152,6 +196,10 @@ contract InjectRewardsForWeek_StakingRewardsCalculator_Integration_Test is
 
         // Then: Rewards should be around double (more flexibility for the test)
         assertApproxEqAbs(rewards, EXPECTED_WEEKLY_REWARD * 2, 1e20, "Rewards should be double for two equal stakers");
+
+        // And: Should transfer tokens from caller to distributor
+        assertEq(l2wct.balanceOf(address(stakingRewardDistributor)), rewards, "Distributor should have rewards");
+        assertEq(stakingRewardDistributor.tokensPerWeek(defaultTimestamp), rewards, "Distributor should record rewards");
     }
 
     function _calculateAndInjectRewards(
