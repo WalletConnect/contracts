@@ -20,6 +20,8 @@ contract StakingRewardsCalculator_Integration_Shared_Test is StakeWeight_Integra
         // Deploy calculator
         calculator = new StakingRewardsCalculator();
 
+        vm.label(address(calculator), "StakingRewardsCalculator");
+
         // Warp to next week to ensure clean week boundaries
         vm.warp(_timestampToFloorWeek(block.timestamp + 1 weeks));
 
