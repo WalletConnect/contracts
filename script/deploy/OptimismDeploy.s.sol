@@ -8,6 +8,7 @@ import { WalletConnectConfig } from "src/WalletConnectConfig.sol";
 import { Pauser } from "src/Pauser.sol";
 import { StakeWeight } from "src/StakeWeight.sol";
 import { StakingRewardDistributor } from "src/StakingRewardDistributor.sol";
+import { StakingRewardsCalculator } from "src/StakingRewardsCalculator.sol";
 import { Airdrop } from "src/Airdrop.sol";
 import { LockedTokenStaker } from "src/LockedTokenStaker.sol";
 import { MerkleVester } from "src/interfaces/MerkleVester.sol";
@@ -78,7 +79,7 @@ contract OptimismDeploy is BaseScript {
         deps.config.updateStakeWeight(address(deps.stakeWeight));
     }
 
-    function logDeployments() public {
+    function logDeployments() public view {
         OptimismDeployments memory deps = readOptimismDeployments(block.chainid);
         Eip1967Logger.logEip1967(vm, "L2WCT", address(deps.l2wct));
         Eip1967Logger.logEip1967(vm, "WalletConnectConfig", address(deps.config));
@@ -234,7 +235,18 @@ contract OptimismDeploy is BaseScript {
         }
     }
 
-    function verifyDeployments() public {
+    function deployStakingRewardsCalculator() public broadcast {
+        OptimismDeployments memory deps = readOptimismDeployments(block.chainid);
+        if (address(deps.stakingRewardsCalculator) == address(0)) {
+            deps.stakingRewardsCalculator = new StakingRewardsCalculator();
+        }
+
+        if (vm.envOr("BROADCAST", false)) {
+            _writeOptimismDeployments(deps);
+        }
+    }
+
+    function verifyDeployments() public view {
         OptimismDeployments memory deps = readOptimismDeployments(block.chainid);
         OptimismDeploymentParams memory params = _readDeploymentParamsFromEnv();
         // Verify all deployed
