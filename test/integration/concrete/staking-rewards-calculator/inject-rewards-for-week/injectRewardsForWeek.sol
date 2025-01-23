@@ -5,7 +5,7 @@ import { StakingRewardsCalculator_Integration_Shared_Test } from "../../../share
 import { SimpleAccount } from "test/mocks/SimpleAccount.sol";
 import { StakingRewardsCalculator } from "src/StakingRewardsCalculator.sol";
 
-contract CalculateAndInjectRewards_StakingRewardsCalculator_Integration_Test is
+contract InjectRewardsForWeek_StakingRewardsCalculator_Integration_Test is
     StakingRewardsCalculator_Integration_Shared_Test
 {
     uint256 constant STAKE_AMOUNT = 5_000_000 ether;

@@ -101,22 +101,18 @@ contract StakingRewardsCalculator {
             revert FutureWeek(weekStartTimestamp, currentThursday);
         }
 
-        // Get contracts
+        // Get contracts and checkpoint
         WalletConnectConfig wcConfig = WalletConnectConfig(config);
         StakingRewardDistributor distributor = StakingRewardDistributor(wcConfig.getStakingRewardDistributor());
-
-        // Start checkpointing total supply
         distributor.checkpointTotalSupply();
 
         // Get cached total stake weight from distributor
         uint256 totalStakeWeight = distributor.totalSupplyAt(weekStartTimestamp);
         if (totalStakeWeight == 0) revert NoStakeWeight();
 
-        // Calculate APY
-        int256 targetApy = _calculateTargetApy(totalStakeWeight);
-
-        // Calculate weekly rewards using the cached stake weight
-        uint256 amount = _calculateWeeklyRewards(totalStakeWeight, targetApy);
+        // Calculate rewards
+        int256 targetApy = calculateTargetApy(totalStakeWeight);
+        uint256 amount = calculateWeeklyRewards(totalStakeWeight, targetApy);
 
         // Check for existing rewards
         uint256 existingRewards = distributor.tokensPerWeek(weekStartTimestamp);
@@ -155,20 +151,21 @@ contract StakingRewardsCalculator {
         external
         returns (uint256 amount, int256 targetApy)
     {
+        // Validate Thursday timestamp
         if (weekStartTimestamp != _timestampToFloorWeek(weekStartTimestamp)) revert NotThursday();
 
+        // Get contracts and checkpoint
         WalletConnectConfig wcConfig = WalletConnectConfig(config);
         StakingRewardDistributor distributor = StakingRewardDistributor(wcConfig.getStakingRewardDistributor());
-
-        // Checkpoint total supply
         distributor.checkpointTotalSupply();
 
         // Get cached total stake weight from distributor
         uint256 totalStakeWeight = distributor.totalSupplyAt(weekStartTimestamp);
         if (totalStakeWeight == 0) revert NoStakeWeight();
 
-        targetApy = _calculateTargetApy(totalStakeWeight);
-        amount = _calculateWeeklyRewards(totalStakeWeight, targetApy);
+        // Calculate rewards
+        targetApy = calculateTargetApy(totalStakeWeight);
+        amount = calculateWeeklyRewards(totalStakeWeight, targetApy);
 
         return (amount, targetApy);
     }
@@ -182,7 +179,7 @@ contract StakingRewardsCalculator {
     /// @dev Result is bounded by MIN_APY (0%) floor
     /// @param totalStakeWeight Total stake weight considering lock periods (in wei)
     /// @return Target APY percentage scaled by 1e18 (e.g., 12% = 12e18)
-    function _calculateTargetApy(uint256 totalStakeWeight) internal pure returns (int256) {
+    function calculateTargetApy(uint256 totalStakeWeight) public pure returns (int256) {
         // totalStakeWeight needs to be divided by MILLION first to get to millions unit
         int256 targetApy = (
             (SCALED_SLOPE * SafeCast.toInt256(totalStakeWeight / MILLION)) + INTERCEPT * SafeCast.toInt256(PRECISION)
@@ -197,11 +194,11 @@ contract StakingRewardsCalculator {
     /// @param actualTotalStakeWeight Current total stake weight considering lock periods (in wei)
     /// @param targetApy Target APY calculated from stake weight curve (in wei, e.g., 12% = 12e18)
     /// @return weeklyRewards Amount of tokens to distribute for the week in wei
-    function _calculateWeeklyRewards(
+    function calculateWeeklyRewards(
         uint256 actualTotalStakeWeight,
         int256 targetApy
     )
-        internal
+        public
         pure
         returns (uint256 weeklyRewards)
     {

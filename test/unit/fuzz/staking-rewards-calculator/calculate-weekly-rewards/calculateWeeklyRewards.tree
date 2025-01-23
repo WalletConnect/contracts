@@ -1,0 +1,12 @@
+calculateWeeklyRewards.t.sol
+├── given zero stake weight
+│   └── it should return zero rewards
+└── given non-zero stake weight
+    ├── given zero APY
+    │   └── it should return zero rewards
+    ├── given positive APY
+    │   ├── it should calculate rewards proportionally
+    │   └── it should maintain precision through divisions
+    └── given maximum possible APY (12.0808%)
+        ├── it should calculate maximum possible rewards
+        └── it should not overflow

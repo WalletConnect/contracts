@@ -1,4 +1,4 @@
-calculateAndInjectRewards.t.sol
+injectRewardsForWeek.t.sol
 ├── when config is zero address
 │   └── it should revert
 └── when config is not zero address
