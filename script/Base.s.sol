@@ -8,6 +8,7 @@ import { L2WCT } from "src/L2WCT.sol";
 import { StakeWeight } from "src/StakeWeight.sol";
 import { WalletConnectConfig } from "src/WalletConnectConfig.sol";
 import { StakingRewardDistributor } from "src/StakingRewardDistributor.sol";
+import { DelegateRegistry } from "src/periphery/DelegateRegistry.sol";
 import { Timelock } from "src/Timelock.sol";
 import { Pauser } from "src/Pauser.sol";
 import { Airdrop } from "src/Airdrop.sol";
@@ -35,6 +36,7 @@ struct OptimismDeployments {
     MerkleVester merkleVesterWalletConnect;
     LockedTokenStaker lockedTokenStakerBackers;
     MerkleVester merkleVesterBackers;
+    DelegateRegistry delegateRegistry;
 }
 
 abstract contract BaseScript is Script, StdCheats {
@@ -107,7 +109,8 @@ abstract contract BaseScript is Script, StdCheats {
                 lockedTokenStakerWalletConnect: LockedTokenStaker(address(0)),
                 merkleVesterWalletConnect: MerkleVester(address(0)),
                 lockedTokenStakerBackers: LockedTokenStaker(address(0)),
-                merkleVesterBackers: MerkleVester(address(0))
+                merkleVesterBackers: MerkleVester(address(0)),
+                delegateRegistry: DelegateRegistry(address(0))
             });
         }
         // Length per address is 32 bytes => 64 characters
@@ -134,7 +137,7 @@ abstract contract BaseScript is Script, StdCheats {
         return string.concat(root, "/deployments/", vm.toString(chainId));
     }
 
-    function _readDeployments(uint256 chainId) private returns (bytes memory) {
+    function _readDeployments(uint256 chainId) private view returns (bytes memory) {
         console2.log("Reading deployments for chain %s", vm.toString(chainId));
         string memory deploymentsFile = _deploymentsFile(chainId);
         if (!vm.exists(deploymentsFile)) {

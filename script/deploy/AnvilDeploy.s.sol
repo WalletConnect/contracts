@@ -8,6 +8,7 @@ import { WalletConnectConfig } from "src/WalletConnectConfig.sol";
 import { Pauser } from "src/Pauser.sol";
 import { StakeWeight } from "src/StakeWeight.sol";
 import { StakingRewardDistributor } from "src/StakingRewardDistributor.sol";
+import { DelegateRegistry } from "src/periphery/DelegateRegistry.sol";
 import { Airdrop } from "src/Airdrop.sol";
 import { LockedTokenStaker } from "src/LockedTokenStaker.sol";
 import { MerkleVester } from "src/interfaces/MerkleVester.sol";
@@ -117,7 +118,8 @@ contract AnvilDeploy is BaseScript {
             lockedTokenStakerWalletConnect: LockedTokenStaker(address(0)),
             merkleVesterWalletConnect: MerkleVester(address(0)),
             lockedTokenStakerBackers: LockedTokenStaker(address(0)),
-            merkleVesterBackers: MerkleVester(address(0))
+            merkleVesterBackers: MerkleVester(address(0)),
+            delegateRegistry: DelegateRegistry(address(0))
         });
     }
 

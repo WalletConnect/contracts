@@ -14,6 +14,7 @@ import { MerkleVester } from "src/interfaces/MerkleVester.sol";
 import { OptimismDeployments, BaseScript } from "script/Base.s.sol";
 import { Eip1967Logger } from "script/utils/Eip1967Logger.sol";
 import { ProxyAdmin } from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
+import { DelegateRegistry } from "src/periphery/DelegateRegistry.sol";
 import {
     newL2WCT,
     newWalletConnectConfig,
@@ -227,6 +228,17 @@ contract OptimismDeploy is BaseScript {
         if (address(deps.lockedTokenStakerBackers) == address(0)) {
             deps.lockedTokenStakerBackers =
                 new LockedTokenStaker(deps.merkleVesterBackers, WalletConnectConfig(address(deps.config)));
+        }
+
+        if (vm.envOr("BROADCAST", false)) {
+            _writeOptimismDeployments(deps);
+        }
+    }
+
+    function deployDelegateRegistry() public broadcast {
+        OptimismDeployments memory deps = readOptimismDeployments(block.chainid);
+        if (address(deps.delegateRegistry) == address(0)) {
+            deps.delegateRegistry = new DelegateRegistry("MetaTxDelegateRegistry", "1");
         }
 
         if (vm.envOr("BROADCAST", false)) {
