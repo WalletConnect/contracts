@@ -11,6 +11,7 @@ contract Claim_StakingRewardDistributor_Integration_Concrete_Test is StakeWeight
 
     function setUp() public override {
         super.setUp();
+        disableTransferRestrictions();
         weeklyAmount = defaults.STAKING_REWARD_BUDGET() / WEEKS_IN_YEAR;
         // Every test should start with the weekCursor set to the current week
         vm.warp(_timestampToFloorWeek(block.timestamp + 1 weeks));
