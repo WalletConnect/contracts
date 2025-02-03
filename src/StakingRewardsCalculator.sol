@@ -205,7 +205,7 @@ contract StakingRewardsCalculator {
         uint256 annualRewardsWithPrecision = (actualTotalStakeWeight * uint256(targetApy));
 
         // Step 4: Convert annual rewards to weekly rewards
-        weeklyRewards = (annualRewardsWithPrecision / WEEKS_IN_YEAR) / (PRECISION * 100);
+        weeklyRewards = annualRewardsWithPrecision / (PRECISION * 100 * WEEKS_IN_YEAR);
 
         return weeklyRewards;
     }
