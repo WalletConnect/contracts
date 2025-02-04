@@ -162,20 +162,26 @@ contract InjectRewardsForWeek_StakingRewardsCalculator_Integration_Test is
     {
         // Given: Alice stakes 500_000 tokens for 1 year (52/208 weight ratio)
         skip(1 weeks);
-        uint256 rewards = _calculateAndInjectRewards(
-            address(walletConnectConfig), _timestampToFloorWeek(block.timestamp), false, bytes("")
+
+        // When: We calculate rewards
+        uint256 timestamp = _timestampToFloorWeek(block.timestamp);
+        (uint256 expectedRewards, int256 expectedApy) =
+            calculator.previewRewards(address(walletConnectConfig), timestamp);
+
+        // Then: Expect the RewardsInjected event with correct parameters
+        vm.expectEmit(users.admin);
+        emit StakingRewardsCalculator.RewardsInjected(
+            timestamp, expectedRewards, stakingRewardDistributor.totalSupplyAt(timestamp), expectedApy
         );
+
+        uint256 rewards = _calculateAndInjectRewards(address(walletConnectConfig), timestamp, false, bytes(""));
 
         // Then: Rewards should be 2816 tokens (1000 * 12% / 52)
         assertApproxEqAbs(rewards, EXPECTED_WEEKLY_REWARD, 1e16, "Rewards should match known calculation");
 
         // And: Should transfer tokens from caller to distributor
         assertEq(l2wct.balanceOf(address(stakingRewardDistributor)), rewards, "Distributor should have rewards");
-        assertEq(
-            stakingRewardDistributor.tokensPerWeek(_timestampToFloorWeek(block.timestamp)),
-            rewards,
-            "Distributor should record rewards"
-        );
+        assertEq(stakingRewardDistributor.tokensPerWeek(timestamp), rewards, "Distributor should record rewards");
     }
 
     function test_CalculateAndInjectRewards_TwoStakers()
@@ -192,14 +198,24 @@ contract InjectRewardsForWeek_StakingRewardsCalculator_Integration_Test is
 
         // When: We calculate rewards
         skip(1 weeks);
-        uint256 rewards = _calculateAndInjectRewards(address(walletConnectConfig), defaultTimestamp, false, bytes(""));
+        uint256 timestamp = defaultTimestamp;
+        (uint256 expectedRewards, int256 expectedApy) =
+            calculator.previewRewards(address(walletConnectConfig), timestamp);
+
+        // Then: Expect the RewardsInjected event with correct parameters
+        vm.expectEmit(users.admin);
+        emit StakingRewardsCalculator.RewardsInjected(
+            timestamp, expectedRewards, stakingRewardDistributor.totalSupplyAt(timestamp), expectedApy
+        );
+
+        uint256 rewards = _calculateAndInjectRewards(address(walletConnectConfig), timestamp, false, bytes(""));
 
         // Then: Rewards should be around double (more flexibility for the test)
         assertApproxEqAbs(rewards, EXPECTED_WEEKLY_REWARD * 2, 1e20, "Rewards should be double for two equal stakers");
 
         // And: Should transfer tokens from caller to distributor
         assertEq(l2wct.balanceOf(address(stakingRewardDistributor)), rewards, "Distributor should have rewards");
-        assertEq(stakingRewardDistributor.tokensPerWeek(defaultTimestamp), rewards, "Distributor should record rewards");
+        assertEq(stakingRewardDistributor.tokensPerWeek(timestamp), rewards, "Distributor should record rewards");
     }
 
     function _calculateAndInjectRewards(

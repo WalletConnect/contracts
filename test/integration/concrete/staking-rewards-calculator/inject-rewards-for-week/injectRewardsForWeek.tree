@@ -22,7 +22,9 @@ injectRewardsForWeek.t.sol
                 └── when rewards don't exist for week
                     ├── when calculating rewards for single staker
                     │   ├── it should transfer tokens from caller to distributor
-                    │   └── it should return the injected tokens per week
+                    │   ├── it should return the injected tokens per week
+                    │   └── it should emit RewardsInjected event with correct parameters
                     └── when calculating rewards for two stakers
                         ├── it should transfer tokens from caller to distributor
                         └── it should return the injected tokens per week (around double rewards)
+                        └── it should emit RewardsInjected event with correct parameters

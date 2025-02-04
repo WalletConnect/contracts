@@ -80,6 +80,9 @@ contract StakingRewardsCalculator {
                                     FUNCTIONS
     //////////////////////////////////////////////////////////////////////////*/
 
+    /// @notice Emitted when rewards are injected for a week
+    event RewardsInjected(uint256 indexed weekTimestamp, uint256 amount, uint256 totalStakeWeight, int256 targetApy);
+
     /// @notice Calculate and inject rewards for a specific week
     /// @dev Main entry point for reward distribution
     /// @dev Process:
@@ -132,6 +135,8 @@ contract StakingRewardsCalculator {
 
         // Inject rewards
         distributor.injectReward(weekStartTimestamp, amount);
+
+        emit RewardsInjected(weekStartTimestamp, amount, totalStakeWeight, targetApy);
 
         return amount;
     }
