@@ -18,6 +18,7 @@
 | Pauser                          | [`0x9163de7F22A9f3ad261B3dBfbB9A42886816adE7`](https://optimistic.etherscan.io/address/0x9163de7F22A9f3ad261B3dBfbB9A42886816adE7) |
 | StakeWeight                     | [`0x521B4C065Bbdbe3E20B3727340730936912DfA46`](https://optimistic.etherscan.io/address/0x521B4C065Bbdbe3E20B3727340730936912DfA46) |
 | StakingRewardDistributor        | [`0xF368F535e329c6d08DFf0d4b2dA961C4e7F3fCAF`](https://optimistic.etherscan.io/address/0xF368F535e329c6d08DFf0d4b2dA961C4e7F3fCAF) |
+| StakingRewardCalculator         | [`0xc06d02f26515a56576426decddac8d7b9ca326d1`](https://optimistic.etherscan.io/address/0xc06d02f26515a56576426decddac8d7b9ca326d1) |
 | Airdrop                         | [`0x4ee97a759AACa2EdF9c1445223b6Cd17c2eD3fb4`](https://optimistic.etherscan.io/address/0x4ee97a759AACa2EdF9c1445223b6Cd17c2eD3fb4) |
 | MerkleVester Reown              | [`0x648bddEE207da25e19918460c1Dc9F462F657a19`](https://optimistic.etherscan.io/address/0x648bddEE207da25e19918460c1Dc9F462F657a19) |
 | LockedTokenStaker Reown         | [`0x5f630a47DE14e346fC28deB8fE379833A6F6B9B2`](https://optimistic.etherscan.io/address/0x5f630a47DE14e346fC28deB8fE379833A6F6B9B2) |
