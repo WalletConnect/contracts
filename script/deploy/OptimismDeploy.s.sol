@@ -95,6 +95,7 @@ contract OptimismDeploy is BaseScript {
         console2.log("LockedTokenStaker WalletConnect:", address(deps.lockedTokenStakerWalletConnect));
         console2.log("MerkleVester Backers:", address(deps.merkleVesterBackers));
         console2.log("LockedTokenStaker Backers:", address(deps.lockedTokenStakerBackers));
+        console2.log("StakingRewardCalculator:", address(deps.stakingRewardsCalculator));
     }
 
     function _deployAll(OptimismDeploymentParams memory params) private returns (OptimismDeployments memory) {
