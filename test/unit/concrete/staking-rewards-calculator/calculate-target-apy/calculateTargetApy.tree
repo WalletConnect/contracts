@@ -1,0 +1,6 @@
+calculateTargetApy.t.sol
+├── given max stake weight of 1B tokens * PRECISION
+│   ├── when calculating raw APY before zero bound
+│   │   └── it should equal -52.5592 (-0.06464 * 1000 + 12.0808)
+│   └── when calling calculateTargetApy
+        └── it should return 0 (negative values not allowed)

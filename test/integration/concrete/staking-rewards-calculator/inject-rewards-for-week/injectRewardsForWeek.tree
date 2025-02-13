@@ -1,0 +1,30 @@
+injectRewardsForWeek.t.sol
+├── when config is zero address
+│   └── it should revert
+└── when config is not zero address
+    ├── when timestamp is not Thursday 00:00 UTC
+    │   └── it should revert with NotThursday
+    ├── when timestamp is in future
+    │   └── it should revert with FutureWeek
+    └── when timestamp is present or before
+        ├── when total supply of stake weight is zero
+        │   └── it should revert with NoStakeWeight
+        └── when total supply of stake weight is not zero
+            ├── when token approval fails
+            │   └── it should revert with ApprovalFailed
+            └── when token approval succeeds or is not required
+                ├── given rewards already exist for week
+                │   ├── given existing rewards are greater than or equal to calculated rewards
+                │   │   └── it should revert with RewardsAlreadyInjected
+                │   └── given existing rewards are less than calculated rewards
+                │       ├── it should transfer tokens from caller to distributor
+                │       └── it should return the injected tokens per week
+                └── when rewards don't exist for week
+                    ├── when calculating rewards for single staker
+                    │   ├── it should transfer tokens from caller to distributor
+                    │   ├── it should return the injected tokens per week
+                    │   └── it should emit RewardsInjected event with correct parameters
+                    └── when calculating rewards for two stakers
+                        ├── it should transfer tokens from caller to distributor
+                        └── it should return the injected tokens per week (around double rewards)
+                        └── it should emit RewardsInjected event with correct parameters

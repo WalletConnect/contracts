@@ -1,0 +1,11 @@
+calculateTargetApy.t.sol.
+├── given total stake weight is 0
+│   └── it should return base APY (12.0808%)
+├── given total stake weight is less than 1M
+│   ├── it should calculate APY with proper scaling
+│   └── it should not exceed base APY
+├── given total stake weight is greater than 1M
+│   ├── it should decrease APY linearly with stake weight
+│   └── it should maintain precision
+└── given total stake weight would result in negative APY
+    └── it should return minimum APY (0%)

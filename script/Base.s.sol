@@ -8,6 +8,7 @@ import { L2WCT } from "src/L2WCT.sol";
 import { StakeWeight } from "src/StakeWeight.sol";
 import { WalletConnectConfig } from "src/WalletConnectConfig.sol";
 import { StakingRewardDistributor } from "src/StakingRewardDistributor.sol";
+import { StakingRewardsCalculator } from "src/StakingRewardsCalculator.sol";
 import { Timelock } from "src/Timelock.sol";
 import { Pauser } from "src/Pauser.sol";
 import { Airdrop } from "src/Airdrop.sol";
@@ -35,6 +36,7 @@ struct OptimismDeployments {
     MerkleVester merkleVesterWalletConnect;
     LockedTokenStaker lockedTokenStakerBackers;
     MerkleVester merkleVesterBackers;
+    StakingRewardsCalculator stakingRewardsCalculator;
 }
 
 abstract contract BaseScript is Script, StdCheats {
@@ -82,7 +84,7 @@ abstract contract BaseScript is Script, StdCheats {
         vm.stopBroadcast();
     }
 
-    function readEthereumDeployments(uint256 chainId) public returns (EthereumDeployments memory) {
+    function readEthereumDeployments(uint256 chainId) public view returns (EthereumDeployments memory) {
         bytes memory data = _readDeployments(chainId);
         if (data.length == 0) {
             return EthereumDeployments({ wct: WCT(address(0)), timelock: Timelock(payable(address(0))) });
@@ -90,7 +92,7 @@ abstract contract BaseScript is Script, StdCheats {
         return abi.decode(data, (EthereumDeployments));
     }
 
-    function readOptimismDeployments(uint256 chainId) public returns (OptimismDeployments memory) {
+    function readOptimismDeployments(uint256 chainId) public view returns (OptimismDeployments memory) {
         bytes memory data = _readDeployments(chainId);
         if (data.length == 0) {
             return OptimismDeployments({
@@ -107,7 +109,8 @@ abstract contract BaseScript is Script, StdCheats {
                 lockedTokenStakerWalletConnect: LockedTokenStaker(address(0)),
                 merkleVesterWalletConnect: MerkleVester(address(0)),
                 lockedTokenStakerBackers: LockedTokenStaker(address(0)),
-                merkleVesterBackers: MerkleVester(address(0))
+                merkleVesterBackers: MerkleVester(address(0)),
+                stakingRewardsCalculator: StakingRewardsCalculator(address(0))
             });
         }
         // Length per address is 32 bytes => 64 characters
@@ -134,7 +137,7 @@ abstract contract BaseScript is Script, StdCheats {
         return string.concat(root, "/deployments/", vm.toString(chainId));
     }
 
-    function _readDeployments(uint256 chainId) private returns (bytes memory) {
+    function _readDeployments(uint256 chainId) private view returns (bytes memory) {
         console2.log("Reading deployments for chain %s", vm.toString(chainId));
         string memory deploymentsFile = _deploymentsFile(chainId);
         if (!vm.exists(deploymentsFile)) {

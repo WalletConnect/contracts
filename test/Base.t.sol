@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.25 <0.9.0;
 
-import { UnsafeUpgrades } from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import { WCT } from "src/WCT.sol";
 import { L2WCT } from "src/L2WCT.sol";
 import { Pauser } from "src/Pauser.sol";
@@ -181,6 +180,7 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
         walletConnectConfig.updateNodeRewardManager(address(nodeRewardManager));
         walletConnectConfig.updatePauser(address(pauser));
         walletConnectConfig.updateStakeWeight(address(stakeWeight));
+        walletConnectConfig.updateStakingRewardDistributor(address(stakingRewardDistributor));
 
         vm.stopPrank();
 
