@@ -19,6 +19,7 @@
   ast = true
   build_info = true
   extra_output = ["storageLayout"]
+  libs = ["lib", "../node_modules"]
 
 [profile.ci]
   fuzz = { runs = 10_000 }
