@@ -14,6 +14,7 @@ import { LockedTokenStaker } from "src/LockedTokenStaker.sol";
 import { MerkleVester } from "src/interfaces/MerkleVester.sol";
 import { OptimismDeployments, BaseScript } from "script/Base.s.sol";
 import { Eip1967Logger } from "script/utils/Eip1967Logger.sol";
+import { DeploymentJsonWriter } from "script/utils/DeploymentJsonWriter.sol";
 import { ProxyAdmin } from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import {
     newL2WCT,
@@ -45,6 +46,8 @@ contract OptimismDeploy is BaseScript {
 
         if (vm.envOr("BROADCAST", false)) {
             _writeOptimismDeployments(deps);
+            // Write JSON deployment file
+            DeploymentJsonWriter.writeOptimismDeploymentsToJson(vm, block.chainid, deps);
         }
 
         _setConfig(deps);
@@ -79,7 +82,7 @@ contract OptimismDeploy is BaseScript {
         deps.config.updateStakeWeight(address(deps.stakeWeight));
     }
 
-    function logDeployments() public view {
+    function logDeployments() public {
         OptimismDeployments memory deps = readOptimismDeployments(block.chainid);
         Eip1967Logger.logEip1967(vm, "L2WCT", address(deps.l2wct));
         Eip1967Logger.logEip1967(vm, "WalletConnectConfig", address(deps.config));
@@ -95,7 +98,12 @@ contract OptimismDeploy is BaseScript {
         console2.log("LockedTokenStaker WalletConnect:", address(deps.lockedTokenStakerWalletConnect));
         console2.log("MerkleVester Backers:", address(deps.merkleVesterBackers));
         console2.log("LockedTokenStaker Backers:", address(deps.lockedTokenStakerBackers));
-        console2.log("StakingRewardCalculator:", address(deps.stakingRewardsCalculator));
+        console2.log("StakingRewardsCalculator:", address(deps.stakingRewardsCalculator));
+
+        // Write JSON deployment file
+        if (vm.envOr("WRITE_JSON", false)) {
+            DeploymentJsonWriter.writeOptimismDeploymentsToJson(vm, block.chainid, deps);
+        }
     }
 
     function _deployAll(OptimismDeploymentParams memory params) private returns (OptimismDeployments memory) {
@@ -184,6 +192,8 @@ contract OptimismDeploy is BaseScript {
 
         if (vm.envOr("BROADCAST", false)) {
             _writeOptimismDeployments(deps);
+            // Write JSON deployment file
+            DeploymentJsonWriter.writeOptimismDeploymentsToJson(vm, block.chainid, deps);
         }
     }
 
@@ -233,6 +243,8 @@ contract OptimismDeploy is BaseScript {
 
         if (vm.envOr("BROADCAST", false)) {
             _writeOptimismDeployments(deps);
+            // Write JSON deployment file
+            DeploymentJsonWriter.writeOptimismDeploymentsToJson(vm, block.chainid, deps);
         }
     }
 
@@ -244,6 +256,8 @@ contract OptimismDeploy is BaseScript {
 
         if (vm.envOr("BROADCAST", false)) {
             _writeOptimismDeployments(deps);
+            // Write JSON deployment file
+            DeploymentJsonWriter.writeOptimismDeploymentsToJson(vm, block.chainid, deps);
         }
     }
 
