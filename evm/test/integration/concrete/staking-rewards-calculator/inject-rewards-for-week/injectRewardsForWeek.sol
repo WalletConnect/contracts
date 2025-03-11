@@ -9,8 +9,8 @@ contract InjectRewardsForWeek_StakingRewardsCalculator_Integration_Test is
     StakingRewardsCalculator_Integration_Shared_Test
 {
     uint256 constant STAKE_AMOUNT = 5_000_000 ether;
-    uint256 constant REWARDS_AMOUNT = 10_000 ether;
-    uint256 constant EXPECTED_WEEKLY_REWARD = 2816.059 ether;
+    uint256 constant REWARDS_AMOUNT = 50_000 ether;
+    uint256 constant EXPECTED_WEEKLY_REWARD = 11_264.236 ether;
 
     uint256 defaultTimestamp;
 
@@ -210,7 +210,7 @@ contract InjectRewardsForWeek_StakingRewardsCalculator_Integration_Test is
         uint256 rewards = _calculateAndInjectRewards(address(walletConnectConfig), timestamp, false, bytes(""));
 
         // Then: Rewards should be around double (more flexibility for the test)
-        assertApproxEqAbs(rewards, EXPECTED_WEEKLY_REWARD * 2, 1e20, "Rewards should be double for two equal stakers");
+        assertApproxEqAbs(rewards, EXPECTED_WEEKLY_REWARD * 2, 3e20, "Rewards should be double for two equal stakers");
 
         // And: Should transfer tokens from caller to distributor
         assertEq(l2wct.balanceOf(address(stakingRewardDistributor)), rewards, "Distributor should have rewards");

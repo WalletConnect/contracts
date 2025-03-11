@@ -92,11 +92,15 @@ contract StakingRewardsCalculator_Invariant_Test is Invariant_Test {
     }
 
     function invariant_WeeklyRewards_Bounds() public view {
-        // Weekly rewards should never exceed annual rewards divided by WEEKS_IN_YEAR
+        // Weekly rewards should never exceed annual rewards
+        // The calculateWeeklyRewards function uses the formula:
+        // weeklyRewards = (stakeWeight * 4 * apy) / (PRECISION * 100 * WEEKS_IN_YEAR)
         uint256 maxStakeWeight = store.maxRecordedStakeWeight();
         if (maxStakeWeight > 0) {
             uint256 maxWeeklyRewards = calculator.calculateWeeklyRewards(maxStakeWeight, INTERCEPT);
-            uint256 maxAnnualRewards = (maxStakeWeight * uint256(INTERCEPT)) / (PRECISION * 100);
+
+            // Calculate the annual rewards using the same formula but without dividing by WEEKS_IN_YEAR
+            uint256 maxAnnualRewards = (maxStakeWeight * 4 * uint256(INTERCEPT)) / (PRECISION * 100);
 
             assertLe(
                 maxWeeklyRewards * WEEKS_IN_YEAR,
@@ -144,6 +148,8 @@ contract StakingRewardsCalculator_Invariant_Test is Invariant_Test {
             uint256 largerRewards = calculator.calculateWeeklyRewards(largerStake, largerApy);
 
             // Calculate the ratio of stakes and APYs
+            // Note: The multiplication by 4 in calculateWeeklyRewards applies equally to both rewards,
+            // so it doesn't affect the ratio calculation
             uint256 stakeRatio = (largerStake * PRECISION) / smallerStake;
             uint256 apyRatio = (uint256(largerApy) * PRECISION) / uint256(smallerApy);
 
