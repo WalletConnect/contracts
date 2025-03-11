@@ -21,7 +21,6 @@ contract InjectRewardsForWeek_StakingRewardsCalculator_Integration_Test is
     }
 
     function test_RevertWhen_ConfigIsZeroAddress() external {
-        vm.expectRevert();
         _calculateAndInjectRewards(address(0), defaultTimestamp, true, bytes(""));
     }
 
@@ -231,7 +230,11 @@ contract InjectRewardsForWeek_StakingRewardsCalculator_Integration_Test is
         bytes memory functionCall = abi.encodeCall(calculator.injectRewardsForWeek, (config, timestamp));
         address target = address(calculator);
         if (shouldRevert) {
-            vm.expectRevert(revertData, users.admin);
+            if (revertData.length == 0) {
+                vm.expectRevert(users.admin);
+            } else {
+                vm.expectRevert(revertData, users.admin);
+            }
             admin.executeTx(target, functionCall, true);
             return 0;
         } else {
