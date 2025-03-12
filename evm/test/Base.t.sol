@@ -24,6 +24,7 @@ import {
     newStakingRewardDistributor
 } from "script/helpers/Proxy.sol";
 import { Eip1967Logger } from "script/utils/Eip1967Logger.sol";
+import { NttManager } from "src/utils/wormhole/NttManagerFlat.sol";
 
 import { Test } from "forge-std/Test.sol";
 
@@ -57,6 +58,8 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
     StakingRewardDistributor internal stakingRewardDistributor;
     LockedTokenStaker internal lockedTokenStaker;
     MerkleVester internal vester;
+    NttManager internal nttManager;
+
     /*//////////////////////////////////////////////////////////////////////////
                                    MOCKS
     //////////////////////////////////////////////////////////////////////////*/
@@ -129,18 +132,32 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
             init: Staking.Init({ admin: users.admin, config: walletConnectConfig, duration: stakeWeight.maxLock() })
         });
 
-        wct = newWCT({ initialOwner: users.admin, init: WCT.Init({ initialOwner: users.admin }) });
-
         // Dependency for L2WCT
         deployMockBridge();
+
+        // Add NttManager deployment
+        nttManager = new NttManager(
+            address(l2wct), // token
+            Mode.BURNING, // mode
+            block.chainid, // chainId
+            1 days, // rateLimitDuration
+            false // skipRateLimiting
+        );
+
+        nttManager.initialize();
+
+        wct = newWCT({
+            initialOwner: users.admin,
+            init: WCT.Init({ initialOwner: users.admin, initialMinter: address(nttManager) })
+        });
 
         l2wct = newL2WCT({
             initialOwner: users.admin,
             init: L2WCT.Init({
                 initialAdmin: users.admin,
                 initialManager: users.manager,
-                bridge: address(mockBridge),
-                remoteToken: address(wct)
+                initialMinter: address(nttManager),
+                initialBridge: address(mockBridge)
             })
         });
 
