@@ -8,10 +8,10 @@ import {
     Allocation,
     CalendarAllocation,
     DistributionState
-} from "src/interfaces/MerkleVester.sol";
+} from "src/utils/magna/MerkleVester.sol";
 import { Merkle } from "test/utils/Merkle.sol";
 import { Base_Test } from "test/Base.t.sol";
-import { IPostClaimHandler } from "src/interfaces/MerkleVester.sol";
+import { IPostClaimHandler } from "src/utils/magna/MerkleVester.sol";
 import { console2 } from "forge-std/console2.sol";
 
 contract MerkleVesterTest is Base_Test {

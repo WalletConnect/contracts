@@ -13,7 +13,7 @@ import { Timelock } from "src/Timelock.sol";
 import { Pauser } from "src/Pauser.sol";
 import { Airdrop } from "src/Airdrop.sol";
 import { LockedTokenStaker } from "src/LockedTokenStaker.sol";
-import { MerkleVester } from "src/interfaces/MerkleVester.sol";
+import { MerkleVester } from "src/utils/magna/MerkleVester.sol";
 import { StdCheats } from "forge-std/StdCheats.sol";
 
 struct EthereumDeployments {

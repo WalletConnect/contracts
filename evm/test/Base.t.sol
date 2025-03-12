@@ -11,7 +11,7 @@ import { StakeWeight } from "src/StakeWeight.sol";
 import { Staking } from "src/Staking.sol";
 import { StakingRewardDistributor } from "src/StakingRewardDistributor.sol";
 import { LockedTokenStaker } from "src/LockedTokenStaker.sol";
-import { MerkleVester, IPostClaimHandler } from "src/interfaces/MerkleVester.sol";
+import { MerkleVester, IPostClaimHandler } from "src/utils/magna/MerkleVester.sol";
 import { MockBridge } from "./mocks/MockBridge.sol";
 import {
     newPauser,

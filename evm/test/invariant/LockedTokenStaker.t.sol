@@ -10,7 +10,7 @@ import {
     DistributionState,
     CalendarUnlockSchedule,
     IPostClaimHandler
-} from "src/interfaces/MerkleVester.sol";
+} from "src/utils/magna/MerkleVester.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { LockedTokenStakerStore, AllocationData } from "./stores/LockedTokenStakerStore.sol";
 import { LockedTokenStakerHandler } from "./handlers/LockedTokenStakerHandler.sol";

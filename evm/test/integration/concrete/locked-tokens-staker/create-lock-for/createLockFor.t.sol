@@ -3,7 +3,7 @@ pragma solidity >=0.8.25 <0.9.0;
 
 import { LockedTokenStaker_Integration_Shared_Test } from "test/integration/shared/LockedTokenStaker.t.sol";
 import { LockedTokenStaker } from "src/LockedTokenStaker.sol";
-import { IPostClaimHandler } from "src/interfaces/MerkleVester.sol";
+import { IPostClaimHandler } from "src/utils/magna/MerkleVester.sol";
 import { StakeWeight } from "src/StakeWeight.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 

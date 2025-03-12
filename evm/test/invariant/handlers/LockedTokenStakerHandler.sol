@@ -6,9 +6,9 @@ import { LockedTokenStaker } from "src/LockedTokenStaker.sol";
 import { StakeWeight } from "src/StakeWeight.sol";
 import { WCT } from "src/WCT.sol";
 import { L2WCT } from "src/L2WCT.sol";
-import { MerkleVester, IERC20 } from "src/interfaces/MerkleVester.sol";
+import { MerkleVester, IERC20 } from "src/utils/magna/MerkleVester.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import { IPostClaimHandler } from "src/interfaces/MerkleVester.sol";
+import { IPostClaimHandler } from "src/utils/magna/MerkleVester.sol";
 import { LockedTokenStakerStore, AllocationData } from "../stores/LockedTokenStakerStore.sol";
 
 contract LockedTokenStakerHandler is BaseHandler {

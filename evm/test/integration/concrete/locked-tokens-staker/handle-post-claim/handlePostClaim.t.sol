@@ -5,7 +5,7 @@ import { LockedTokenStaker_Integration_Shared_Test } from "test/integration/shar
 import { LockedTokenStaker } from "src/LockedTokenStaker.sol";
 import { StakeWeight } from "src/StakeWeight.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import { IPostClaimHandler, IERC20 } from "src/interfaces/MerkleVester.sol";
+import { IPostClaimHandler, IERC20 } from "src/utils/magna/MerkleVester.sol";
 
 contract HandlePostClaim_LockedTokenStaker_Integration_Concrete_Test is LockedTokenStaker_Integration_Shared_Test {
     uint256 constant LOCK_AMOUNT = 100 ether;
