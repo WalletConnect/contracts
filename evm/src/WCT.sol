@@ -10,15 +10,25 @@ import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/O
 import { ERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import { ERC20BurnableUpgradeable } from
     "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol";
+import { NttTokenUpgradeable } from "src/NttTokenUpgradeable.sol";
+import { INttToken } from "src/interfaces/INttToken.sol";
 
 /// @title WCT Token
 /// @notice This contract implements the L1 WCT token with burn, permit, and voting functionality
 /// @author WalletConnect
-contract WCT is ERC20VotesUpgradeable, ERC20PermitUpgradeable, ERC20BurnableUpgradeable, OwnableUpgradeable {
+contract WCT is
+    ERC20VotesUpgradeable,
+    ERC20PermitUpgradeable,
+    ERC20BurnableUpgradeable,
+    OwnableUpgradeable,
+    NttTokenUpgradeable
+{
     /// @notice Initialization data for the contract
     struct Init {
         /// @dev The address that will be the initial owner of the contract
         address initialOwner;
+        /// @dev The initial minter address
+        address initialMinter;
     }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -34,13 +44,19 @@ contract WCT is ERC20VotesUpgradeable, ERC20PermitUpgradeable, ERC20BurnableUpgr
         __ERC20Votes_init();
         __ERC20Burnable_init();
         __Ownable_init({ initialOwner: init.initialOwner });
+        __NttToken_init(init.initialMinter);
     }
 
-    /// @notice Mints new tokens
-    /// @param account The address that will receive the minted tokens
-    /// @param amount The amount of tokens to mint
-    function mint(address account, uint256 amount) external onlyOwner {
-        _mint({ account: account, value: amount });
+    /// @notice A function to set the new minter for the tokens.
+    /// @param newMinter The address to add as both a minter and burner.
+    function setMinter(address newMinter) external override onlyOwner {
+        _setMinter(newMinter);
+    }
+
+    /// @notice A function that will burn tokens held by the `msg.sender`.
+    /// @param _value The amount of tokens to be burned.
+    function burn(uint256 _value) public override(INttToken, ERC20BurnableUpgradeable) onlyMinter {
+        ERC20BurnableUpgradeable.burn(_value);
     }
 
     /// @notice Returns the current timestamp as a uint48
@@ -54,6 +70,15 @@ contract WCT is ERC20VotesUpgradeable, ERC20PermitUpgradeable, ERC20BurnableUpgr
     // solhint-disable-next-line func-name-mixedcase
     function CLOCK_MODE() public pure override returns (string memory) {
         return "mode=timestamp";
+    }
+
+    // Implement the abstract functions from NttTokenUpgradeable
+    function _mint(address account, uint256 amount) internal override(NttTokenUpgradeable, ERC20Upgradeable) {
+        ERC20Upgradeable._mint(account, amount);
+    }
+
+    function _burn(address account, uint256 amount) internal override(NttTokenUpgradeable, ERC20Upgradeable) {
+        ERC20Upgradeable._burn(account, amount);
     }
 
     // The following functions are overrides required by Solidity.
