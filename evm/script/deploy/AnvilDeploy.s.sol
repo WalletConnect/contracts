@@ -11,7 +11,7 @@ import { StakingRewardDistributor } from "src/StakingRewardDistributor.sol";
 import { StakingRewardsCalculator } from "src/StakingRewardsCalculator.sol";
 import { Airdrop } from "src/Airdrop.sol";
 import { LockedTokenStaker } from "src/LockedTokenStaker.sol";
-import { MerkleVester } from "src/interfaces/MerkleVester.sol";
+import { MerkleVester } from "src/utils/magna/MerkleVester.sol";
 import { AirdropJsonHandler } from "script/utils/AirdropJsonHandler.sol";
 import { OptimismDeployments, BaseScript } from "script/Base.s.sol";
 import { Eip1967Logger } from "script/utils/Eip1967Logger.sol";

@@ -7,7 +7,7 @@ import { StakingRewardDistributorStore } from "./stores/StakingRewardDistributor
 import { Merkle } from "test/utils/Merkle.sol";
 import {
     CalendarAllocation, Allocation, DistributionState, CalendarUnlockSchedule
-} from "src/interfaces/MerkleVester.sol";
+} from "src/utils/magna/MerkleVester.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { AllocationData } from "./stores/StakingRewardDistributorStore.sol";
 import { console2 } from "forge-std/console2.sol";

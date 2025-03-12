@@ -5,10 +5,10 @@ import { Base_Test } from "test/Base.t.sol";
 import { LockedTokenStaker } from "src/LockedTokenStaker.sol";
 import { StakeWeight } from "src/StakeWeight.sol";
 import { WalletConnectConfig } from "src/WalletConnectConfig.sol";
-import { MerkleVester, CalendarUnlockSchedule, Allocation, DistributionState } from "src/interfaces/MerkleVester.sol";
+import { MerkleVester, CalendarUnlockSchedule, Allocation, DistributionState } from "src/utils/magna/MerkleVester.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { Merkle } from "test/utils/Merkle.sol";
-import { CalendarAllocation, IPostClaimHandler } from "src/interfaces/MerkleVester.sol";
+import { CalendarAllocation, IPostClaimHandler } from "src/utils/magna/MerkleVester.sol";
 
 contract LockedTokenStaker_Test is Base_Test {
     Merkle public merkle;

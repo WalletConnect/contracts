@@ -4,8 +4,8 @@ pragma solidity >=0.8.25 <0.9.0;
 import { LockedTokenStaker } from "src/LockedTokenStaker.sol";
 import { console2 } from "forge-std/console2.sol";
 import { Integration_Test } from "../Integration.t.sol";
-import { MerkleVester, IMerkleVester } from "src/interfaces/MerkleVester.sol";
-import { CalendarUnlockSchedule, Allocation } from "src/interfaces/MerkleVester.sol";
+import { MerkleVester, IMerkleVester } from "src/utils/magna/MerkleVester.sol";
+import { CalendarUnlockSchedule, Allocation } from "src/utils/magna/MerkleVester.sol";
 import { Merkle } from "test/utils/Merkle.sol";
 
 /// @notice Common logic needed by all LockedTokenStaker integration tests, both concrete and fuzz tests.

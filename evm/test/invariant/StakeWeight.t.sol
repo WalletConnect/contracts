@@ -6,7 +6,7 @@ import { StakeWeight } from "src/StakeWeight.sol";
 import { Merkle } from "test/utils/Merkle.sol";
 import {
     CalendarAllocation, Allocation, DistributionState, CalendarUnlockSchedule
-} from "src/interfaces/MerkleVester.sol";
+} from "src/utils/magna/MerkleVester.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { StakeWeightHandler } from "./handlers/StakeWeightHandler.sol";
 import { StakeWeightStore, AllocationData } from "./stores/StakeWeightStore.sol";
