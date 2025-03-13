@@ -6,24 +6,20 @@ import { ERC20PermitUpgradeable } from
     "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
 import { ERC20VotesUpgradeable } from
     "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20VotesUpgradeable.sol";
-import { ERC20BurnableUpgradeable } from
-    "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol";
 import { NoncesUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/NoncesUpgradeable.sol";
 import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import { IOptimismMintableERC20, ILegacyMintableERC20 } from "src/interfaces/IOptimismMintableERC20.sol";
 import { AccessControlUpgradeable } from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { ISemver } from "src/interfaces/ISemver.sol";
-import { IERC7802 } from "src/interfaces/IERC7802.sol";
-import { INttToken } from "src/interfaces/INttToken.sol";
-import { NttTokenUpgradeable } from "src/NttTokenUpgradeable.sol";
 
 contract L2WCT is
-    NttTokenUpgradeable,
+    IOptimismMintableERC20,
+    ILegacyMintableERC20,
     ERC20PermitUpgradeable,
     ERC20VotesUpgradeable,
     AccessControlUpgradeable,
-    ISemver,
-    IERC7802
+    ISemver
 {
     /// @notice The timestamp after which transfer restrictions are disabled
     uint256 public transferRestrictionsDisabledAfter;
@@ -40,45 +36,39 @@ contract L2WCT is
     event TransferRestrictionsDisabled();
 
     /// @notice Address of the corresponding version of this token on the remote chain
-    /// @custom:deprecated This storage variable is no longer used but preserved for storage layout compatibility
     address public REMOTE_TOKEN;
 
     /// @notice Address of the StandardBridge on this network
-    /// @custom:deprecated This storage variable is no longer used but preserved for storage layout compatibility
     address public BRIDGE;
 
+    /// @notice Emitted whenever tokens are minted for an account
+    /// @param account Address of the account tokens are being minted for
+    /// @param amount Amount of tokens minted
+    event Mint(address indexed account, uint256 amount);
+
+    /// @notice Emitted whenever tokens are burned from an account
+    /// @param account Address of the account tokens are being burned from
+    /// @param amount Amount of tokens burned
+    event Burn(address indexed account, uint256 amount);
+
     /// @notice Custom errors
+    error OnlyBridge();
     error TransferRestrictionsAlreadyDisabled();
     error TransferRestricted();
     error InvalidAddress();
-    error CallerNotBridge(address caller);
 
-    /// @notice Emitted when the bridge address is changed
-    event NewBridge(address previousBridge, address newBridge);
+    /// @notice A modifier that only allows the bridge to call
+    modifier onlyBridge() {
+        if (msg.sender != BRIDGE) revert OnlyBridge();
+        _;
+    }
 
     /// @notice Semantic version
-    /// @custom:semver 2.0.0
-    string public constant version = "2.0.0";
+    /// @custom:semver 1.0.0
+    string public constant version = "1.0.0";
 
     /// @notice Role for managing allowed addresses
     bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
-
-    // =============== Storage ==============================================================
-
-    struct BridgeStorage {
-        address _bridge;
-    }
-
-    bytes32 private constant BRIDGE_SLOT = bytes32(uint256(keccak256("walletconnect.bridge")) - 1);
-
-    // =============== Storage Getters/Setters ==============================================
-
-    function _getBridgeStorage() internal pure returns (BridgeStorage storage $) {
-        uint256 slot = uint256(BRIDGE_SLOT);
-        assembly ("memory-safe") {
-            $.slot := slot
-        }
-    }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -91,55 +81,52 @@ contract L2WCT is
         address initialAdmin;
         /// @dev The address that will be the initial manager of the contract
         address initialManager;
-        /// @dev Initial minter address
-        address initialMinter;
-        /// @dev Initial bridge address for cross-chain operations
-        address initialBridge;
+        /// @dev Address of the L2 standard bridge
+        address bridge;
+        /// @dev Address of the corresponding L1 token
+        address remoteToken;
     }
 
     /// @notice Initializes the L2WCT token
     function initialize(Init memory init) public initializer {
+        __ERC20_init({ name_: "WalletConnect", symbol_: "WCT" });
         __ERC20Permit_init("WalletConnect");
         __ERC20Votes_init();
         __AccessControl_init();
-        __NttToken_init(init.initialMinter, "WalletConnect", "WCT");
 
+        if (init.remoteToken == address(0)) revert InvalidAddress();
+        if (init.bridge == address(0)) revert InvalidAddress();
         if (init.initialAdmin == address(0)) revert InvalidAddress();
         if (init.initialManager == address(0)) revert InvalidAddress();
-
+        REMOTE_TOKEN = init.remoteToken;
+        BRIDGE = init.bridge;
         // Set transfer restrictions to be disabled at type(uint256).max to be set down later
         transferRestrictionsDisabledAfter = type(uint256).max;
 
         _grantRole(DEFAULT_ADMIN_ROLE, init.initialAdmin);
         _grantRole(MANAGER_ROLE, init.initialManager);
-
-        // Set initial bridge if provided
-        if (init.initialBridge != address(0)) {
-            _getBridgeStorage()._bridge = init.initialBridge;
-            emit NewBridge(address(0), init.initialBridge);
-        }
     }
 
     /// @custom:legacy
-    /// @notice Legacy getter for the remote token. Preserved for storage layout compatibility.
+    /// @notice Legacy getter for the remote token. Use REMOTE_TOKEN going forward
     function l1Token() public view returns (address) {
         return REMOTE_TOKEN;
     }
 
     /// @custom:legacy
-    /// @notice Legacy getter for the bridge. Preserved for storage layout compatibility.
+    /// @notice Legacy getter for the bridge. Use BRIDGE going forward
     function l2Bridge() public view returns (address) {
         return BRIDGE;
     }
 
     /// @custom:legacy
-    /// @notice Legacy getter for REMOTE_TOKEN. Preserved for storage layout compatibility.
+    /// @notice Legacy getter for REMOTE_TOKEN
     function remoteToken() public view returns (address) {
         return REMOTE_TOKEN;
     }
 
     /// @custom:legacy
-    /// @notice Legacy getter for BRIDGE. Preserved for storage layout compatibility.
+    /// @notice Legacy getter for BRIDGE
     function bridge() public view returns (address) {
         return BRIDGE;
     }
@@ -150,58 +137,43 @@ contract L2WCT is
     function supportsInterface(bytes4 interfaceId)
         public
         view
-        override(AccessControlUpgradeable, IERC165, NttTokenUpgradeable)
+        override(AccessControlUpgradeable, IERC165)
         returns (bool)
     {
-        return interfaceId == type(IERC7802).interfaceId || NttTokenUpgradeable.supportsInterface(interfaceId)
-            || AccessControlUpgradeable.supportsInterface(interfaceId);
+        return interfaceId == type(ILegacyMintableERC20).interfaceId
+            || interfaceId == type(IOptimismMintableERC20).interfaceId || super.supportsInterface(interfaceId);
     }
 
-    /// @notice A function to set the new minter for the tokens.
-    /// @param newMinter The address to add as both a minter and burner.
-    function setMinter(address newMinter) external override onlyRole(DEFAULT_ADMIN_ROLE) {
-        _setMinter(newMinter);
-    }
-
-    /// @notice A function to set the new bridge for cross-chain operations.
-    /// @param newBridge The address to set as the bridge.
-    function setBridge(address newBridge) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (newBridge == address(0)) {
-            revert InvalidAddress();
-        }
-        address previousBridge = _getBridgeStorage()._bridge;
-        _getBridgeStorage()._bridge = newBridge;
-        emit NewBridge(previousBridge, newBridge);
-    }
-
-    /// @dev Returns the address of the current bridge.
-    function crosschainBridge() public view returns (address) {
-        BridgeStorage storage $ = _getBridgeStorage();
-        return $._bridge;
-    }
-
-    /// @dev Throws if called by any account other than the bridge.
-    modifier onlyBridge() {
-        if (crosschainBridge() != _msgSender()) {
-            revert CallerNotBridge(_msgSender());
-        }
-        _;
-    }
-
-    /// @notice Mint tokens through a crosschain transfer.
-    /// @param _to Address to mint tokens to.
-    /// @param _amount Amount of tokens to mint.
-    function crosschainMint(address _to, uint256 _amount) external override onlyBridge {
+    /// @notice Allows the StandardBridge on this network to mint tokens
+    /// @param _to Address to mint tokens to
+    /// @param _amount Amount of tokens to mint
+    function mint(
+        address _to,
+        uint256 _amount
+    )
+        external
+        virtual
+        override(IOptimismMintableERC20, ILegacyMintableERC20)
+        onlyBridge
+    {
         _mint(_to, _amount);
-        emit CrosschainMint(_to, _amount, msg.sender);
+        emit Mint(_to, _amount);
     }
 
-    /// @notice Burn tokens through a crosschain transfer.
-    /// @param _from Address to burn tokens from.
-    /// @param _amount Amount of tokens to burn.
-    function crosschainBurn(address _from, uint256 _amount) external override onlyBridge {
+    /// @notice Allows the StandardBridge on this network to burn tokens
+    /// @param _from Address to burn tokens from
+    /// @param _amount Amount of tokens to burn
+    function burn(
+        address _from,
+        uint256 _amount
+    )
+        external
+        virtual
+        override(IOptimismMintableERC20, ILegacyMintableERC20)
+        onlyBridge
+    {
         _burn(_from, _amount);
-        emit CrosschainBurn(_from, _amount, msg.sender);
+        emit Burn(_from, _amount);
     }
 
     /// @notice This function allows the manager to set the allowedFrom status of an address

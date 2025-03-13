@@ -14,7 +14,7 @@ contract WalletConnectConfig_Test is Base_Test {
         deployCoreConditionally();
     }
 
-    function testInitialization() public {
+    function testInitialization() public view {
         assertTrue(walletConnectConfig.hasRole(walletConnectConfig.DEFAULT_ADMIN_ROLE(), users.admin));
     }
 

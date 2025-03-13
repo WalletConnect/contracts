@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: Apache 2
 pragma solidity <0.9.0 >=0.8.8 ^0.8.0 ^0.8.1 ^0.8.13 ^0.8.19 ^0.8.2;
 
 // lib/example-native-token-transfers/evm/src/interfaces/IOwnableUpgradeable.sol
@@ -2147,7 +2146,6 @@ interface IERC20 {
 
 // lib/wormhole-solidity-sdk/src/interfaces/IWormhole.sol
 // contracts/Messages.sol
-// SPDX-License-Identifier: Apache 2
 
 interface IWormhole {
     struct GuardianSet {
@@ -4382,7 +4380,7 @@ abstract contract PausableUpgradeable is Initializable {
 /// @dev 8 bits: [64 - 72] decimals
 type TrimmedAmount is uint72;
 
-using { gt as >, lt as <, sub as -, add as +, eq as ==, min, unwrap } for TrimmedAmount global;
+// using { gt as >, lt as <, sub as -, add as +, eq as ==, min, unwrap } for TrimmedAmount global;
 
 function minUint8(uint8 a, uint8 b) pure returns (uint8) {
     return a < b ? a : b;
@@ -4696,8 +4694,6 @@ abstract contract ReentrancyGuardUpgradeable is Initializable {
 
 // lib/wormhole-solidity-sdk/src/Utils.sol
 
-// SPDX-License-Identifier: Apache 2
-
 function toWormholeFormat(address addr) pure returns (bytes32) {
     return bytes32(uint256(uint160(addr)));
 }
@@ -4711,7 +4707,6 @@ function fromWormholeFormat(bytes32 whFormatAddress) pure returns (address) {
 
 // lib/wormhole-solidity-sdk/src/interfaces/IWETH.sol
 // contracts/Bridge.sol
-// SPDX-License-Identifier: Apache 2
 
 interface IWETH is IERC20 {
     function deposit() external payable;
@@ -5294,7 +5289,6 @@ abstract contract OwnableUpgradeable is Initializable, ContextUpgradeable, IOwna
 
 // lib/wormhole-solidity-sdk/src/interfaces/ITokenBridge.sol
 // contracts/Bridge.sol
-// SPDX-License-Identifier: Apache 2
 
 interface ITokenBridge {
     struct Transfer {

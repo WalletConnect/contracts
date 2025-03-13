@@ -9,8 +9,7 @@ contract Transfer_L2WCT_Unit_Concrete_Test is Base_Test {
     function setUp() public override {
         super.setUp();
         deployCoreConditionally();
-        vm.prank(address(mockBridge));
-        l2wct.mint(users.alice, 1000);
+        deal(address(l2wct), users.alice, 1000);
     }
 
     modifier givenTransferRestrictionsEnabled() {

@@ -3,123 +3,93 @@ pragma solidity >=0.8.25 <0.9.0;
 
 import { L2WCT } from "src/L2WCT.sol";
 import { Integration_Test } from "test/integration/Integration.t.sol";
+import { INttToken } from "src/interfaces/INttToken.sol";
 
 contract Burn_L2WCT_Integration_Concrete_Test is Integration_Test {
     uint256 internal constant AMOUNT = 100;
 
     function setUp() public override {
         super.setUp();
-        // Mint 100 WCT to Alice
-        vm.prank(address(mockBridge));
-        l2wct.mint(users.alice, AMOUNT);
+        // Mint tokens to the minter
+        address minterAddress = l2wct.minter();
+        vm.prank(minterAddress);
+        l2wct.mint(minterAddress, AMOUNT * 2);
     }
 
-    function test_RevertWhen_CallerNotBridge() external {
-        vm.expectRevert(L2WCT.OnlyBridge.selector);
+    function test_RevertWhen_CallerNotMinter() external {
+        // We need to use burn(uint256) from INttToken, not burn() from ERC20Burnable
+        vm.expectRevert(abi.encodeWithSelector(INttToken.CallerNotMinter.selector, users.alice));
         vm.prank(users.alice);
-        l2wct.burn(users.alice, AMOUNT);
+        l2wct.burn(AMOUNT);
     }
 
-    modifier whenCallerBridge() {
-        _;
-    }
+    function test_RevertWhen_FromNotWhitelisted() external {
+        // Ensure minter is not whitelisted
+        address minter = l2wct.minter();
+        assertEq(l2wct.allowedFrom(minter), false, "Minter should not be whitelisted as from");
+        assertEq(l2wct.allowedTo(address(0)), false, "Zero address should not be whitelisted as to");
 
-    modifier whenTransferabilityOff() {
-        _;
-    }
-
-    function test_RevertWhen_FromNotWhitelisted() external whenCallerBridge whenTransferabilityOff {
+        vm.prank(minter);
         vm.expectRevert(L2WCT.TransferRestricted.selector);
-        vm.startPrank(users.alice);
-        mockBridge.bridgeERC20({
-            localToken: address(wct),
-            remoteToken: address(l2wct),
-            amount: AMOUNT,
-            minGasLimit: 100,
-            extraData: ""
-        });
+        l2wct.burn(AMOUNT);
     }
 
-    modifier whenFromWhitelisted() {
+    function test_Burn_WhenFromWhitelisted() external {
+        // Whitelist the minter for transfers
+        address minter = l2wct.minter();
         vm.prank(users.manager);
-        l2wct.setAllowedFrom(users.alice, true);
-        _;
+        l2wct.setAllowedFrom(minter, true);
+
+        uint256 initialSupply = l2wct.totalSupply();
+        uint256 initialBalance = l2wct.balanceOf(minter);
+
+        vm.prank(minter);
+        l2wct.burn(AMOUNT);
+
+        assertEq(l2wct.balanceOf(minter), initialBalance - AMOUNT);
+        assertEq(l2wct.totalSupply(), initialSupply - AMOUNT);
     }
 
-    modifier whenToWhitelisted() {
+    function test_Burn_WhenToWhitelisted() external {
+        // Whitelist address(0) for receiving transfers
         vm.prank(users.manager);
         l2wct.setAllowedTo(address(0), true);
-        _;
+
+        address minter = l2wct.minter();
+        uint256 initialSupply = l2wct.totalSupply();
+        uint256 initialBalance = l2wct.balanceOf(minter);
+
+        vm.prank(minter);
+        l2wct.burn(AMOUNT);
+
+        assertEq(l2wct.balanceOf(minter), initialBalance - AMOUNT);
+        assertEq(l2wct.totalSupply(), initialSupply - AMOUNT);
     }
 
-    modifier whenTransferabilityOn() {
+    function test_RevertWhen_FromNotWhitelistedAndToNotWhitelisted() external {
+        // Ensure minter is not whitelisted
+        address minter = l2wct.minter();
+        assertEq(l2wct.allowedFrom(minter), false, "Minter should not be whitelisted as from");
+        assertEq(l2wct.allowedTo(address(0)), false, "Zero address should not be whitelisted as to");
+
+        vm.prank(minter);
+        vm.expectRevert(L2WCT.TransferRestricted.selector);
+        l2wct.burn(AMOUNT);
+    }
+
+    function test_Burn_WhenTransferabilityOn() external {
+        // Disable transfer restrictions
         vm.prank(users.admin);
         l2wct.disableTransferRestrictions();
-        _;
-    }
 
-    function test_Burn_WhenFromWhitelisted() external whenCallerBridge whenTransferabilityOff whenFromWhitelisted {
+        address minter = l2wct.minter();
         uint256 initialSupply = l2wct.totalSupply();
-        uint256 initialBalance = l2wct.balanceOf(users.alice);
+        uint256 initialBalance = l2wct.balanceOf(minter);
 
-        vm.expectEmit(true, true, true, true);
-        emit Transfer(users.alice, address(0), AMOUNT);
-        vm.expectEmit(true, true, true, true);
-        emit Burn(users.alice, AMOUNT);
-        vm.expectEmit(true, true, true, true);
-        emit ERC20BridgeInitiated(
-            address(wct), address(l2wct), users.alice, users.alice, AMOUNT, abi.encodePacked(uint32(AMOUNT), "")
-        );
+        vm.prank(minter);
+        l2wct.burn(AMOUNT);
 
-        vm.startPrank(users.alice);
-        mockBridge.bridgeERC20({
-            localToken: address(wct),
-            remoteToken: address(l2wct),
-            amount: AMOUNT,
-            minGasLimit: uint32(AMOUNT),
-            extraData: ""
-        });
-        vm.stopPrank();
-
-        assertEq(l2wct.balanceOf(users.alice), initialBalance - AMOUNT);
-        assertEq(l2wct.totalSupply(), initialSupply - AMOUNT);
-    }
-
-    function test_Burn_WhenToWhitelisted() external whenCallerBridge whenTransferabilityOff whenToWhitelisted {
-        uint256 initialSupply = l2wct.totalSupply();
-        uint256 initialBalance = l2wct.balanceOf(users.alice);
-
-        vm.expectEmit(true, true, true, true);
-        emit Transfer(users.alice, address(0), AMOUNT);
-        vm.expectEmit(true, true, true, true);
-        emit Burn(users.alice, AMOUNT);
-
-        vm.prank(address(mockBridge));
-        l2wct.burn(users.alice, AMOUNT);
-
-        assertEq(l2wct.balanceOf(users.alice), initialBalance - AMOUNT);
-        assertEq(l2wct.totalSupply(), initialSupply - AMOUNT);
-    }
-
-    function test_RevertWhen_FromNotWhitelistedAndToNotWhitelisted() external whenCallerBridge whenTransferabilityOff {
-        vm.expectRevert(L2WCT.TransferRestricted.selector);
-        vm.prank(address(mockBridge));
-        l2wct.burn(users.alice, AMOUNT);
-    }
-
-    function test_Burn_WhenTransferabilityOn() external whenCallerBridge whenTransferabilityOn {
-        uint256 initialSupply = l2wct.totalSupply();
-        uint256 initialBalance = l2wct.balanceOf(users.alice);
-
-        vm.expectEmit(true, true, true, true);
-        emit Transfer(users.alice, address(0), AMOUNT);
-        vm.expectEmit(true, true, true, true);
-        emit Burn(users.alice, AMOUNT);
-
-        vm.prank(address(mockBridge));
-        l2wct.burn(users.alice, AMOUNT);
-
-        assertEq(l2wct.balanceOf(users.alice), initialBalance - AMOUNT);
+        assertEq(l2wct.balanceOf(minter), initialBalance - AMOUNT);
         assertEq(l2wct.totalSupply(), initialSupply - AMOUNT);
     }
 }

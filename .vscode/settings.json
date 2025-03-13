@@ -1,11 +1,13 @@
 {
   "[solidity]": {
-    "editor.defaultFormatter": "NomicFoundation.hardhat-solidity"
+    "editor.defaultFormatter": "JuanBlanco.solidity"
   },
   "[toml]": {
     "editor.defaultFormatter": "tamasfe.even-better-toml"
   },
   "solidity.formatter": "forge",
-  "slither.solcPath": "",
-  "slither.hiddenDetectors": []
+  "solidity.compileUsingRemoteVersion": "v0.8.25",
+  "slither.hiddenDetectors": [],
+  "solidity.packageDefaultDependenciesContractsDirectory": "evm/src",
+  "solidity.packageDefaultDependenciesDirectory": "evm/lib"
 }

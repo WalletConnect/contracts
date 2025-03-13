@@ -12,6 +12,7 @@ import { DeploymentJsonWriter } from "script/utils/DeploymentJsonWriter.sol";
 struct EthereumDeploymentParams {
     address admin;
     address timelockCanceller;
+    address nttManager;
 }
 
 contract EthereumDeploy is BaseScript {
@@ -56,7 +57,10 @@ contract EthereumDeploy is BaseScript {
             1 weeks, _singleAddressArray(params.admin), _singleAddressArray(params.admin), params.timelockCanceller
         );
 
-        WCT wct = newWCT({ initialOwner: broadcaster, init: WCT.Init({ initialOwner: params.admin }) });
+        WCT wct = newWCT({
+            initialOwner: broadcaster,
+            init: WCT.Init({ initialOwner: params.admin, initialMinter: params.nttManager })
+        });
 
         return EthereumDeployments({ wct: wct, timelock: timelock });
     }
@@ -68,7 +72,8 @@ contract EthereumDeploy is BaseScript {
     function _readDeploymentParamsFromEnv() internal view returns (EthereumDeploymentParams memory) {
         return EthereumDeploymentParams({
             admin: vm.envAddress("ADMIN_ADDRESS"),
-            timelockCanceller: vm.envAddress("TIMELOCK_CANCELLER_ADDRESS")
+            timelockCanceller: vm.envAddress("TIMELOCK_CANCELLER_ADDRESS"),
+            nttManager: vm.envAddress("NTT_MANAGER_ADDRESS")
         });
     }
 }

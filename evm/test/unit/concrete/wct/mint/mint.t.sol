@@ -2,8 +2,7 @@
 pragma solidity >=0.8.25 <0.9.0;
 
 import { WCT } from "src/WCT.sol";
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
-
+import { INttToken } from "src/interfaces/INttToken.sol";
 import { Base_Test } from "../../../../Base.t.sol";
 
 contract Mint_WCT_Unit_Concrete_Test is Base_Test {
@@ -12,21 +11,21 @@ contract Mint_WCT_Unit_Concrete_Test is Base_Test {
         deployCoreConditionally();
     }
 
-    function test_RevertWhen_CallerNotOwner() external {
+    function test_RevertWhen_CallerNotMinter() external {
         // Make the attacker the caller
         vm.startPrank(users.attacker);
 
         // Run the test
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, users.attacker));
+        vm.expectRevert(abi.encodeWithSelector(INttToken.CallerNotMinter.selector, users.attacker));
         wct.mint(users.attacker, 1);
     }
 
-    modifier whenCallerOwner() {
-        vm.startPrank(users.admin);
+    modifier whenCallerMinter() {
+        vm.startPrank(wct.minter());
         _;
     }
 
-    function test_Mint() external whenCallerOwner {
+    function test_Mint() external whenCallerMinter {
         // Expect the relevant event to be emitted.
         uint256 totalSupply = wct.totalSupply();
         vm.expectEmit({ emitter: address(wct) });

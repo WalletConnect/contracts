@@ -3,14 +3,15 @@ pragma solidity 0.8.25;
 
 import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import { INttToken } from "src/interfaces/INttToken.sol";
-import { ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
+import { ERC20BurnableUpgradeable } from
+    "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol";
 
 /**
  * @title NttTokenUpgradeable
  * @notice Abstract base contract implementing the INttToken interface with dedicated storage slots
  * @dev This contract should be inherited by token contracts that need to implement INttToken
  */
-abstract contract NttTokenUpgradeable is ContextUpgradeable, INttToken, IERC165 {
+abstract contract NttTokenUpgradeable is ERC20BurnableUpgradeable, INttToken, IERC165 {
     // =============== Storage ==============================================================
 
     struct MinterStorage {
@@ -32,8 +33,16 @@ abstract contract NttTokenUpgradeable is ContextUpgradeable, INttToken, IERC165 
      * @notice Initialize the minter role
      * @param initialMinter The initial minter address
      */
-    function __NttToken_init(address initialMinter) internal {
-        __Context_init();
+    function __NttToken_init(
+        address initialMinter,
+        string memory name,
+        string memory symbol
+    )
+        internal
+        onlyInitializing
+    {
+        __ERC20_init(name, symbol);
+        __ERC20Burnable_init();
 
         if (initialMinter != address(0)) {
             _getMinterStorage()._minter = initialMinter;
@@ -68,7 +77,13 @@ abstract contract NttTokenUpgradeable is ContextUpgradeable, INttToken, IERC165 
         _;
     }
 
-    function setMinter(address newMinter) external virtual;
+    /**
+     * @notice Sets a new minter address
+     * @param newMinter The address to set as the new minter
+     */
+    function setMinter(address newMinter) external virtual override onlyMinter {
+        _setMinter(newMinter);
+    }
 
     /**
      * @dev Internal function to set the minter.
@@ -88,17 +103,16 @@ abstract contract NttTokenUpgradeable is ContextUpgradeable, INttToken, IERC165 
      * @param _account The address where new tokens will be minted.
      * @param _amount The amount of new tokens that will be minted.
      */
-    function mint(address _account, uint256 _amount) external virtual override onlyMinter {
+    function mint(address _account, uint256 _amount) external override onlyMinter {
         _mint(_account, _amount);
     }
 
     /**
-     * @dev Internal function to mint tokens. Must be implemented by derived contracts.
+     * @notice Burns a specific amount of tokens.
+     * @dev Overrides both ERC20BurnableUpgradeable and INttToken implementations
+     * @param amount The amount of tokens to burn.
      */
-    function _mint(address account, uint256 amount) internal virtual;
-
-    /**
-     * @dev Internal function to burn tokens. Must be implemented by derived contracts.
-     */
-    function _burn(address account, uint256 amount) internal virtual;
+    function burn(uint256 amount) public virtual override(ERC20BurnableUpgradeable, INttToken) onlyMinter {
+        super.burn(amount);
+    }
 }
