@@ -3,6 +3,7 @@ pragma solidity >=0.8.25 <0.9.0;
 
 import { WCT } from "src/WCT.sol";
 import { L2WCT } from "src/L2WCT.sol";
+import { L2WCT as LegacyL2WCT } from "src/legacy/LegacyL2WCT.sol";
 import { Pauser } from "src/Pauser.sol";
 import { PermissionedNodeRegistry } from "src/PermissionedNodeRegistry.sol";
 import { WalletConnectConfig } from "src/WalletConnectConfig.sol";
@@ -24,8 +25,12 @@ import {
     newStakingRewardDistributor
 } from "script/helpers/Proxy.sol";
 import { Eip1967Logger } from "script/utils/Eip1967Logger.sol";
-import { NttManager } from "src/utils/wormhole/NttManagerFlat.sol";
-
+import { NttManager, IManagerBase, Implementation } from "src/utils/wormhole/NttManagerFlat.sol";
+import {
+    TransparentUpgradeableProxy,
+    ITransparentUpgradeableProxy
+} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import { ProxyAdmin } from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import { Test } from "forge-std/Test.sol";
 
 import { Users } from "./utils/Types.sol";
@@ -135,31 +140,47 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
         // Dependency for L2WCT
         deployMockBridge();
 
-        // Add NttManager deployment
-        nttManager = new NttManager(
-            address(l2wct), // token
-            Mode.BURNING, // mode
-            block.chainid, // chainId
-            1 days, // rateLimitDuration
-            false // skipRateLimiting
-        );
-
-        nttManager.initialize();
-
         wct = newWCT({
             initialOwner: users.admin,
-            init: WCT.Init({ initialOwner: users.admin, initialMinter: address(nttManager) })
+            init: WCT.Init({ initialOwner: users.admin, initialMinter: address(0) })
         });
 
+        // Deploy L2WCT implementation and proxy -> this is the legacy implementation to maintain the create2 address
         l2wct = newL2WCT({
             initialOwner: users.admin,
-            init: L2WCT.Init({
+            init: LegacyL2WCT.Init({
                 initialAdmin: users.admin,
                 initialManager: users.manager,
-                initialMinter: address(nttManager),
-                initialBridge: address(mockBridge)
+                bridge: address(mockBridge),
+                remoteToken: address(wct)
             })
         });
+
+        // Get proxy admin and upgrade to new implementation
+        ProxyAdmin proxyAdmin = ProxyAdmin(Eip1967Logger.getAdmin(vm, address(l2wct)));
+        L2WCT newImpl = new L2WCT();
+        proxyAdmin.upgradeAndCall(ITransparentUpgradeableProxy(address(l2wct)), address(newImpl), "");
+
+        address nttManagerImplementation = address(
+            new NttManager(
+                address(l2wct), // token
+                IManagerBase.Mode.BURNING, // mode
+                uint16(block.chainid), // chainId
+                1 days, // rateLimitDuration
+                false // skipRateLimiting
+            )
+        );
+
+        // Add NttManager deployment
+        nttManager = NttManager(
+            address(
+                new TransparentUpgradeableProxy(
+                    nttManagerImplementation, users.admin, abi.encodeWithSelector(Implementation.initialize.selector)
+                )
+            )
+        );
+
+        l2wct.setMinter(address(nttManager));
 
         stakingRewardDistributor = newStakingRewardDistributor({
             initialOwner: users.admin,

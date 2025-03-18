@@ -1,0 +1,28 @@
+burn.t.sol
+├── when transferability is off
+│   ├── when caller is fromWhitelisted
+│   │   ├── when caller is not minter
+│   │   │   └── it should revert with CallerNotMinter
+│   │   └── when caller is minter
+│   │       ├── it should burn tokens from the caller
+│   │       ├── it should decrease the total supply
+│   │       └── it should emit a Transfer event
+│   ├── when address(0) is toWhitelisted
+│   │   ├── when caller is not minter
+│   │   │   └── it should revert with CallerNotMinter
+│   │   └── when caller is minter
+│   │       ├── it should burn tokens from the caller
+│   │       ├── it should decrease the total supply
+│   │       └── it should emit a Transfer event
+│   └── when caller is not fromWhitelisted and address(0) is not toWhitelisted
+│       └── it should revert with TransferRestricted
+└── when transferability is on
+    ├── when caller is not minter
+    │   └── it should revert with CallerNotMinter
+    └── when caller is minter
+        ├── when caller has sufficient balance
+        │   ├── it should burn tokens from the caller
+        │   ├── it should decrease the total supply
+        │   └── it should emit a Transfer event
+        └── when caller has insufficient balance
+            └── it should revert with IERC20Errors.ERC20InsufficientBalance(caller, BURN_AMOUNT)

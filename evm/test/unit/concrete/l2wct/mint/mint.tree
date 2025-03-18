@@ -1,0 +1,15 @@
+mint.t.sol
+├── when caller is not minter
+│   └── it should revert with CallerNotMinter
+└── when caller is minter
+    ├── when recipient is not zero address
+    │   ├── when amount is greater than 0
+    │   │   ├── it should mint tokens to the specified address
+    │   │   ├── it should increase the total supply
+    │   │   └── it should emit a Transfer event
+    │   └── when amount is 0
+    │       ├── it should not change recipient balance
+    │       ├── it should not change total supply
+    │       └── it should emit a Transfer event with 0 amount
+    └── when recipient is zero address
+        └── it should revert with "ERC20: mint to the zero address"
