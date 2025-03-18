@@ -1,19 +1,28 @@
-# directories
-broadcast
-cache
-coverage
+# Common directories
 node_modules
-out
-lib/
+dist
+build
+coverage
+.DS_Store
 
-# files
+# Common files
 *.env
 *.log
-.DS_Store
 .pnp.*
-bun.lockb
-lcov.info
 package-lock.json
 pnpm-lock.yaml
 yarn.lock
+bun.lockb
+lcov.info
 slither-results.json
+
+# EVM specific
+evm/broadcast
+evm/cache
+evm/out
+evm/lib
+
+# Solana specific
+.anchor
+target
+test-ledger

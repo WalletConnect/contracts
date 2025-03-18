@@ -1,8 +1,8 @@
 # directories
-cache
-coverage
+evm/cache
+evm/coverage
 node_modules
-out
+evm/out
 
 # All env files except the common.example.env
 *.common.env
@@ -19,6 +19,4 @@ yarn.lock
 airdrop_data.json
 
 # broadcasts
-!broadcast
-broadcast/*
-broadcast/*/31337/
+*/broadcast/*
