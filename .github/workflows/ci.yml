@@ -21,14 +21,16 @@ jobs:
       - name: "Install Foundry"
         uses: "foundry-rs/foundry-toolchain@v1"
 
-      - name: "Install Bun"
-        uses: "oven-sh/setup-bun@v1"
+      - name: "Install pnpm"
+        uses: "pnpm/action-setup@v2"
+        with:
+          version: 8
 
       - name: "Install the Node.js dependencies"
-        run: "bun install"
+        run: "pnpm install"
 
       - name: "Lint the code"
-        run: "bun run lint"
+        run: "pnpm run lint"
 
       - name: "Add lint summary"
         run: |
@@ -44,14 +46,16 @@ jobs:
       - name: "Install Foundry"
         uses: "foundry-rs/foundry-toolchain@v1"
 
-      - name: "Install Bun"
-        uses: "oven-sh/setup-bun@v1"
+      - name: "Install pnpm"
+        uses: "pnpm/action-setup@v2"
+        with:
+          version: 8
 
       - name: "Install the Node.js dependencies"
-        run: "bun install"
+        run: "pnpm install"
 
       - name: "Build the contracts and print their size"
-        run: "forge build --sizes"
+        run: "cd evm && forge build --sizes"
 
       - name: "Add build summary"
         run: |
@@ -68,14 +72,16 @@ jobs:
       - name: "Install Foundry"
         uses: "foundry-rs/foundry-toolchain@v1"
 
-      - name: "Install Bun"
-        uses: "oven-sh/setup-bun@v1"
+      - name: "Install pnpm"
+        uses: "pnpm/action-setup@v2"
+        with:
+          version: 8
 
       - name: "Install the Node.js dependencies"
-        run: "bun install"
+        run: "pnpm install"
 
       - name: "Show the Foundry config"
-        run: "forge config"
+        run: "cd evm && forge config"
 
       - name: "Generate a fuzz seed that changes weekly to avoid burning through RPC allowance"
         run: >
@@ -84,7 +90,7 @@ jobs:
           )" >> $GITHUB_ENV
 
       - name: "Run the tests"
-        run: "forge test"
+        run: "cd evm && forge test"
 
       - name: "Add test summary"
         run: |
