@@ -2,7 +2,6 @@
 
 import { Base_Test } from "test/Base.t.sol";
 import { L2WCT } from "src/L2WCT.sol";
-import { Eip1967Logger } from "script/utils/Eip1967Logger.sol";
 
 pragma solidity >=0.8.25 <0.9.0;
 
@@ -18,8 +17,7 @@ contract Transfer_L2WCT_Unit_Fuzz_Test is Base_Test {
         vm.prank(users.manager);
         l2wct.setAllowedFrom(users.alice, true);
 
-        vm.prank(address(mockBridge));
-        l2wct.mint(users.alice, 1000);
+        deal(address(l2wct), users.alice, 1000);
 
         vm.prank(users.alice);
         l2wct.transfer(to, 500);
@@ -38,8 +36,7 @@ contract Transfer_L2WCT_Unit_Fuzz_Test is Base_Test {
         vm.assume(to != address(0) && to != users.alice && to != address(mockBridge));
         vm.assume(from != to);
 
-        vm.prank(address(mockBridge));
-        l2wct.mint(from, 1000);
+        deal(address(l2wct), from, 1000);
 
         vm.prank(from);
         vm.expectRevert(L2WCT.TransferRestricted.selector);
@@ -57,8 +54,7 @@ contract Transfer_L2WCT_Unit_Fuzz_Test is Base_Test {
         vm.assume(to != address(0) && to != users.alice && to != address(mockBridge));
         vm.assume(from != to);
 
-        vm.prank(address(mockBridge));
-        l2wct.mint(from, 1000);
+        deal(address(l2wct), from, 1000);
 
         vm.prank(from);
         vm.expectRevert(L2WCT.TransferRestricted.selector);

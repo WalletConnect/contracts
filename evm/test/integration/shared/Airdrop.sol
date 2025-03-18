@@ -43,9 +43,10 @@ abstract contract Airdrop_Test is Integration_Test {
         );
 
         // Mint tokens to the treasury.
-        vm.startPrank({ msgSender: address(mockBridge) });
-        l2wct.mint(address(users.treasury), defaults.AIRDROP_BUDGET());
-        resetPrank(users.treasury);
+        deal(address(l2wct), address(users.treasury), defaults.AIRDROP_BUDGET());
+
+        // Add prank BEFORE the approval
+        vm.startPrank(address(users.treasury));
         // Approve the Airdrop contract to spend WCT.
         l2wct.approve(address(airdrop), defaults.AIRDROP_BUDGET());
         vm.stopPrank();

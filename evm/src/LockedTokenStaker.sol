@@ -13,7 +13,7 @@ import {
     CalendarUnlockSchedule,
     DistributionState,
     CalendarAllocation
-} from "./interfaces/MerkleVester.sol";
+} from "src/utils/magna/MerkleVester.sol";
 import { Pauser } from "./Pauser.sol";
 
 /**
