@@ -1,0 +1,31 @@
+{
+  "AdminTimelock": { "address": "0x6e443f9487c7C9244e105f4Dbe2495f0880b1241" },
+  "Airdrop": { "address": "0x63231C5AC8BB2C5090FF179bA51DfB2e55F8c2dF" },
+  "L2WCT": {
+    "address": "0x75bb6dcA2cD6F9a0189c478bBb8F7EE2fEF07C78",
+    "admin": "0xf0dA83058611FD68c93c7cbCb9c9D50831b1bBaF",
+    "implementation": "0x4D1070C6e37de5870e11b99e2A006739e77ec5cb"
+  },
+  "ManagerTimelock": { "address": "0xdFdCD8C0fe0DD39351D080ea1da9d9BE0f147715" },
+  "Pauser": {
+    "address": "0x8AC08C00Bd68Da0b1Dbdb4e62F6Fea2A53BB53c8",
+    "admin": "0x973Ce6Ed3Bc26aE3eEe8B2cC0F2219928E6d6187",
+    "implementation": "0x8fef108F286D676e116Df0C13A400DEDA93b0b57"
+  },
+  "StakeWeight": {
+    "address": "0x140D63efB5B24314f6f62DBAdb383Dba2e49D7Ee",
+    "admin": "0x7F2FC8064efA7740C23167C00B685907891f849b",
+    "implementation": "0x18Db27bCDb3aC28600a6a6460051427E3cb81C66"
+  },
+  "StakingRewardDistributor": {
+    "address": "0xAF38A4D97d7B75d42f6c9bc3F79a9CC1df316548",
+    "admin": "0x684Ca5084419C7E81f0c215B17bF27AE1a9Ae8B3",
+    "implementation": "0x5CC041c28c89C26Aeb99dD6a6b8D8d6D202830FF"
+  },
+  "WalletConnectConfig": {
+    "address": "0x8103498b315A1AB7DD908Eb54a8987a94dDfD80d",
+    "admin": "0x7a8B4323a0838Fd12f4C4Fb01f4494720089248e",
+    "implementation": "0x3831F9b59b2b1078d2DFaB48c4E9C06a3eaE315B"
+  },
+  "chainId": 11155420
+}

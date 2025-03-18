@@ -20,7 +20,7 @@ else
 endif
 
 # Network-specific targets
-.PHONY: deploy-mainnet deploy-sepolia deploy-optimism deploy-optimism-sepolia deploy-anvil log-mainnet log-sepolia log-optimism log-optimism-sepolia log-anvil fund-deployer
+.PHONY: deploy-mainnet deploy-sepolia deploy-optimism deploy-optimism-sepolia deploy-anvil log-mainnet log-sepolia log-optimism log-optimism-sepolia log-anvil fund-deployer json-mainnet json-sepolia json-optimism json-optimism-sepolia json-anvil
 
 deploy-mainnet:
 	$(broadcast_info)
@@ -66,6 +66,26 @@ log-optimism-sepolia:
 log-anvil:
 	@echo "Logging deployments for Anvil local network"
 	@$(MAKE) _log_deployments ENV_FILE=.anvil.env SCRIPT=$(ANVIL_DEPLOY) IS_ANVIL=true
+
+json-mainnet:
+	@echo "Generating JSON deployments for Ethereum Mainnet"
+	@$(MAKE) _json_deployments ENV_FILE=.mainnet.env SCRIPT=$(ETHEREUM_DEPLOY) CHAIN_ID=1 IS_ANVIL=
+
+json-sepolia:
+	@echo "Generating JSON deployments for Sepolia testnet"
+	@$(MAKE) _json_deployments ENV_FILE=.sepolia.env SCRIPT=$(ETHEREUM_DEPLOY) CHAIN_ID=11155111 IS_ANVIL=
+
+json-optimism:
+	@echo "Generating JSON deployments for Optimism Mainnet"
+	@$(MAKE) _json_deployments ENV_FILE=.optimism.env SCRIPT=$(OPTIMISM_DEPLOY) CHAIN_ID=10 IS_ANVIL=
+
+json-optimism-sepolia:
+	@echo "Generating JSON deployments for Optimism Sepolia testnet"
+	@$(MAKE) _json_deployments ENV_FILE=.optimism-sepolia.env SCRIPT=$(OPTIMISM_DEPLOY) CHAIN_ID=11155420 IS_ANVIL=
+
+json-anvil:
+	@echo "Generating JSON deployments for Anvil local network"
+	@$(MAKE) _json_deployments ENV_FILE=.anvil.env SCRIPT=$(ANVIL_DEPLOY) CHAIN_ID=31337 IS_ANVIL=true
 
 fund-deployer:
 	@echo "Funding deployer account on Anvil"
@@ -120,6 +140,25 @@ endif
 		--rpc-url $(RPC_URL) \
 		--sender ${ETH_FROM}
 
+# New function for generating JSON deployments
+_json_deployments:
+	$(eval include .common.env)
+	$(eval include $(ENV_FILE))
+
+ifeq ($(IS_ANVIL),)
+	$(eval RPC_URL = https://${CHAIN_NAME}.infura.io/v3/${API_KEY_INFURA})
+else
+	$(eval RPC_URL = $(DEFAULT_ANVIL_RPC))
+endif
+
+	@mkdir -p logs
+	@WRITE_JSON=true $(FORGE_CMD) $(SCRIPT) \
+		$(VERBOSITY) \
+		-s "logDeployments()" \
+		--rpc-url $(RPC_URL) \
+		--sender ${ETH_FROM}
+	@echo "JSON deployment file generated at deployments/$(CHAIN_ID).json"
+
 # Help target
 .PHONY: help
 help:
@@ -134,6 +173,11 @@ help:
 	@echo "  log-optimism              - Log deployments for Optimism Mainnet"
 	@echo "  log-optimism-sepolia      - Log deployments for Optimism Sepolia testnet"
 	@echo "  log-anvil                 - Log deployments for Anvil local network"
+	@echo "  json-mainnet              - Generate JSON deployments for Ethereum Mainnet"
+	@echo "  json-sepolia              - Generate JSON deployments for Sepolia testnet"
+	@echo "  json-optimism             - Generate JSON deployments for Optimism Mainnet"
+	@echo "  json-optimism-sepolia     - Generate JSON deployments for Optimism Sepolia testnet"
+	@echo "  json-anvil                - Generate JSON deployments for Anvil local network"
 	@echo "  fund-anvil                - Fund admin/treasury account on Anvil"
 	@echo "  help                      - Show this help message"
 	@echo ""

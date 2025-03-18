@@ -7,6 +7,7 @@ import { Timelock } from "src/Timelock.sol";
 import { EthereumDeployments, BaseScript } from "script/Base.s.sol";
 import { newWCT } from "script/helpers/Proxy.sol";
 import { Eip1967Logger } from "script/utils/Eip1967Logger.sol";
+import { DeploymentJsonWriter } from "script/utils/DeploymentJsonWriter.sol";
 
 struct EthereumDeploymentParams {
     address admin;
@@ -27,6 +28,8 @@ contract EthereumDeploy is BaseScript {
 
         if (vm.envOr("BROADCAST", false)) {
             _writeEthereumDeployments(deps);
+            // Write JSON deployment file
+            DeploymentJsonWriter.writeEthereumDeploymentsToJson(vm, block.chainid, deps);
         }
 
         // Mint initial supply to admin (1 billion WCT)
@@ -41,6 +44,11 @@ contract EthereumDeploy is BaseScript {
         EthereumDeployments memory deps = readEthereumDeployments(block.chainid);
         Eip1967Logger.logEip1967(vm, "WCT", address(deps.wct));
         console2.log("Timelock", address(deps.timelock));
+
+        // Write JSON deployment file
+        if (vm.envOr("WRITE_JSON", false)) {
+            DeploymentJsonWriter.writeEthereumDeploymentsToJson(vm, block.chainid, deps);
+        }
     }
 
     function _deployAll(EthereumDeploymentParams memory params) private returns (EthereumDeployments memory) {

@@ -1,0 +1,9 @@
+{
+  "Timelock": { "address": "0xB5EFe3783Db55B913C79CBdB81C9d2C0a993f5f0" },
+  "WCT": {
+    "address": "0x61cc6aF18C351351148815c5F4813A16DEe7A7E4",
+    "admin": "0xFFa9c27E945015f7BC7a50b53176D5609CBEC050",
+    "implementation": "0x0b432610c50aB5794ED030708a811a7EA71df58f"
+  },
+  "chainId": 1
+}

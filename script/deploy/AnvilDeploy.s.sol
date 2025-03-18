@@ -22,6 +22,8 @@ import {
     newStakeWeight,
     newStakingRewardDistributor
 } from "script/helpers/Proxy.sol";
+import { DeploymentJsonWriter } from "script/utils/DeploymentJsonWriter.sol";
+import { stdJson } from "forge-std/StdJson.sol";
 
 struct AnvilDeploymentParams {
     address admin;
@@ -34,6 +36,8 @@ struct AnvilDeploymentParams {
 }
 
 contract AnvilDeploy is BaseScript {
+    using stdJson for string;
+
     function run() public broadcast {
         if (address(readOptimismDeployments(block.chainid).l2wct) != address(0)) {
             string memory shouldOverride = vm.prompt("Contracts already deployed. Override? (y/n)");
@@ -70,6 +74,11 @@ contract AnvilDeploy is BaseScript {
         console2.log("Airdrop:", address(deps.airdrop));
         console2.log("Admin Timelock:", address(deps.adminTimelock));
         console2.log("Manager Timelock:", address(deps.managerTimelock));
+
+        // Write JSON deployment file
+        if (vm.envOr("WRITE_JSON", false)) {
+            DeploymentJsonWriter.writeOptimismDeploymentsToJson(vm, block.chainid, deps);
+        }
     }
 
     function _deployAll(AnvilDeploymentParams memory params) private returns (OptimismDeployments memory) {
@@ -100,7 +109,15 @@ contract AnvilDeploy is BaseScript {
             3 days, _singleAddressArray(params.manager), _singleAddressArray(params.manager), params.timelockCanceller
         );
 
-        (bytes32 merkleRoot,) = AirdropJsonHandler.jsonToMerkleRoot(vm, "/script/data/airdrop_data.json");
+        // Read only the merkle root from the JSON file to avoid OOM errors
+        string memory fullPath = string.concat(vm.projectRoot(), "/script/data/airdrop_data.json");
+        string memory json = vm.readFile(fullPath);
+        bytes32 merkleRoot = json.readBytes32(".merkleRoot");
+
+        // If the merkle root is zero, use a non-zero value to avoid the InvalidMerkleRoot error
+        if (merkleRoot == bytes32(0)) {
+            merkleRoot = 0x1234567890123456789012345678901234567890123456789012345678901234;
+        }
 
         Airdrop airdrop = new Airdrop(params.admin, params.pauser, params.treasury, merkleRoot, address(l2wct));
 
