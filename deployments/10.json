@@ -1,1 +1,38 @@
-{"AdminTimelock":{"address":"0x61cc6aF18C351351148815c5F4813A16DEe7A7E4"},"Airdrop":{"address":"0x4ee97a759AACa2EdF9c1445223b6Cd17c2eD3fb4"},"L2WCT":{"address":"0xeF4461891DfB3AC8572cCf7C794664A8DD927945","admin":"0x3eD030AAF23b5C52c224Cb72100C22f581D10Df4","implementation":"0x4D1070C6e37de5870e11b99e2A006739e77ec5cb"},"LockedTokenStakerBackers":{"address":"0x688CfB3e55fCE2540b5491E923Dc6a9C4f240176"},"LockedTokenStakerReown":{"address":"0x5f630a47DE14e346fC28deB8fE379833A6F6B9B2"},"LockedTokenStakerWalletConnect":{"address":"0x8621034C9acD397cc5921d036225f75699c710FA"},"ManagerTimelock":{"address":"0xB5EFe3783Db55B913C79CBdB81C9d2C0a993f5f0"},"MerkleVesterBackers":{"address":"0x2FF1Cdf8Fe00Ae6952BAA32e37D84D31A31E2EC2"},"MerkleVesterReown":{"address":"0x648bddEE207da25e19918460c1Dc9F462F657a19"},"MerkleVesterWalletConnect":{"address":"0x85d0964D328563D502867FF6899C6F73D2E59FD1"},"Pauser":{"address":"0x9163de7F22A9f3ad261B3dBfbB9A42886816adE7","admin":"0x8714E77FA6Aca75A9b21d79295ec7cF04E4821a8","implementation":"0xB7D30c8C3bF4b7cb9F06A3D7654E8971021ad58e"},"StakeWeight":{"address":"0x521B4C065Bbdbe3E20B3727340730936912DfA46","admin":"0x9898b105fe3679f2d31c3A06B58757D913D88e5F","implementation":"0xC746f9a45a06CBF2ad761442821C91A479151cc3"},"StakingRewardDistributor":{"address":"0xF368F535e329c6d08DFf0d4b2dA961C4e7F3fCAF","admin":"0x28672bf553c6AB214985868f68A3a491E227aCcB","implementation":"0xF6d23184E44f282883c0d145C973442fc7A33AB8"},"StakingRewardsCalculator":{"address":"0xC06d02F26515A56576426deCddac8d7b9Ca326D1"},"WalletConnectConfig":{"address":"0xd2f149fAA66DC4448176123f850C14Ff14f978B3","admin":"0x5eC1CFa1f0F5191BCe755B87bde67a9Fe558Eb57","implementation":"0xC4B97A6707dd0085267262ae45f80C40c9f2AeA3"},"chainId":10}
+{
+  "AdminTimelock": { "address": "0x61cc6aF18C351351148815c5F4813A16DEe7A7E4" },
+  "Airdrop": { "address": "0x4ee97a759AACa2EdF9c1445223b6Cd17c2eD3fb4" },
+  "L2WCT": {
+    "address": "0xeF4461891DfB3AC8572cCf7C794664A8DD927945",
+    "admin": "0x3eD030AAF23b5C52c224Cb72100C22f581D10Df4",
+    "implementation": "0x4D1070C6e37de5870e11b99e2A006739e77ec5cb"
+  },
+  "LockedTokenStakerBackers": { "address": "0x688CfB3e55fCE2540b5491E923Dc6a9C4f240176" },
+  "LockedTokenStakerReown": { "address": "0x5f630a47DE14e346fC28deB8fE379833A6F6B9B2" },
+  "LockedTokenStakerWalletConnect": { "address": "0x8621034C9acD397cc5921d036225f75699c710FA" },
+  "ManagerTimelock": { "address": "0xB5EFe3783Db55B913C79CBdB81C9d2C0a993f5f0" },
+  "MerkleVesterBackers": { "address": "0x2FF1Cdf8Fe00Ae6952BAA32e37D84D31A31E2EC2" },
+  "MerkleVesterReown": { "address": "0x648bddEE207da25e19918460c1Dc9F462F657a19" },
+  "MerkleVesterWalletConnect": { "address": "0x85d0964D328563D502867FF6899C6F73D2E59FD1" },
+  "Pauser": {
+    "address": "0x9163de7F22A9f3ad261B3dBfbB9A42886816adE7",
+    "admin": "0x8714E77FA6Aca75A9b21d79295ec7cF04E4821a8",
+    "implementation": "0xB7D30c8C3bF4b7cb9F06A3D7654E8971021ad58e"
+  },
+  "StakeWeight": {
+    "address": "0x521B4C065Bbdbe3E20B3727340730936912DfA46",
+    "admin": "0x9898b105fe3679f2d31c3A06B58757D913D88e5F",
+    "implementation": "0xC746f9a45a06CBF2ad761442821C91A479151cc3"
+  },
+  "StakingRewardDistributor": {
+    "address": "0xF368F535e329c6d08DFf0d4b2dA961C4e7F3fCAF",
+    "admin": "0x28672bf553c6AB214985868f68A3a491E227aCcB",
+    "implementation": "0xF6d23184E44f282883c0d145C973442fc7A33AB8"
+  },
+  "StakingRewardsCalculator": { "address": "0xC06d02F26515A56576426deCddac8d7b9Ca326D1" },
+  "WalletConnectConfig": {
+    "address": "0xd2f149fAA66DC4448176123f850C14Ff14f978B3",
+    "admin": "0x5eC1CFa1f0F5191BCe755B87bde67a9Fe558Eb57",
+    "implementation": "0xC4B97A6707dd0085267262ae45f80C40c9f2AeA3"
+  },
+  "chainId": 10
+}
