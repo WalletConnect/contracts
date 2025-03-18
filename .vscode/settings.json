@@ -9,5 +9,11 @@
   "solidity.compileUsingRemoteVersion": "v0.8.25",
   "slither.hiddenDetectors": [],
   "solidity.packageDefaultDependenciesContractsDirectory": "evm/src",
-  "solidity.packageDefaultDependenciesDirectory": "evm/lib"
+  "solidity.packageDefaultDependenciesDirectory": "evm/lib",
+  "solidity.linter": "solhint",
+  "solidity.enabledAsYouTypeCompilationErrorCheck": true,
+  "solidity.validationDelay": 1500,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "always"
+  }
 }
