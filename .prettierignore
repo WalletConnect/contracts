@@ -5,6 +5,11 @@ coverage
 node_modules
 out
 lib/
+.anchor
+target
+dist
+build
+test-ledger
 
 # files
 *.env
