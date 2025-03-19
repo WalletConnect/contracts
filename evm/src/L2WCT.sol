@@ -99,10 +99,10 @@ contract L2WCT is
 
     /// @notice Initializes the L2WCT token
     function initialize(Init memory init) public initializer {
+        __NttToken_init(init.initialMinter, "WalletConnect", "WCT");
         __ERC20Permit_init("WalletConnect");
         __ERC20Votes_init();
         __AccessControl_init();
-        __NttToken_init(init.initialMinter, "WalletConnect", "WCT");
 
         if (init.initialAdmin == address(0)) revert InvalidAddress();
         if (init.initialManager == address(0)) revert InvalidAddress();
