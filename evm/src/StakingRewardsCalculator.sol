@@ -194,7 +194,8 @@ contract StakingRewardsCalculator {
     }
 
     /// @dev Calculate weekly rewards based on total stake weight and APY
-    /// @dev Formula: weeklyRewards = (totalStakeWeight * targetApy) / (52 * 1e18 * 100)
+    /// @dev Formula: weeklyRewards = (totalStakeWeight * 4 * targetApy) / (52 * 1e18 * 100)
+    /// @dev The multiplication by 4 converts stake weight to equivalent annual staked tokens
     /// @dev The division by 100 converts percentage to decimal
     /// @param actualTotalStakeWeight Current total stake weight considering lock periods (in wei)
     /// @param targetApy Target APY calculated from stake weight curve (in wei, e.g., 12% = 12e18)
@@ -207,7 +208,8 @@ contract StakingRewardsCalculator {
         pure
         returns (uint256 weeklyRewards)
     {
-        uint256 annualRewardsWithPrecision = (actualTotalStakeWeight * uint256(targetApy));
+        // Multiply by 4 to convert stake weight to equivalent annual staked tokens
+        uint256 annualRewardsWithPrecision = (actualTotalStakeWeight * 4 * uint256(targetApy));
 
         // Step 4: Convert annual rewards to weekly rewards
         weeklyRewards = annualRewardsWithPrecision / (PRECISION * 100 * WEEKS_IN_YEAR);

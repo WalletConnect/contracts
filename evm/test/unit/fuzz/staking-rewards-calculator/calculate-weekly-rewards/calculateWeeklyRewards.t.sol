@@ -41,8 +41,8 @@ contract CalculateWeeklyRewards_StakingRewardsCalculator_Unit_Fuzz_Test is Test 
 
         uint256 rewards = calculator.calculateWeeklyRewards(stakeWeight, int256(rawApy));
 
-        // Calculate expected rewards
-        uint256 expectedAnnualRewards = (stakeWeight * rawApy);
+        // Calculate expected rewards with 4x multiplier
+        uint256 expectedAnnualRewards = (stakeWeight * 4 * rawApy);
         uint256 expectedWeeklyRewards = (expectedAnnualRewards / WEEKS_IN_YEAR) / (PRECISION * 100);
 
         assertEq(rewards, expectedWeeklyRewards, "Weekly rewards calculation mismatch");
@@ -56,11 +56,11 @@ contract CalculateWeeklyRewards_StakingRewardsCalculator_Unit_Fuzz_Test is Test 
         uint256 rewards = calculator.calculateWeeklyRewards(stakeWeight, INTERCEPT);
 
         // Verify no overflow occurred and rewards make sense
-        assertTrue(rewards > 0, "Rewards should positive for maximum APY");
-        assertTrue(rewards < stakeWeight, "Weekly rewards should be less than total stake");
+        assertTrue(rewards > 0, "Rewards should be positive for maximum APY");
+        assertTrue(rewards < stakeWeight * 4, "Weekly rewards should be less than 4x total stake");
 
-        // Calculate expected maximum rewards
-        uint256 expectedAnnualRewards = (stakeWeight * uint256(INTERCEPT));
+        // Calculate expected maximum rewards with 4x multiplier
+        uint256 expectedAnnualRewards = (stakeWeight * 4 * uint256(INTERCEPT));
         uint256 expectedWeeklyRewards = (expectedAnnualRewards / WEEKS_IN_YEAR) / (PRECISION * 100);
         assertEq(rewards, expectedWeeklyRewards, "Maximum rewards calculation mismatch");
     }
