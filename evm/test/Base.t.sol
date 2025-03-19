@@ -3,7 +3,7 @@ pragma solidity >=0.8.25 <0.9.0;
 
 import { WCT } from "src/WCT.sol";
 import { L2WCT } from "src/L2WCT.sol";
-import { L2WCT as LegacyL2WCT } from "src/legacy/LegacyL2WCT.sol";
+import { LegacyL2WCT } from "src/legacy/LegacyL2WCT.sol";
 import { Pauser } from "src/Pauser.sol";
 import { PermissionedNodeRegistry } from "src/PermissionedNodeRegistry.sol";
 import { WalletConnectConfig } from "src/WalletConnectConfig.sol";

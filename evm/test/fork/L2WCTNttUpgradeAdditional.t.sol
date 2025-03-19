@@ -3,7 +3,7 @@ pragma solidity >=0.8.25 <0.9.0;
 
 import { Base_Test } from "test/Base.t.sol";
 import { L2WCT } from "src/L2WCT.sol";
-import { L2WCT as LegacyL2WCT } from "src/legacy/LegacyL2WCT.sol";
+import { LegacyL2WCT } from "src/legacy/LegacyL2WCT.sol";
 import { TimelockController } from "@openzeppelin/contracts/governance/TimelockController.sol";
 import { OptimismDeployments } from "script/Base.s.sol";
 import { OptimismDeploy } from "script/deploy/OptimismDeploy.s.sol";

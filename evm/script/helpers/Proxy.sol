@@ -4,7 +4,7 @@ pragma solidity >=0.8.25 <0.9.0;
 import { TransparentUpgradeableProxy } from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 import { WCT } from "src/WCT.sol";
-import { L2WCT as LegacyL2WCT } from "src/legacy/LegacyL2WCT.sol";
+import { LegacyL2WCT } from "src/legacy/LegacyL2WCT.sol";
 import { L2WCT } from "src/L2WCT.sol";
 import { WalletConnectConfig } from "src/WalletConnectConfig.sol";
 import { Pauser } from "src/Pauser.sol";

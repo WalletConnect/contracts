@@ -13,7 +13,7 @@ import { AccessControlUpgradeable } from "@openzeppelin/contracts-upgradeable/ac
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { ISemver } from "src/interfaces/ISemver.sol";
 
-contract L2WCT is
+contract LegacyL2WCT is
     IOptimismMintableERC20,
     ILegacyMintableERC20,
     ERC20PermitUpgradeable,
