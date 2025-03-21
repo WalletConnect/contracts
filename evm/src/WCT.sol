@@ -6,23 +6,21 @@ import { ERC20VotesUpgradeable } from
 import { ERC20PermitUpgradeable } from
     "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
 import { NoncesUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/NoncesUpgradeable.sol";
-import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import { AccessControlUpgradeable } from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import { ERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import { ERC20BurnableUpgradeable } from
     "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol";
 import { NttTokenUpgradeable } from "src/NttTokenUpgradeable.sol";
-import { INttToken } from "src/interfaces/INttToken.sol";
+import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 /// @title WCT Token
 /// @notice This contract implements the L1 WCT token with burn, permit, and voting functionality
 /// @author WalletConnect
-contract WCT is NttTokenUpgradeable, ERC20VotesUpgradeable, ERC20PermitUpgradeable, OwnableUpgradeable {
+contract WCT is NttTokenUpgradeable, ERC20VotesUpgradeable, ERC20PermitUpgradeable, AccessControlUpgradeable {
     /// @notice Initialization data for the contract
     struct Init {
-        /// @dev The address that will be the initial owner of the contract
-        address initialOwner;
-        /// @dev The initial minter address
-        address initialMinter;
+        /// @dev The address that will be the initial admin of the contract
+        address initialAdmin;
     }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -33,16 +31,17 @@ contract WCT is NttTokenUpgradeable, ERC20VotesUpgradeable, ERC20PermitUpgradeab
     /// @notice Initializes the WCT token
     /// @param init The initialization data for the contract
     function initialize(Init calldata init) public initializer {
-        __NttToken_init(init.initialMinter, "WalletConnect", "WCT");
+        __NttToken_init(address(0), "WalletConnect", "WCT");
         __ERC20Permit_init("WalletConnect");
         __ERC20Votes_init();
         __ERC20Burnable_init();
-        __Ownable_init({ initialOwner: init.initialOwner });
+        __AccessControl_init();
+        _grantRole(DEFAULT_ADMIN_ROLE, init.initialAdmin);
     }
 
     /// @notice A function to set the new minter for the tokens.
     /// @param newMinter The address to add as both a minter and burner.
-    function setMinter(address newMinter) external override onlyOwner {
+    function setMinter(address newMinter) external override onlyRole(DEFAULT_ADMIN_ROLE) {
         _setMinter(newMinter);
     }
 
@@ -57,6 +56,19 @@ contract WCT is NttTokenUpgradeable, ERC20VotesUpgradeable, ERC20PermitUpgradeab
     // solhint-disable-next-line func-name-mixedcase
     function CLOCK_MODE() public pure override returns (string memory) {
         return "mode=timestamp";
+    }
+
+    /// @notice ERC165 interface check function
+    /// @param interfaceId Interface ID to check
+    /// @return Whether or not the interface is supported by this contract
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        override(AccessControlUpgradeable, NttTokenUpgradeable)
+        returns (bool)
+    {
+        return NttTokenUpgradeable.supportsInterface(interfaceId)
+            || AccessControlUpgradeable.supportsInterface(interfaceId);
     }
 
     // The following functions are overrides required by Solidity.
