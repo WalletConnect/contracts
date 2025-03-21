@@ -17,6 +17,22 @@ import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol
 /// @notice This contract implements the L1 WCT token with burn, permit, and voting functionality
 /// @author WalletConnect
 contract WCT is NttTokenUpgradeable, ERC20VotesUpgradeable, ERC20PermitUpgradeable, AccessControlUpgradeable {
+    /// @notice The timestamp after which transfer restrictions are disabled
+    /// @custom:deprecated This storage variable is no longer used but preserved for storage layout compatibility
+    uint256 public transferRestrictionsDisabledAfter;
+    /// @notice Mapping of addresses that are allowed to transfer tokens to any address
+    /// @custom:deprecated This storage variable is no longer used but preserved for storage layout compatibility
+    mapping(address account => bool isAllowed) public allowedFrom;
+    /// @notice Mapping of addresses that are allowed to receive tokens from any address
+    /// @custom:deprecated This storage variable is no longer used but preserved for storage layout compatibility
+    mapping(address account => bool isAllowed) public allowedTo;
+    /// @notice Address of the corresponding version of this token on the remote chain
+    /// @custom:deprecated This storage variable is no longer used but preserved for storage layout compatibility
+    address public REMOTE_TOKEN;
+    /// @notice Address of the StandardBridge on this network
+    /// @custom:deprecated This storage variable is no longer used but preserved for storage layout compatibility
+    address public BRIDGE;
+
     /// @notice Initialization data for the contract
     struct Init {
         /// @dev The address that will be the initial admin of the contract
