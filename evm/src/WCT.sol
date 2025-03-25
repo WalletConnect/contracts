@@ -19,19 +19,24 @@ import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol
 contract WCT is NttTokenUpgradeable, ERC20VotesUpgradeable, ERC20PermitUpgradeable, AccessControlUpgradeable {
     /// @notice The timestamp after which transfer restrictions are disabled
     /// @custom:deprecated This storage variable is no longer used but preserved for storage layout compatibility
-    uint256 public transferRestrictionsDisabledAfter;
+    /// @custom:oz-renamed-from transferRestrictionsDisabledAfter
+    uint256 public deprecatedTransferRestrictionsDisabledAfter;
     /// @notice Mapping of addresses that are allowed to transfer tokens to any address
     /// @custom:deprecated This storage variable is no longer used but preserved for storage layout compatibility
-    mapping(address account => bool isAllowed) public allowedFrom;
+    /// @custom:oz-renamed-from allowedFrom
+    mapping(address account => bool isAllowed) public deprecatedAllowedFrom;
     /// @notice Mapping of addresses that are allowed to receive tokens from any address
     /// @custom:deprecated This storage variable is no longer used but preserved for storage layout compatibility
-    mapping(address account => bool isAllowed) public allowedTo;
+    /// @custom:oz-renamed-from allowedTo
+    mapping(address account => bool isAllowed) public deprecatedAllowedTo;
     /// @notice Address of the corresponding version of this token on the remote chain
     /// @custom:deprecated This storage variable is no longer used but preserved for storage layout compatibility
-    address public REMOTE_TOKEN;
+    /// @custom:oz-renamed-from REMOTE_TOKEN
+    address public DEPRECATED_REMOTE_TOKEN;
     /// @notice Address of the StandardBridge on this network
     /// @custom:deprecated This storage variable is no longer used but preserved for storage layout compatibility
-    address public BRIDGE;
+    /// @custom:oz-renamed-from BRIDGE
+    address public DEPRECATED_BRIDGE;
 
     /// @notice Initialization data for the contract
     struct Init {
