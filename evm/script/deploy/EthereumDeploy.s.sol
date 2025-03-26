@@ -49,7 +49,7 @@ contract EthereumDeploy is BaseScript {
         Timelock timelock = new Timelock(
             1 weeks, _singleAddressArray(params.admin), _singleAddressArray(params.admin), params.timelockCanceller
         );
-        return EthereumDeployments({ wct: wct, timelock: timelock });
+        return EthereumDeployments({ wct: address(0), timelock: timelock });
     }
 
     function _writeEthereumDeployments(EthereumDeployments memory deps) internal {
