@@ -41,11 +41,13 @@ contract L2WCT is
 
     /// @notice Address of the corresponding version of this token on the remote chain
     /// @custom:deprecated This storage variable is no longer used but preserved for storage layout compatibility
-    address public REMOTE_TOKEN;
+    /// @custom:oz-renamed-from REMOTE_TOKEN
+    address public REMOTE_TOKEN_DEPRECATED;
 
     /// @notice Address of the StandardBridge on this network
     /// @custom:deprecated This storage variable is no longer used but preserved for storage layout compatibility
-    address public BRIDGE;
+    /// @custom:oz-renamed-from BRIDGE
+    address public BRIDGE_DEPRECATED;
 
     /// @notice Custom errors
     error TransferRestrictionsAlreadyDisabled();
@@ -122,26 +124,30 @@ contract L2WCT is
 
     /// @custom:legacy
     /// @notice Legacy getter for the remote token. Preserved for storage layout compatibility.
-    function l1Token() public view returns (address) {
-        return REMOTE_TOKEN;
+    /// @custom:oz-renamed-from l1Token
+    function l1TokenDeprecated() public view returns (address) {
+        return REMOTE_TOKEN_DEPRECATED;
     }
 
     /// @custom:legacy
     /// @notice Legacy getter for the bridge. Preserved for storage layout compatibility.
-    function l2Bridge() public view returns (address) {
-        return BRIDGE;
+    /// @custom:oz-renamed-from l2Bridge
+    function l2BridgeDeprecated() public view returns (address) {
+        return BRIDGE_DEPRECATED;
     }
 
     /// @custom:legacy
     /// @notice Legacy getter for REMOTE_TOKEN. Preserved for storage layout compatibility.
-    function remoteToken() public view returns (address) {
-        return REMOTE_TOKEN;
+    /// @custom:oz-renamed-from remoteToken
+    function remoteTokenDeprecated() public view returns (address) {
+        return REMOTE_TOKEN_DEPRECATED;
     }
 
     /// @custom:legacy
     /// @notice Legacy getter for BRIDGE. Preserved for storage layout compatibility.
-    function bridge() public view returns (address) {
-        return BRIDGE;
+    /// @custom:oz-renamed-from bridge
+    function bridgeDeprecated() public view returns (address) {
+        return BRIDGE_DEPRECATED;
     }
 
     /// @notice ERC165 interface check function
