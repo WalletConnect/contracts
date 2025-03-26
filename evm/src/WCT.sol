@@ -14,7 +14,8 @@ import { NttTokenUpgradeable } from "src/NttTokenUpgradeable.sol";
 import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 /// @title WCT Token
-/// @notice This contract implements the L1 WCT token with burn, permit, and voting functionality
+/// @notice This contract implements the ERC20 representation of WCT token with burn, permit, and voting functionality.
+///         It is designed to work with Wormhole's NTT bridge and is to be deployed on any non-superchain EVM chain.
 /// @author WalletConnect
 contract WCT is NttTokenUpgradeable, ERC20VotesUpgradeable, ERC20PermitUpgradeable, AccessControlUpgradeable {
     /// @notice The timestamp after which transfer restrictions are disabled

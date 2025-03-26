@@ -6,17 +6,20 @@ import { ERC20PermitUpgradeable } from
     "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
 import { ERC20VotesUpgradeable } from
     "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20VotesUpgradeable.sol";
-import { ERC20BurnableUpgradeable } from
-    "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol";
 import { NoncesUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/NoncesUpgradeable.sol";
 import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import { AccessControlUpgradeable } from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { ISemver } from "src/interfaces/ISemver.sol";
 import { IERC7802 } from "src/interfaces/IERC7802.sol";
-import { INttToken } from "src/interfaces/INttToken.sol";
 import { NttTokenUpgradeable } from "src/NttTokenUpgradeable.sol";
 
+/// @title L2 WCT Token
+/// @notice This contract implements the ERC20 representation of WCT token with burn, permit, and voting functionality.
+///         It includes additional transfer restrictions and implements ERC-7802 for cross-chain compatibility.
+///         It is designed to work with both Wormhole's NTT bridge and Superchain interop, and should be deployed
+///         within the Superchain interop cluster.
+/// @author WalletConnect
 contract L2WCT is
     NttTokenUpgradeable,
     ERC20PermitUpgradeable,
