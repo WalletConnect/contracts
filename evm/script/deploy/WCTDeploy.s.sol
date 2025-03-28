@@ -29,6 +29,28 @@ contract WCTDeploy is BaseScript {
             || chainId == getChain("optimism_sepolia").chainId || chainId == getChain("base_sepolia").chainId;
     }
 
+    // Helper function to handle deployment JSON updates
+    function _updateDeploymentJson(address contractAddress, string memory contractType) internal {
+        string memory deploymentsPath =
+            string.concat(vm.projectRoot(), "/deployments/", vm.toString(block.chainid), ".json");
+
+        if (_isOpSuperchain(block.chainid)) {
+            OptimismDeployments memory deps;
+            if (vm.exists(deploymentsPath)) {
+                deps = readOptimismDeployments(block.chainid);
+            }
+            deps.l2wct = L2WCT(contractAddress);
+            DeploymentJsonWriter.writeOptimismDeploymentsToJson(vm, block.chainid, deps);
+        } else {
+            EthereumDeployments memory deps;
+            if (vm.exists(deploymentsPath)) {
+                deps = readEthereumDeployments(block.chainid);
+            }
+            deps.wct = WCT(contractAddress);
+            DeploymentJsonWriter.writeEthereumDeploymentsToJson(vm, block.chainid, deps);
+        }
+    }
+
     function run() public broadcast {
         console2.log("Deploying LegacyL2WCT on %s", getChain(block.chainid).name);
         LegacyDeploymentParams memory params = _readDeploymentParamsFromEnv();
@@ -50,16 +72,7 @@ contract WCTDeploy is BaseScript {
 
         // Write deployment to JSON if needed
         if (vm.envOr("WRITE_JSON", false)) {
-            // Update the appropriate deployment JSON based on chain type
-            if (_isOpSuperchain(block.chainid)) {
-                OptimismDeployments memory deps = readOptimismDeployments(block.chainid);
-                deps.l2wct = L2WCT(address(legacyL2WCT));
-                DeploymentJsonWriter.writeOptimismDeploymentsToJson(vm, block.chainid, deps);
-            } else {
-                EthereumDeployments memory deps = readEthereumDeployments(block.chainid);
-                deps.wct = WCT(address(legacyL2WCT));
-                DeploymentJsonWriter.writeEthereumDeploymentsToJson(vm, block.chainid, deps);
-            }
+            _updateDeploymentJson(address(legacyL2WCT), "LegacyL2WCT");
         }
     }
 
@@ -86,16 +99,7 @@ contract WCTDeploy is BaseScript {
 
         // Write deployment to JSON if needed
         if (vm.envOr("WRITE_JSON", false)) {
-            // Update the appropriate deployment JSON based on chain type
-            if (_isOpSuperchain(block.chainid)) {
-                OptimismDeployments memory deps;
-                deps.l2wct = upgraded;
-                DeploymentJsonWriter.writeOptimismDeploymentsToJson(vm, block.chainid, deps);
-            } else {
-                EthereumDeployments memory deps;
-                deps.wct = WCT(address(upgraded));
-                DeploymentJsonWriter.writeEthereumDeploymentsToJson(vm, block.chainid, deps);
-            }
+            _updateDeploymentJson(address(upgraded), "L2WCT");
         }
     }
 
@@ -120,16 +124,7 @@ contract WCTDeploy is BaseScript {
 
         // Write deployment to JSON if needed
         if (vm.envOr("WRITE_JSON", false)) {
-            // Update the appropriate deployment JSON based on chain type
-            if (_isOpSuperchain(block.chainid)) {
-                OptimismDeployments memory deps;
-                deps.l2wct = L2WCT(address(upgraded));
-                DeploymentJsonWriter.writeOptimismDeploymentsToJson(vm, block.chainid, deps);
-            } else {
-                EthereumDeployments memory deps;
-                deps.wct = upgraded;
-                DeploymentJsonWriter.writeEthereumDeploymentsToJson(vm, block.chainid, deps);
-            }
+            _updateDeploymentJson(address(upgraded), "WCT");
         }
     }
 
