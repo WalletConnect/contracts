@@ -124,4 +124,32 @@ contract L2WCTHandler is BaseHandler {
         l2wct.disableTransferRestrictions();
         store.setTransferRestrictionsDisabled(true);
     }
+
+    function crosschainMint(
+        address to,
+        uint256 amount
+    )
+        public
+        useNewSender(SUPERCHAIN_BRIDGE_ADDRESS)
+        instrument("crosschainMint")
+    {
+        l2wct.crosschainMint(to, amount);
+        store.addAction("crosschainMint", SUPERCHAIN_BRIDGE_ADDRESS, to, amount);
+        store.addAddressWithBalance(to);
+    }
+
+    function crosschainBurn(
+        address from,
+        uint256 amount
+    )
+        public
+        useNewSender(SUPERCHAIN_BRIDGE_ADDRESS)
+        instrument("crosschainBurn")
+    {
+        l2wct.crosschainBurn(from, amount);
+        store.addAction("crosschainBurn", from, SUPERCHAIN_BRIDGE_ADDRESS, amount);
+        if (l2wct.balanceOf(from) == 0) {
+            store.removeAddressWithBalance(from);
+        }
+    }
 }

@@ -10,17 +10,18 @@ import { Options } from "openzeppelin-foundry-upgrades/Options.sol";
 import { LegacyL2WCT } from "src/legacy/LegacyL2WCT.sol";
 import { L2WCT } from "src/L2WCT.sol";
 
-contract L2WCTUpgradeTest is Base_Test {
+contract L2WCT_StorageCompatibility_ForkTest is Base_Test {
     BaseScript base;
     OptimismDeployments deployments;
     uint256 constant OPTIMISM_CHAIN_ID = 10;
+    uint256 constant FORK_BLOCK = 133_119_400; // Pin to specific block for determinism
 
     // Environment addresses
     address public opBridge;
 
     function setUp() public override {
-        // Fork Optimism mainnet
-        vm.createSelectFork(vm.envString("OPTIMISM_RPC_URL"));
+        // Fork Optimism mainnet at specific block
+        vm.createSelectFork(vm.envString("OPTIMISM_RPC_URL"), FORK_BLOCK);
 
         // Set the chain ID to match Optimism mainnet
         vm.chainId(OPTIMISM_CHAIN_ID);
@@ -38,7 +39,7 @@ contract L2WCTUpgradeTest is Base_Test {
         require(address(deployments.l2wct) != address(0), "L2WCT not deployed");
     }
 
-    function testUpgradeValidation() public {
+    function testFork_upgradeValidation_preservesState() public {
         // Get the current implementation address
         address currentImpl = Upgrades.getImplementationAddress(address(deployments.l2wct));
 
@@ -75,20 +76,20 @@ contract L2WCTUpgradeTest is Base_Test {
         L2WCT upgraded = L2WCT(address(deployments.l2wct));
 
         // Verify version
-        assertEq(upgraded.version(), "2.0.0", "Version mismatch");
+        assertEq(upgraded.version(), "2.0.0", "Version mismatch after upgrade");
 
         upgraded.setBridge(opBridge);
         // Verify bridge address (using new storage layout)
-        assertEq(upgraded.crosschainBridge(), opBridge, "Bridge address mismatch");
+        assertEq(upgraded.crosschainBridge(), opBridge, "Bridge address not preserved after upgrade");
 
         // Verify roles are preserved
         assertTrue(
             upgraded.hasRole(upgraded.DEFAULT_ADMIN_ROLE(), address(deployments.adminTimelock)),
-            "Admin role not preserved"
+            "Admin role not preserved after upgrade"
         );
         assertTrue(
             upgraded.hasRole(upgraded.MANAGER_ROLE(), address(deployments.managerTimelock)),
-            "Manager role not preserved"
+            "Manager role not preserved after upgrade"
         );
 
         // Test crosschain functionality
@@ -98,21 +99,21 @@ contract L2WCTUpgradeTest is Base_Test {
         resetPrank(address(deployments.managerTimelock));
         // Set test user as allowed
         upgraded.setAllowedFrom(testUser, true);
-        assertTrue(upgraded.allowedFrom(testUser), "AllowedFrom not working");
+        assertTrue(upgraded.allowedFrom(testUser), "AllowedFrom functionality broken after upgrade");
 
         resetPrank(opBridge);
         // Test crosschain mint
         upgraded.crosschainMint(testUser, testAmount);
-        assertEq(upgraded.balanceOf(testUser), testAmount, "Crosschain mint failed");
+        assertEq(upgraded.balanceOf(testUser), testAmount, "Crosschain mint broken after upgrade");
 
         // Test crosschain burn
         upgraded.crosschainBurn(testUser, testAmount);
-        assertEq(upgraded.balanceOf(testUser), 0, "Crosschain burn failed");
+        assertEq(upgraded.balanceOf(testUser), 0, "Crosschain burn broken after upgrade");
 
         vm.stopPrank();
     }
 
-    function testUpgradeSafety() public {
+    function testFork_upgradeSafety_validatesImplementation() public {
         // Deploy new implementation
         L2WCT newImpl = new L2WCT();
 
@@ -136,7 +137,7 @@ contract L2WCTUpgradeTest is Base_Test {
         Upgrades.validateUpgrade("L2WCT.sol", opts);
     }
 
-    function testStorageLayoutCompatibility() public {
+    function testFork_storageLayout_isCompatible() public {
         // Set up upgrade options with reference contract
         Options memory opts;
         opts.referenceContract = "LegacyL2WCT.sol";

@@ -134,15 +134,19 @@ contract OptimismDeploy is BaseScript {
 
         if (address(deployments.l2wct) == address(0)) {
             console2.log("Deploying L2WCT...");
-            deployments.l2wct = newL2WCT({
-                initialOwner: address(deployments.adminTimelock),
-                init: LegacyL2WCT.Init({
-                    initialAdmin: params.admin,
-                    initialManager: params.manager,
-                    bridge: address(params.opBridge),
-                    remoteToken: remoteToken
-                })
-            });
+            deployments.l2wct = L2WCT(
+                address(
+                    newL2WCT({
+                        initialOwner: address(deployments.adminTimelock),
+                        init: LegacyL2WCT.Init({
+                            initialAdmin: params.admin,
+                            initialManager: params.manager,
+                            bridge: address(params.opBridge),
+                            remoteToken: remoteToken
+                        })
+                    })
+                )
+            );
             // Keep the old deployment for maintaining the address
         }
 

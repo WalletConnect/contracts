@@ -22,9 +22,7 @@ contract Mint_WCT_Unit_Fuzz_Test is Base_Test {
         // Deploy the proxy contract
         ERC1967Proxy proxy = new ERC1967Proxy(
             address(implementation),
-            abi.encodeWithSelector(
-                WCT.initialize.selector, WCT.Init({ initialOwner: users.admin, initialMinter: address(nttManager) })
-            )
+            abi.encodeWithSelector(WCT.initialize.selector, WCT.Init({ initialAdmin: users.admin }))
         );
 
         // Cast the proxy to WCTHarness

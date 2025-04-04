@@ -1,7 +1,7 @@
 mint.t.sol
-├── when the caller is not the owner
+├── when the caller is not the admin
 │   └── it should revert
-└── when the caller is the owner
+└── when the caller is the admin
     ├── it should mint the tokens to the address
     ├── it should emit a {Transfer} event
     └── it should update the total supply

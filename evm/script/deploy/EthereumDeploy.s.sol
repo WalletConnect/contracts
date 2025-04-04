@@ -6,6 +6,7 @@ import { Timelock } from "src/Timelock.sol";
 import { EthereumDeployments, BaseScript } from "script/Base.s.sol";
 import { Eip1967Logger } from "script/utils/Eip1967Logger.sol";
 import { DeploymentJsonWriter } from "script/utils/DeploymentJsonWriter.sol";
+import { WCT } from "src/WCT.sol";
 
 struct EthereumDeploymentParams {
     address admin;
@@ -49,7 +50,7 @@ contract EthereumDeploy is BaseScript {
         Timelock timelock = new Timelock(
             1 weeks, _singleAddressArray(params.admin), _singleAddressArray(params.admin), params.timelockCanceller
         );
-        return EthereumDeployments({ wct: address(0), timelock: timelock });
+        return EthereumDeployments({ wct: WCT(address(0)), timelock: timelock });
     }
 
     function _writeEthereumDeployments(EthereumDeployments memory deps) internal {

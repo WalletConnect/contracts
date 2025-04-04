@@ -12,22 +12,12 @@ contract Init_WCT_Unit_Concrete_Test is Base_Test {
         // Deploy & init the contract.
         WCT token = WCT(
             UnsafeUpgrades.deployTransparentProxy(
-                address(new WCT()),
-                users.admin,
-                abi.encodeCall(
-                    WCT.initialize, WCT.Init({ initialOwner: users.admin, initialMinter: address(nttManager) })
-                )
+                address(new WCT()), users.admin, abi.encodeCall(WCT.initialize, WCT.Init({ initialAdmin: users.admin }))
             )
         );
 
-        // Assert that the owner has been set
-        address actualOwner = token.owner();
-        address expectedOwner = users.admin;
-        assertEq(actualOwner, expectedOwner, "owner");
-
-        // Assert that the minter has been set
-        address actualMinter = token.minter();
-        address expectedMinter = address(nttManager);
-        assertEq(actualMinter, expectedMinter, "minter");
+        // Assert that the admin role has been granted
+        bytes32 DEFAULT_ADMIN_ROLE = 0x00;
+        assertTrue(token.hasRole(DEFAULT_ADMIN_ROLE, users.admin), "admin role not granted");
     }
 }

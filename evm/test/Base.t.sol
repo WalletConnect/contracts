@@ -69,7 +69,8 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
                                    MOCKS
     //////////////////////////////////////////////////////////////////////////*/
 
-    MockBridge internal mockBridge;
+    // Represents the *legacy* Optimism bridge used before the upgrade
+    MockBridge internal legacyMockOptimismBridge; // Renamed
 
     /*//////////////////////////////////////////////////////////////////////////
                                   SET-UP FUNCTION
@@ -137,29 +138,42 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
             init: Staking.Init({ admin: users.admin, config: walletConnectConfig, duration: stakeWeight.maxLock() })
         });
 
-        // Dependency for L2WCT
-        deployMockBridge();
+        // Deploy legacy bridge dependency for initial L2WCT deployment
+        deployLegacyMockOptimismBridge(); // Renamed
 
-        wct = newWCT({
-            initialOwner: users.admin,
-            init: WCT.Init({ initialOwner: users.admin, initialMinter: address(0) })
-        });
+        wct = newWCT({ initialOwner: users.admin, init: WCT.Init({ initialAdmin: users.admin }) });
 
-        // Deploy L2WCT implementation and proxy -> this is the legacy implementation to maintain the create2 address
-        l2wct = newL2WCT({
-            initialOwner: users.admin,
-            init: LegacyL2WCT.Init({
-                initialAdmin: users.admin,
-                initialManager: users.manager,
-                bridge: address(mockBridge),
-                remoteToken: address(wct)
+        // --- L2WCT Upgrade Simulation ---
+        // 1. Deploy the *legacy* L2WCT implementation via proxy first.
+        //    This preserves the contract address across upgrades (important for CREATE2 consistency).
+        //    The initializer uses the legacy bridge and remote token parameters.
+        address legacyL2WCTProxy = address(
+            newL2WCT({
+                initialOwner: users.admin,
+                init: LegacyL2WCT.Init({
+                    initialAdmin: users.admin,
+                    initialManager: users.manager,
+                    bridge: address(legacyMockOptimismBridge), // Use legacy bridge for init
+                    remoteToken: address(wct) // Use legacy remote token for init
+                 })
             })
-        });
+        );
 
-        // Get proxy admin and upgrade to new implementation
-        ProxyAdmin proxyAdmin = ProxyAdmin(Eip1967Logger.getAdmin(vm, address(l2wct)));
-        L2WCT newImpl = new L2WCT();
-        proxyAdmin.upgradeAndCall(ITransparentUpgradeableProxy(address(l2wct)), address(newImpl), "");
+        // 2. Deploy the *new* L2WCT implementation logic contract.
+        L2WCT newL2WCTImpl = new L2WCT();
+
+        // 3. Get the ProxyAdmin associated with the proxy.
+        ProxyAdmin proxyAdmin = ProxyAdmin(Eip1967Logger.getAdmin(vm, legacyL2WCTProxy));
+
+        // 4. Upgrade the proxy to point to the new implementation.
+        //    No specific initialization data is needed for the upgrade itself here,
+        //    as the relevant state (like minter) is set via separate function calls later.
+        //    The Superchain bridge address is implicitly set in the new implementation's logic.
+        proxyAdmin.upgradeAndCall(ITransparentUpgradeableProxy(legacyL2WCTProxy), address(newL2WCTImpl), "");
+
+        // 5. Cast the proxy address to the new L2WCT interface for further interaction.
+        l2wct = L2WCT(legacyL2WCTProxy);
+        // --- End L2WCT Upgrade Simulation ---
 
         address nttManagerImplementation = address(
             new NttManager(
@@ -181,6 +195,7 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
         );
 
         l2wct.setMinter(address(nttManager));
+        l2wct.setBridge(SUPERCHAIN_BRIDGE_ADDRESS);
 
         stakingRewardDistributor = newStakingRewardDistributor({
             initialOwner: users.admin,
@@ -230,15 +245,18 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
         vm.label({ account: address(permissionedNodeRegistry), newLabel: "PermissionedNodeRegistry" });
         vm.label({ account: address(nodeRewardManager), newLabel: "NodeRewardManager" });
         vm.label({ account: address(stakeWeight), newLabel: "StakeWeight" });
-        vm.label({ account: address(mockBridge), newLabel: "MockBridge" });
+        vm.label({ account: address(legacyMockOptimismBridge), newLabel: "LegacyMockOptimismBridge" }); // Renamed
         vm.label({ account: address(stakingRewardDistributor), newLabel: "StakingRewardDistributor" });
         vm.label({ account: address(vester), newLabel: "MerkleVester" });
         vm.label({ account: address(lockedTokenStaker), newLabel: "LockedTokenStaker" });
     }
 
-    function deployMockBridge() internal {
+    // Deploys the mock for the *legacy* Optimism bridge
+    function deployLegacyMockOptimismBridge() internal {
+        // Renamed
+        // Deploy to the specific address used by the legacy L2WCT contract
         deployCodeTo("MockBridge.sol:MockBridge", "", BRIDGE_ADDRESS);
-        mockBridge = MockBridge(BRIDGE_ADDRESS);
+        legacyMockOptimismBridge = MockBridge(BRIDGE_ADDRESS); // Renamed
     }
 
     function disableTransferRestrictions() internal {

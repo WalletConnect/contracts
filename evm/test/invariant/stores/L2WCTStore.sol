@@ -37,9 +37,10 @@ contract L2WCTStore {
 
     function addAction(string memory actionType, address from, address to, uint256 amount) public {
         actions.push(Action(actionType, from, to, amount));
-        if (keccak256(bytes(actionType)) == keccak256(bytes("mint"))) {
+        bytes32 actionHash = keccak256(bytes(actionType));
+        if (actionHash == keccak256(bytes("mint")) || actionHash == keccak256(bytes("crosschainMint"))) {
             totalMinted += amount;
-        } else if (keccak256(bytes(actionType)) == keccak256(bytes("burn"))) {
+        } else if (actionHash == keccak256(bytes("burn")) || actionHash == keccak256(bytes("crosschainBurn"))) {
             totalBurned += amount;
         }
     }

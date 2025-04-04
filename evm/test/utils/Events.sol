@@ -44,6 +44,10 @@ abstract contract Events {
     event SetAllowedFrom(address indexed account, bool allowed);
     event SetAllowedTo(address indexed account, bool allowed);
     event TransferRestrictionsDisabled();
+    event CrosschainMint(address indexed to, uint256 amount, address indexed sender);
+    event CrosschainBurn(address indexed from, uint256 amount, address indexed sender);
+    event NewBridge(address previousBridge, address newBridge);
+    event NewMinter(address previousMinter, address newMinter);
 
     /*//////////////////////////////////////////////////////////////////////////
                                 WALLETCONNECT-TIMELOCK

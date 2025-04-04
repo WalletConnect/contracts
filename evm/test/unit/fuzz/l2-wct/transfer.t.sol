@@ -12,7 +12,7 @@ contract Transfer_L2WCT_Unit_Fuzz_Test is Base_Test {
     }
 
     function testFuzz_AllowedFromCanSendAnywhere(address to) public {
-        vm.assume(to != address(0) && to != users.alice && to != address(mockBridge));
+        vm.assume(to != address(0) && to != users.alice && to != address(legacyMockOptimismBridge));
 
         vm.prank(users.manager);
         l2wct.setAllowedFrom(users.alice, true);
@@ -32,8 +32,8 @@ contract Transfer_L2WCT_Unit_Fuzz_Test is Base_Test {
         public
         notFromProxyAdmin(from, address(l2wct))
     {
-        vm.assume(from != address(0) && from != users.alice && from != address(mockBridge));
-        vm.assume(to != address(0) && to != users.alice && to != address(mockBridge));
+        vm.assume(from != address(0) && from != users.alice && from != address(legacyMockOptimismBridge));
+        vm.assume(to != address(0) && to != users.alice && to != address(legacyMockOptimismBridge));
         vm.assume(from != to);
 
         deal(address(l2wct), from, 1000);
@@ -50,8 +50,8 @@ contract Transfer_L2WCT_Unit_Fuzz_Test is Base_Test {
         public
         notFromProxyAdmin(from, address(l2wct))
     {
-        vm.assume(from != address(0) && from != users.alice && from != address(mockBridge));
-        vm.assume(to != address(0) && to != users.alice && to != address(mockBridge));
+        vm.assume(from != address(0) && from != users.alice && from != address(legacyMockOptimismBridge));
+        vm.assume(to != address(0) && to != users.alice && to != address(legacyMockOptimismBridge));
         vm.assume(from != to);
 
         deal(address(l2wct), from, 1000);

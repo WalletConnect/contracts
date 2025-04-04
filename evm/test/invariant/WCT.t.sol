@@ -51,15 +51,15 @@ contract WCT_Invariant_Test is Invariant_Test {
     }
 
     function invariant_callSummary() public view {
+        console2.log("--- Call Summary ---");
         console2.log("Total calls:", handler.totalCalls());
         console2.log("Transfer calls:", handler.calls("transfer"));
         console2.log("Approve calls:", handler.calls("approve"));
         console2.log("TransferFrom calls:", handler.calls("transferFrom"));
-        console2.log("Mint calls:", handler.calls("mint"));
-        console2.log("Burn calls:", handler.calls("burn"));
-        console2.log("Total minted:", store.totalMinted());
-        console2.log("Total burned:", store.totalBurned());
-        console2.log("Total transfers:", store.userTransfers(address(0)));
-        console2.log("Total receives:", store.userReceives(address(0)));
+        console2.log("Mint (NTT) calls:", handler.calls("mint"));
+        console2.log("Burn (NTT) calls:", handler.calls("burn"));
+        console2.log("--- Store Summary ---");
+        console2.log("Total Minted (NTT):", store.totalMinted());
+        console2.log("Total Burned (NTT):", store.totalBurned());
     }
 }
