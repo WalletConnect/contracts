@@ -1,0 +1,140 @@
+---
+description: Guidelines for testing Solidity smart contracts
+globs: 
+alwaysApply: false
+---
+# Solidity Testing Guidelines
+
+This document outlines the recommended practices for testing Solidity smart contracts within this project, combining insights from our system architecture documentation and established industry best practices like the Coinbase Solidity Style Guide.
+
+## 1. Framework and Tooling
+
+- **Forge:** We use [Forge](mdc:https:/github.com/foundry-rs/foundry/tree/master/crates/forge) for testing and dependency management.
+
+## 2. Testing Strategy
+
+Our testing approach employs a comprehensive strategy that includes unit testing, integration testing, fuzz testing, and invariant testing. We use the Branching Tree Technique (BTT) to structure our concrete tests and ensure thorough coverage.
+
+### 2.1 Directory Structure
+
+Tests should be organized logically within the `test/` directory:
+
+- **Unit Tests:**
+    - Concrete: `test/unit/concrete/` (Use BTT `.tree` files here)
+    - Fuzz: `test/unit/fuzz/`
+- **Integration Tests:**
+    - Concrete: `test/integration/concrete/` (Use BTT `.tree` files here)
+    - Fuzz: `test/integration/fuzz/`
+- **Invariant Tests:** `test/invariant/`
+- **Fork Tests:** Can reside within unit/integration directories or dedicated `test/fork/` directories.
+- **Helpers/Mocks:** `test/utils/`, `test/mocks/`
+
+### 2.2 File and Contract Naming
+
+- **Test Files:** Follow Solidity style guide conventions and end with `.t.sol`. (e.g., `MyContract.t.sol`, `MyContract.deposits.t.sol`).
+- **Test Contracts:** Include the name of the contract or function being tested, followed by "Test". (e.g., `MyContractTest`, `TransferTest`).
+
+### 2.3 Test Function Naming
+
+Use the convention `test[_Fuzz | _Fork | _Revert[If|When]_Condition]_functionName_outcome[_optionalContext]`. Combine prefixes alphabetically (e.g., `testForkFuzz_`).
+
+Examples:
+
+- `test_transfer_updatesBalances()`
+- `testFuzz_deposit_handlesDifferentAmounts(uint256 amount)`
+- `test_RevertWhen_transferAmountExceedsBalance()`
+- `testFork_interaction_correctlyCalculatesReward()`
+
+### 2.4 Test Organization
+
+- **Structure:** Prefer organizing tests by feature/function within a single test contract per contract-under-test (e.g., `MyContractTest` contains all tests for `MyContract`). Alternatively, for very large contracts, grouping tests by function into separate test contracts (`TransferTest`, `DepositTest`) is acceptable.
+- **Order:** Test functions within a file should ideally follow the order of functions in the contract-under-test.
+- **Focus:** Each test function should ideally test *one specific thing*. Avoid multiple unrelated assertions within a single test. This aids debugging.
+
+YES:
+
+```solidity
+function test_transfer_updatesSenderBalance() { ... }
+function test_transfer_updatesReceiverBalance() { ... }
+function test_transfer_emitsTransferEvent() { ... }
+```
+
+NO:
+
+```solidity
+function test_transfer() {
+  // check sender balance
+  // check receiver balance
+  // check event emission
+}
+```
+
+### 2.5 Variables and Assertions
+
+- **Use Variables:** Use named variables for important constants or inputs in tests instead of magic numbers.
+- **Assertion Messages:** Use the optional string parameter in assertions (`assertEq`, `assertTrue`, etc.) to provide context for failures (e.g., `assertEq(balance, expectedBalance, "Balance mismatch after transfer");`).
+- **Event Testing:** Prefer `vm.expectEmit(true, true, true, true)` (or the shorthand `vm.expectEmit()`) to ensure all event parameters (indexed and non-indexed) are checked.
+
+## 3. Test Types
+
+### 3.1 Unit Testing
+
+- Verify individual function behaviors in isolation.
+- Located in `test/unit/`.
+- Use concrete tests (structured with BTT `.tree` files in `test/unit/concrete/`) and fuzz tests (`test/unit/fuzz/`).
+
+### 3.2 Integration Testing
+
+- Verify interactions between different contracts or components.
+- Located in `test/integration/`.
+- Use concrete tests (structured with BTT `.tree` files in `test/integration/concrete/`) and fuzz tests (`test/integration/fuzz/`).
+
+### 3.3 Fuzz Testing
+
+- **Preference:** Prefer fuzz tests over concrete tests where applicable to discover edge cases.
+- Provide random inputs to functions.
+- Use clear test naming (`testFuzz_...`).
+
+### 3.4 Invariant Testing
+
+- Ensure core system properties hold true under various conditions and sequences of operations.
+- Located in `test/invariant/`.
+- Use handlers and stateful fuzzing.
+- Write descriptive assertion messages for invariants (e.g., `assertEq(totalDeposits, contractBalance, "Invariant: Sum of deposits must equal contract balance");`).
+
+## 4. Branching Tree Technique (BTT)
+
+- Used for structuring concrete unit and integration tests (`.tree` files).
+- Outlines execution paths based on different states and parameters.
+- Ensures systematic coverage of scenarios.
+
+Example (`transfer.tree`):
+
+```
+transfer.t.sol
+# when transfer is valid
+## it should debit sender balance
+## it should credit receiver balance
+## it should emit Transfer event
+# when amount exceeds balance
+## it should revert with InsufficientBalance
+# when transferring to zero address
+## it should revert with InvalidRecipient
+```
+
+## 5. Fork Testing
+
+- **Usage:** Use liberally to test interactions with existing deployed contracts instead of relying solely on mocks.
+- **Configuration:**
+    - Define RPC endpoints in `foundry.toml` under `[rpc_endpoints]`.
+    - Use Forge's cheatcodes (`vm.createSelectFork`) in tests.
+    - Access RPC URLs via `stdChains` (e.g., `vm.createSelectFork(stdChains.mainnet.rpcUrl)`).
+    - **Always pin to a specific block number** (`vm.createSelectFork(rpcUrl, blockNumber)`) for determinism and RPC caching. Avoid the `--fork-url` CLI flag.
+- **Caching:** Forge caches RPC calls when a block number is pinned, making subsequent runs much faster.
+- **Fuzzing on Forks:** Be mindful of RPC rate limits when fuzzing on forks if inputs affect RPC calls. Consider using seeds (`--fuzz-seed`), multicall, or structuring tests to minimize RPC calls based on fuzzed inputs.
+
+## 6. Test Harnesses
+
+- **Internal Functions:** To test internal functions, create a harness contract that inherits from the contract-under-test (CuT) and exposes the internal function via a public/external wrapper function named `exposed_<internalFunctionName>`.
+- **Private Functions:** Private functions are difficult to test directly. Consider making them internal if feasible or accept the limitation.
+- **Workaround Functions:** Harnesses can also add "workaround" functions (e.g., `workaround_getQueueLength()`) to expose state or data useful for testing (like array lengths or internal counters) that isn't available via the public interface. These can also be used for "ghost variables" in invariant testing.
