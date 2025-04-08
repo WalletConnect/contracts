@@ -75,6 +75,23 @@ function test_transfer() {
 - **Assertion Messages:** Use the optional string parameter in assertions (`assertEq`, `assertTrue`, etc.) to provide context for failures (e.g., `assertEq(balance, expectedBalance, "Balance mismatch after transfer");`).
 - **Event Testing:** Prefer `vm.expectEmit(true, true, true, true)` (or the shorthand `vm.expectEmit()`) to ensure all event parameters (indexed and non-indexed) are checked.
 
+### 2.6 Base Contracts and Utilities
+
+To promote code reuse and maintain consistency across tests, the project utilizes a set of base abstract contracts and utility files located primarily in `test/`:
+
+- **`Base.t.sol` (`Base_Test`)**: The core base contract.
+    - Inherits from `forge-std/Test` and essential utilities (`Events`, `Constants`, `Utils`).
+    - Provides a common `setUp` function for initializing standard test users (`admin`, `pauser`, `treasury`, etc.) and shared configuration (`Defaults`).
+    - Contains the crucial `deployCoreConditionally` function responsible for deploying and configuring the main WalletConnect system contracts (e.g., `WCT`, `L2WCT`, `WalletConnectConfig`, `Staking`, `RewardManager`) and associated mocks (like `MockBridge`) needed for many test scenarios.
+    - Includes helper functions like `createUser`.
+- **`Integration.t.sol` (`Integration_Test`)**: Inherits from `Base_Test`. Its `setUp` specifically calls `deployCoreConditionally` to ensure the full system is deployed for integration tests.
+- **`Invariant.t.sol` (`Invariant_Test`)**: Inherits from `forge-std/StdInvariant` and `Base_Test`. Its `setUp` also calls `deployCoreConditionally` to prepare the environment for invariant testing.
+- **`test/utils/Events.sol`**: An abstract contract declaring all system event signatures. Inheriting this allows tests to easily reference expected events.
+- **`test/utils/Constants.sol`**: An abstract contract defining global constants (e.g., `MAX_UINT256`, `BRIDGE_ADDRESS`) to avoid magic values.
+- **`test/utils/Utils.sol`**: An abstract contract containing shared utility functions (e.g., `resetPrank`, `_timestampToFloorWeek`).
+
+This hierarchical structure (`Base_Test` -> `Integration_Test`/`Invariant_Test`) centralizes setup logic and makes common definitions readily available, allowing individual test files to focus more on specific test logic rather than boilerplate setup.
+
 ## 3. Test Types
 
 ### 3.1 Unit Testing
@@ -102,25 +119,111 @@ function test_transfer() {
 - Use handlers and stateful fuzzing.
 - Write descriptive assertion messages for invariants (e.g., `assertEq(totalDeposits, contractBalance, "Invariant: Sum of deposits must equal contract balance");`).
 
-## 4. Branching Tree Technique (BTT)
+## 4. Branching Tree Technique (BTT) Specification
 
-- Used for structuring concrete unit and integration tests (`.tree` files).
-- Outlines execution paths based on different states and parameters.
-- Ensures systematic coverage of scenarios.
+The Branching Tree Technique (BTT) uses `.tree` specification files to describe test scenarios. These specifications can be used to scaffold Solidity test files.
 
-Example (`transfer.tree`):
+This section describes the current interpretation of the `.tree` specification.
+
+### Terminology
+
+- **Condition:** `when`/`given` branches of a tree.
+- **Action:** `it` branches of a tree.
+- **Action Description:** Children of an action.
+
+### Spec
+
+Each `.tree` file should describe at least one function under test. Trees follow these rules:
+
+- The first line is the root tree identifier, composed of the contract and function names which should be delimited by a double colon (e.g., `ContractName::functionName`).
+- The `.tree` format uses `├` and `└` characters to denote branches.
+- If a branch starts with either `when` or `given`, it is a **Condition**. Use `given` for contract states prepared in advance (preconditions) and `when` for modes of execution or user-controlled function parameters.
+- If a branch starts with `it`, it is an **Action**.
+- Any child branch an action has is called an **Action Description**.
+- Keywords (`when`, `given`, `it`) are case-insensitive.
+- Anything starting with a `//` is a comment and will be ignored during processing.
+- Multiple trees can be defined in the same file to describe different functions by following the same rules, separating them with two newlines.
+
+Take the following Solidity function:
+
+```solidity
+function hashPair(bytes32 a, bytes32 b) private pure returns (bytes32) {
+    return a < b ? hash(a, b) : hash(b, a);
+}
+```
+
+A reasonable `.tree` specification for the above function would be:
 
 ```
-transfer.t.sol
-# when transfer is valid
-## it should debit sender balance
-## it should credit receiver balance
-## it should emit Transfer event
-# when amount exceeds balance
-## it should revert with InsufficientBalance
-# when transferring to zero address
-## it should revert with InvalidRecipient
+HashPairTest::hashPair // Root Identifier: Contract::function
+├── It should never revert. // Top-level Action
+├── When first arg is smaller than second arg // Condition
+│   └── It should match the result of `keccak256(abi.encodePacked(a,b))`. // Action
+└── When first arg is bigger than second arg // Condition
+    └── It should match the result of `keccak256(abi.encodePacked(b,a))`. // Action
 ```
+
+There is a top-level action that describes an invariant test (it should never revert). Then, two condition branches (`a < b` and `a >= b`) each end in an action describing the expected outcome, which will result in the generation of the respective test scaffolds.
+
+Note the following things:
+
+- **Syntax:** Actions (`it` branches) often end with punctuation (like a period), while conditions (`when`/`given` branches) typically do not. This is because conditions are often transformed into modifiers or function name components and must be valid Solidity identifiers. Action descriptions can contain more free-form text.
+- **Structure:** You can have top-level actions without conditions. Actions with sibling conditions are also supported.
+- **Naming:** The contract part of the root identifier (e.g., `HashPairTest`) is typically used as the base name for the generated test contract.
+
+Suppose you have additional Solidity functions (`min`, `max`) to test within the same logical contract scope, say `Utils`:
+
+```solidity
+function min(uint256 a, uint256 b) private pure returns (uint256) {
+    return a < b ? a : b;
+}
+
+function max(uint256 a, uint256 b) private pure returns (uint256) {
+    return a > b ? a : b;
+}
+```
+
+The full `.tree` spec for all three functions (`hashPair`, `min`, `max`) within the `Utils` scope would be:
+
+```
+Utils::hashPair
+├── It should never revert.
+├── When first arg is smaller than second arg
+│   └── It should match the result of `keccak256(abi.encodePacked(a,b))`.
+└── When first arg is bigger than second arg
+    └── It should match the result of `keccak256(abi.encodePacked(b,a))`.
+
+
+Utils::min
+├── It should never revert.
+├── When first arg is smaller than second arg
+│   └── It should match the value of `a`.
+└── When first arg is bigger than second arg
+    └── It should match the value of `b`.
+
+
+Utils::max
+├── It should never revert.
+├── When first arg is smaller than second arg
+│   └── It should match the value of `b`.
+└── When first arg is bigger than second arg
+    └── It should match the value of `a`.
+```
+
+Note the following things:
+
+- **Consistency:** Contract identifiers (e.g., `Utils`) must be present and consistent across all root identifiers within a single `.tree` file intended for one test contract. Mismatched identifiers can cause errors during processing and must be manually corrected.
+- **Deduplication:** Duplicate conditions defined across separate trees within the same file may be deduplicated when transformed into Solidity modifiers during scaffolding.
+- **Test Naming:** The function part of the root identifier for each tree (e.g., `min`, `max`) will typically be emitted as part of the generated Solidity test function name (e.g., `test_Min_ShouldNeverRevert`).
+
+### Generated Output Considerations
+
+When scaffolding tests from `.tree` specifications, keep in mind:
+
+- **Filename:** The generated Solidity test contract filename typically corresponds to the `.tree` filename but with a `.t.sol` extension (e.g., `utils.tree` scaffolds to `utils.t.sol`).
+- **Order:** Tests are generally emitted in the order their corresponding actions appear in the `.tree` file.
+- **Modifiers:** One modifier may be generated per unique condition branch path, often excluding leaf condition nodes.
+- **Naming Convention:** Generated test function names should follow the project's naming conventions (as described in @Test Function Naming).
 
 ## 5. Fork Testing
 
