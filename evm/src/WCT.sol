@@ -6,19 +6,43 @@ import { ERC20VotesUpgradeable } from
 import { ERC20PermitUpgradeable } from
     "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
 import { NoncesUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/NoncesUpgradeable.sol";
-import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import { AccessControlUpgradeable } from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import { ERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import { ERC20BurnableUpgradeable } from
     "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol";
+import { NttTokenUpgradeable } from "src/NttTokenUpgradeable.sol";
+import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 /// @title WCT Token
-/// @notice This contract implements the L1 WCT token with burn, permit, and voting functionality
+/// @notice This contract implements the ERC20 representation of WCT token with burn, permit, and voting functionality.
+///         It is designed to work with Wormhole's NTT bridge and is to be deployed on any non-superchain EVM chain.
 /// @author WalletConnect
-contract WCT is ERC20VotesUpgradeable, ERC20PermitUpgradeable, ERC20BurnableUpgradeable, OwnableUpgradeable {
+contract WCT is NttTokenUpgradeable, ERC20VotesUpgradeable, ERC20PermitUpgradeable, AccessControlUpgradeable {
+    /// @notice The timestamp after which transfer restrictions are disabled
+    /// @custom:deprecated This storage variable is no longer used but preserved for storage layout compatibility
+    /// @custom:oz-renamed-from transferRestrictionsDisabledAfter
+    uint256 public deprecatedTransferRestrictionsDisabledAfter;
+    /// @notice Mapping of addresses that are allowed to transfer tokens to any address
+    /// @custom:deprecated This storage variable is no longer used but preserved for storage layout compatibility
+    /// @custom:oz-renamed-from allowedFrom
+    mapping(address account => bool isAllowed) public deprecatedAllowedFrom;
+    /// @notice Mapping of addresses that are allowed to receive tokens from any address
+    /// @custom:deprecated This storage variable is no longer used but preserved for storage layout compatibility
+    /// @custom:oz-renamed-from allowedTo
+    mapping(address account => bool isAllowed) public deprecatedAllowedTo;
+    /// @notice Address of the corresponding version of this token on the remote chain
+    /// @custom:deprecated This storage variable is no longer used but preserved for storage layout compatibility
+    /// @custom:oz-renamed-from REMOTE_TOKEN
+    address public DEPRECATED_REMOTE_TOKEN;
+    /// @notice Address of the StandardBridge on this network
+    /// @custom:deprecated This storage variable is no longer used but preserved for storage layout compatibility
+    /// @custom:oz-renamed-from BRIDGE
+    address public DEPRECATED_BRIDGE;
+
     /// @notice Initialization data for the contract
     struct Init {
-        /// @dev The address that will be the initial owner of the contract
-        address initialOwner;
+        /// @dev The address that will be the initial admin of the contract
+        address initialAdmin;
     }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -29,18 +53,18 @@ contract WCT is ERC20VotesUpgradeable, ERC20PermitUpgradeable, ERC20BurnableUpgr
     /// @notice Initializes the WCT token
     /// @param init The initialization data for the contract
     function initialize(Init calldata init) public initializer {
-        __ERC20_init({ name_: "WalletConnect", symbol_: "WCT" });
+        __NttToken_init(address(0), "WalletConnect", "WCT");
         __ERC20Permit_init("WalletConnect");
         __ERC20Votes_init();
         __ERC20Burnable_init();
-        __Ownable_init({ initialOwner: init.initialOwner });
+        __AccessControl_init();
+        _grantRole(DEFAULT_ADMIN_ROLE, init.initialAdmin);
     }
 
-    /// @notice Mints new tokens
-    /// @param account The address that will receive the minted tokens
-    /// @param amount The amount of tokens to mint
-    function mint(address account, uint256 amount) external onlyOwner {
-        _mint({ account: account, value: amount });
+    /// @notice A function to set the new minter for the tokens.
+    /// @param newMinter The address to add as both a minter and burner.
+    function setMinter(address newMinter) external override onlyRole(DEFAULT_ADMIN_ROLE) {
+        _setMinter(newMinter);
     }
 
     /// @notice Returns the current timestamp as a uint48
@@ -54,6 +78,19 @@ contract WCT is ERC20VotesUpgradeable, ERC20PermitUpgradeable, ERC20BurnableUpgr
     // solhint-disable-next-line func-name-mixedcase
     function CLOCK_MODE() public pure override returns (string memory) {
         return "mode=timestamp";
+    }
+
+    /// @notice ERC165 interface check function
+    /// @param interfaceId Interface ID to check
+    /// @return Whether or not the interface is supported by this contract
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        override(AccessControlUpgradeable, NttTokenUpgradeable)
+        returns (bool)
+    {
+        return NttTokenUpgradeable.supportsInterface(interfaceId)
+            || AccessControlUpgradeable.supportsInterface(interfaceId);
     }
 
     // The following functions are overrides required by Solidity.

@@ -1,7 +1,11 @@
-mint.t.sol
-├── when the caller is not the owner
-│   └── it should revert
-└── when the caller is the owner
-    ├── it should mint the tokens to the address
-    ├── it should emit a {Transfer} event
-    └── it should update the total supply
+WCT::mint
+├── given minter is set
+│   ├── when caller is not the minter
+│   │   └── it should revert with CallerNotMinter.
+│   └── when caller is the minter
+│       ├── it should mint tokens to recipient.
+│       ├── it should update total supply.
+│       └── it should emit Transfer event.
+└── given minter is not set
+    └── when mint is attempted
+        └── it should revert with CallerNotMinter.

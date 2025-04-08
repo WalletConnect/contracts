@@ -63,14 +63,14 @@ contract WCTHandler is BaseHandler {
         }
     }
 
-    function mint(address to, uint256 amount) public useNewSender(address(wct.owner())) instrument("mint") {
+    function mint(address to, uint256 amount) public useNewSender(wct.minter()) instrument("mint") {
         amount = bound(amount, 0, WCT_MAX_SUPPLY - wct.totalSupply());
         wct.mint(to, amount);
         store.addAction("mint", address(0), to, amount);
         store.addAddressWithBalance(to);
     }
 
-    function burn(uint256 amount) public instrument("burn") {
+    function burn(uint256 amount) public useNewSender(wct.minter()) instrument("burn") {
         address from = store.getRandomAddressWithBalance();
         vm.startPrank(from);
         amount = bound(amount, 0, wct.balanceOf(from));

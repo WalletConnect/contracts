@@ -1,0 +1,7 @@
+WCT::supportsInterface
+├── when checking INttToken interface ID
+│   └── it should return true.
+├── when checking IERC165 interface ID
+│   └── it should return true.
+└── when checking IAccessControl interface ID
+    └── it should return true.

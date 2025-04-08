@@ -1,6 +1,7 @@
 @openzeppelin/=node_modules/@openzeppelin/
 forge-std/=lib/forge-std/src/
 openzeppelin-foundry-upgrades/=lib/openzeppelin-foundry-upgrades/src/
+safe-smart-account=lib/safe-smart-account/
 src=./src/
 script=./script/
 test=./test/

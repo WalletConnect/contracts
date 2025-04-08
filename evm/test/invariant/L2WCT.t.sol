@@ -22,7 +22,7 @@ contract L2WCT_Invariant_Test is Invariant_Test {
 
         targetContract(address(handler));
 
-        bytes4[] memory selectors = new bytes4[](8);
+        bytes4[] memory selectors = new bytes4[](10);
         selectors[0] = handler.transfer.selector;
         selectors[1] = handler.approve.selector;
         selectors[2] = handler.transferFrom.selector;
@@ -31,6 +31,8 @@ contract L2WCT_Invariant_Test is Invariant_Test {
         selectors[5] = handler.setAllowedFrom.selector;
         selectors[6] = handler.setAllowedTo.selector;
         selectors[7] = handler.disableTransferRestrictions.selector;
+        selectors[8] = handler.crosschainMint.selector;
+        selectors[9] = handler.crosschainBurn.selector;
 
         targetSelector(FuzzSelector(address(handler), selectors));
     }
@@ -51,7 +53,7 @@ contract L2WCT_Invariant_Test is Invariant_Test {
 
     function invariant_mintsMinusBurnsSumUpToTotalSupply() public view {
         uint256 currentSupply = store.totalMinted() - store.totalBurned();
-        assertEq(currentSupply, l2wct.totalSupply(), "Current supply should equal total supply");
+        assertEq(currentSupply, l2wct.totalSupply(), "Net mints (NTT + Superchain) should equal total supply");
     }
 
     function invariant_transferRestrictionsEnforced() public view {
@@ -94,23 +96,25 @@ contract L2WCT_Invariant_Test is Invariant_Test {
         }
     }
 
-    function invariant_remoteTokenAndBridgeNeverChange() public view {
-        assertEq(l2wct.REMOTE_TOKEN(), address(wct), "Remote token address should not change");
-        assertEq(l2wct.BRIDGE(), address(mockBridge), "Bridge address should not change");
+    function invariant_crosschainBridgeIsConstant() public view {
+        assertEq(l2wct.crosschainBridge(), SUPERCHAIN_BRIDGE_ADDRESS, "Superchain bridge address should not change");
     }
 
     function invariant_callSummary() public view {
+        console2.log("--- Call Summary ---");
         console2.log("Total calls:", handler.totalCalls());
         console2.log("Transfer calls:", handler.calls("transfer"));
         console2.log("Approve calls:", handler.calls("approve"));
         console2.log("TransferFrom calls:", handler.calls("transferFrom"));
-        console2.log("Mint calls:", handler.calls("mint"));
-        console2.log("Burn calls:", handler.calls("burn"));
+        console2.log("Mint (NTT) calls:", handler.calls("mint"));
+        console2.log("Burn (NTT) calls:", handler.calls("burn"));
+        console2.log("CrosschainMint calls:", handler.calls("crosschainMint"));
+        console2.log("CrosschainBurn calls:", handler.calls("crosschainBurn"));
         console2.log("SetAllowedFrom calls:", handler.calls("setAllowedFrom"));
         console2.log("SetAllowedTo calls:", handler.calls("setAllowedTo"));
-        console2.log("Total minted:", store.totalMinted());
-        console2.log("Total burned:", store.totalBurned());
-        console2.log("Total transfers:", store.userTransfers(address(0)));
-        console2.log("Total receives:", store.userReceives(address(0)));
+        console2.log("DisableTransferRestriction calls:", handler.calls("disableTransferRestrictions"));
+        console2.log("--- Store Summary ---");
+        console2.log("Total Minted (NTT+Superchain):", store.totalMinted());
+        console2.log("Total Burned (NTT+Superchain):", store.totalBurned());
     }
 }

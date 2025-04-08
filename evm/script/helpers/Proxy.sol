@@ -4,7 +4,7 @@ pragma solidity >=0.8.25 <0.9.0;
 import { TransparentUpgradeableProxy } from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 import { WCT } from "src/WCT.sol";
-import { L2WCT } from "src/L2WCT.sol";
+import { LegacyL2WCT } from "src/legacy/LegacyL2WCT.sol";
 import { WalletConnectConfig } from "src/WalletConnectConfig.sol";
 import { Pauser } from "src/Pauser.sol";
 import { RewardManager } from "src/RewardManager.sol";
@@ -26,17 +26,17 @@ function newWCT(address initialOwner, WCT.Init memory init) returns (WCT) {
     return WCT(address(proxy));
 }
 
-function newL2WCT(address initialOwner, L2WCT.Init memory init) returns (L2WCT) {
+function newL2WCT(address initialOwner, LegacyL2WCT.Init memory init) returns (LegacyL2WCT) {
     bytes32 salt = keccak256(abi.encodePacked("walletconnect.l2wct"));
 
-    L2WCT impl = new L2WCT{ salt: salt }();
+    LegacyL2WCT impl = new LegacyL2WCT{ salt: salt }();
     TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy{ salt: salt }({
         _logic: address(impl),
         initialOwner: address(initialOwner),
-        _data: abi.encodeCall(L2WCT.initialize, init)
+        _data: abi.encodeCall(LegacyL2WCT.initialize, init)
     });
 
-    return L2WCT(address(proxy));
+    return LegacyL2WCT(address(proxy));
 }
 
 function newWalletConnectConfig(

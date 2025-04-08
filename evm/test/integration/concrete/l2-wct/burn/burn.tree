@@ -1,9 +1,9 @@
 burn.t.sol
-├── when burn caller is not bridge
-│   └── it should revert with OnlyBridge
-└── when burn caller is bridge
+├── when burn caller is not minter
+│   └── it should revert with CallerNotMinter(caller)
+└── when burn caller is minter
     ├── when transferability is off
-    │   ├── when bridge caller is fromWhitelisted
+    │   ├── when burn caller is fromWhitelisted
     │   │   ├── it should burn tokens from the specified address
     │   │   ├── it should decrease the total supply
     │   │   ├── it should emit a {Transfer} event
@@ -13,7 +13,7 @@ burn.t.sol
     │   │   ├── it should decrease the total supply
     │   │   ├── it should emit a {Transfer} event
     │   │   └── it should emit a {Burn} event
-    │   └── when bridgeCaller is not fromWhitelisted and address(0) is not toWhitelisted
+    │   └── when burn caller is not fromWhitelisted and address(0) is not toWhitelisted
     │       └── it should revert with TransferRestricted
     └── when transferability is on
         ├── it should burn tokens from the specified address

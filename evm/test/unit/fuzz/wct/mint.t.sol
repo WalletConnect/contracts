@@ -5,6 +5,10 @@ import { console2 } from "forge-std/console2.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { WCT } from "src/WCT.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import { INttToken } from "src/interfaces/INttToken.sol";
+import { ERC20BurnableUpgradeable } from
+    "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol";
+import { INttToken } from "src/interfaces/INttToken.sol";
 import { Base_Test } from "../../../Base.t.sol";
 
 contract Mint_WCT_Unit_Fuzz_Test is Base_Test {
@@ -18,7 +22,7 @@ contract Mint_WCT_Unit_Fuzz_Test is Base_Test {
         // Deploy the proxy contract
         ERC1967Proxy proxy = new ERC1967Proxy(
             address(implementation),
-            abi.encodeWithSelector(WCT.initialize.selector, WCT.Init({ initialOwner: users.admin }))
+            abi.encodeWithSelector(WCT.initialize.selector, WCT.Init({ initialAdmin: users.admin }))
         );
 
         // Cast the proxy to WCTHarness
@@ -27,24 +31,24 @@ contract Mint_WCT_Unit_Fuzz_Test is Base_Test {
         vm.label({ account: address(wctHarness), newLabel: "WCTHarness" });
     }
 
-    function testFuzz_RevertWhen_CallerNotOwner(address attacker) external {
-        vm.assume(attacker != address(0) && attacker != users.admin);
+    function testFuzz_RevertWhen_CallerNotMinter(address attacker) external {
+        vm.assume(attacker != address(0) && attacker != address(nttManager));
         assumeNotPrecompile(attacker);
 
         // Make the attacker the caller
         vm.startPrank(attacker);
 
         // Run the test
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, attacker));
+        vm.expectRevert(abi.encodeWithSelector(INttToken.CallerNotMinter.selector, attacker));
         wctHarness.mint(attacker, 1);
     }
 
-    modifier whenCallerOwner() {
-        vm.startPrank(users.admin);
+    modifier whenCallerMinter() {
+        vm.startPrank(address(nttManager));
         _;
     }
 
-    function testFuzz_Mint(address to, uint256 amount) external whenCallerOwner {
+    function testFuzz_Mint(address to, uint256 amount) external whenCallerMinter {
         vm.assume(to != address(0));
         amount = bound(amount, 1, wctHarness.maxSupply() - wctHarness.totalSupply() - 1);
         console2.logUint(amount);

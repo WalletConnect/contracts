@@ -1,0 +1,120 @@
+---
+description: Guidelines for writing Smart Contracts
+globs: 
+alwaysApply: false
+---
+# WalletConnect Solidity Development Guide
+
+## 1. Introduction
+
+This guide outlines the best practices, style conventions, and architectural patterns for developing Solidity smart contracts within the WalletConnect ecosystem. Adhering to these guidelines ensures consistency, readability, security, and maintainability across the project's codebase.
+
+## 2. General Contract Guidance
+
+*   **Imports:**
+    *   Always use named import syntax (`import {MyContract} from "src/MyContract.sol"`). Avoid importing full files (`import "src/MyContract.sol"`) to prevent namespace collisions and clearly declare dependencies. (Exception: `forge-std/Test.sol` or `forge-std/Script.sol` for testing utilities like `console`).
+    *   Choose between absolute paths (relative to repo root, e.g., `src/interfaces/IERC20.sol`) and relative paths (`../interfaces/IERC20.sol`).
+        *   Absolute paths enhance clarity of origin and reduce churn when refactoring.
+        *   Relative paths often improve editor support (linting, autocomplete) if remappings aren't configured in the editor.
+*   **Formatting:**
+    *   Use `foundry fmt` for consistent formatting.
+    *   If copying a library from a dependency (instead of importing via Forge), add it to the `ignore = []` list in `foundry.toml` to preserve original formatting for easier diffing.
+    *   Use `// forgefmt: disable-*` directives sparingly for lines/sections where manual formatting significantly improves readability.
+*   **Code Clarity & Security:**
+    *   Use descriptive variable names.
+    *   Limit the number of active variables in a single scope.
+    *   Eliminate redundant logic.
+    *   Use early exits (e.g., `require` checks at the beginning of functions) to reduce cognitive load.
+    *   Keep related code grouped together.
+    *   Delete unused code (dead code).
+
+## 3. Style
+
+*   **Base:** Follow the official [Solidity Style Guide](mdc:https:/docs.soliditylang.org/en/latest/style-guide.html) unless otherwise specified below.
+*   **Internal Library Functions:** Names of `internal` functions in libraries SHOULD NOT have an underscore prefix. Use underscores only for `private` functions or state variables.
+*   **Errors:**
+    *   Prefer custom errors over `require` strings for gas efficiency and better error reporting.
+    *   Custom error names must use CapWords style (e.g., `InsufficientBalance`, `TransferRestricted`).
+*   **Events:**
+    *   Event names must be past tense (e.g., `OwnerUpdated`, `TokensStaked`).
+    *   Prefer `SubjectVerb` naming format (e.g., `OwnerUpdated` instead of `UpdatedOwner`).
+*   **Function Arguments/Returns:**
+    *   Avoid unnecessary named return variables in short, simple functions.
+    *   Use named return variables for clarity in functions with multiple return values, but always assign them explicitly before returning, even in early returns.
+    *   Prefer named arguments when calling functions, emitting events, or reverting with custom errors, especially if argument order might be ambiguous or variable names differ from parameter names (e.g., `myFunction({paramA: varX, paramB: varY})`).
+*   **Mappings:** Prefer named parameters in mapping types for clarity (e.g., `mapping(address account => uint256 balance)`).
+
+## 4. Contract Structure
+
+*   **Composition over Inheritance:** Prefer composing functionality by having contracts interact with each other (e.g., using the `WalletConnectConfig` service locator) rather than deep inheritance chains. However, DO inherit from trusted, audited libraries like OpenZeppelin (`Ownable`, `ERC20`, `ERC721`, `AccessControl`, upgradeable proxies) or Solady where appropriate. Do not reimplement standard patterns.
+*   **Interfaces:** Avoid defining standalone interface files (`IMyContract.sol`). Interfaces separate NatSpec documentation from the implementation, hindering readability. Define interfaces directly within the contracts that use them if needed, or rely on the public/external functions of the contract itself.
+*   **Assembly:** Avoid using inline assembly (`assembly { ... }`) unless there is a significant, well-documented gas saving (>25%) that cannot be achieved with standard Solidity. Assembly code increases audit complexity and risk.
+*   **Service Locator:** Utilize the `WalletConnectConfig` contract pattern to manage dependencies between contracts, allowing for easier upgrades and configuration changes without modifying multiple contracts.
+
+## 5. Security Patterns
+
+*   **Access Control:** Implement robust Role-Based Access Control (RBAC) using patterns like OpenZeppelin's `AccessControl` or `Ownable`. Clearly define roles (e.g., Admin Multisig, Manager Multisig, Pauser Role) as outlined in the system architecture.
+*   **Timelocks:** Use `TimelockController` (e.g., OpenZeppelin's implementation) for critical administrative actions like upgrades or significant parameter changes, enforcing delays.
+*   **Pausability:** Implement emergency stop mechanisms using a `Pauser` pattern (potentially leveraging OpenZeppelin's `Pausable`) controlled by a dedicated, secure role or multisig. Ensure core contracts (`Staking`, `RewardManagers`, etc.) can be paused if necessary.
+*   **Multisigs:** Employ industry-standard multisig wallets (e.g., Gnosis Safe) for administrative roles requiring multiple signatures.
+
+## 6. Upgradeability
+
+*   **Proxies:** Utilize the Transparent Upgradeable Proxy pattern (via OpenZeppelin Upgrades plugins and contracts) for core contracts expected to evolve (`Staking`, `RewardManagers`, `Oracle`, `WalletConnectConfig`, `WCT Token`, `L2WCT`).
+*   **Storage Layout:** Follow the [ERC-7201](mdc:https:/eips.ethereum.org/EIPS/eip-7201) Namespaced Storage Layout convention (or similar robust storage management techniques) to prevent storage collisions during upgrades, especially when using inheritance with upgradeable contracts.
+
+## 7. Versioning
+
+*   **Pragmas:**
+    *   Deployed contracts should lock the pragma to a specific Solidity version (e.g., `pragma solidity 0.8.20;`).
+    *   Libraries and supporting contracts intended for broader use or less frequent changes should use a floating pragma covering the relevant minor versions (e.g., `pragma solidity ^0.8.19;`).
+
+## 8. Structs and Errors
+
+*   **Declaration:** Declare structs and custom errors within the contract or library where they are primarily used. If a struct/error is shared across many unrelated files, define it in a dedicated file (e.g., `src/libraries/Structs.sol` or `src/libraries/Errors.sol`).
+*   **Struct Packing:** Arrange struct fields to minimize storage slot usage where possible (smaller types together). Pay attention to packing rules (types smaller than 32 bytes can sometimes share a slot).
+*   **Timestamps:** Timestamp fields (e.g., in `Staking`) should use at least `uint40` to provide sufficient longevity while optimizing storage usage where possible. `uint32` is the absolute minimum but may be too short-lived.
+
+## 9. Imports
+
+*   **Named Imports:** Always use named imports (`import {Symbol} from "path";`).
+*   **Ordering:** Order imports alphabetically (A-Z) by file path within groups.
+*   **Grouping:** Group imports by origin (external dependencies, local project files) separated by a blank line.
+    ```solidity
+    // External (e.g., OpenZeppelin, Solady)
+    import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
+    import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
+    // Local Project Files
+    import {IWalletConnectConfig} from "src/interfaces/IWalletConnectConfig.sol";
+    import {StakingStorage} from "./StakingStorage.sol";
+    ```
+
+## 10. Comments
+
+*   **Section Dividers:** Using comments to delineate logical sections within a contract (e.g., `// --- Modifiers ---`, `// --- External Functions ---`) is permitted, provided the standard [Solidity Order of Layout](mdc:https:/docs.soliditylang.org/en/latest/style-guide.html#order-of-layout) is maintained.
+*   **ASCII Art:** Permitted only in the space between the last pragma directive and the first import statement.
+
+## 11. NatSpec Documentation
+
+*   **Base:** Follow the official [Solidity NatSpec Format](mdc:https:/docs.soliditylang.org/en/latest/natspec-format.html).
+*   **Completeness:** All `external` and `public` functions, state variables, events, and errors MUST have complete NatSpec documentation.
+    *   Minimally include `@notice` explaining what the element does.
+    *   Include `@dev` for developer-specific information (implementation details, conditions).
+    *   Include `@param` for all parameters.
+    *   Include `@return` for all return values.
+*   **Structs:** Document structs with a `@notice` tag above the definition and `@dev` tags for individual fields if needed.
+    ```solidity
+    /// @notice Represents a user's stake details.
+    struct Stake {
+        /// @dev Amount of tokens staked.
+        uint128 amount;
+        /// @dev Timestamp when the lock expires.
+        uint40 unlockTime;
+    }
+    ```
+*   **Formatting:** Add a blank line between different tag groups (`@notice`, `@dev`, `@param`, `@return`) within a NatSpec block for readability when the block has three or more lines.
+*   **Author Tag:** If using the `@author` tag, it MUST be `@author WalletConnect`. Optionally, include a link to the public repository.
+    ```solidity
+    /// @author WalletConnect (https://github.com/WalletConnectFoundation/...)
+    ```

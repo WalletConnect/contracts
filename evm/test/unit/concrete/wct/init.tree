@@ -1,0 +1,5 @@
+WCT::initialize
+├── given not initialized
+│   └── it should grant admin role.
+└── given already initialized
+    └── it should revert with InvalidInitialization.

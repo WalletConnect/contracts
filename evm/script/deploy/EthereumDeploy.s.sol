@@ -2,16 +2,16 @@
 pragma solidity >=0.8.25 <0.9.0;
 
 import { console2 } from "forge-std/console2.sol";
-import { WCT } from "src/WCT.sol";
 import { Timelock } from "src/Timelock.sol";
 import { EthereumDeployments, BaseScript } from "script/Base.s.sol";
-import { newWCT } from "script/helpers/Proxy.sol";
 import { Eip1967Logger } from "script/utils/Eip1967Logger.sol";
 import { DeploymentJsonWriter } from "script/utils/DeploymentJsonWriter.sol";
+import { WCT } from "src/WCT.sol";
 
 struct EthereumDeploymentParams {
     address admin;
     address timelockCanceller;
+    address nttManager;
 }
 
 contract EthereumDeploy is BaseScript {
@@ -32,11 +32,6 @@ contract EthereumDeploy is BaseScript {
             DeploymentJsonWriter.writeEthereumDeploymentsToJson(vm, block.chainid, deps);
         }
 
-        // Mint initial supply to admin (1 billion WCT)
-        deps.wct.mint(broadcaster, 1_000_000_000 * 1e18);
-        // Send ownership to admin
-        deps.wct.transferOwnership(params.admin);
-
         logDeployments();
     }
 
@@ -55,10 +50,7 @@ contract EthereumDeploy is BaseScript {
         Timelock timelock = new Timelock(
             1 weeks, _singleAddressArray(params.admin), _singleAddressArray(params.admin), params.timelockCanceller
         );
-
-        WCT wct = newWCT({ initialOwner: broadcaster, init: WCT.Init({ initialOwner: params.admin }) });
-
-        return EthereumDeployments({ wct: wct, timelock: timelock });
+        return EthereumDeployments({ wct: WCT(address(0)), timelock: timelock });
     }
 
     function _writeEthereumDeployments(EthereumDeployments memory deps) internal {
@@ -68,7 +60,8 @@ contract EthereumDeploy is BaseScript {
     function _readDeploymentParamsFromEnv() internal view returns (EthereumDeploymentParams memory) {
         return EthereumDeploymentParams({
             admin: vm.envAddress("ADMIN_ADDRESS"),
-            timelockCanceller: vm.envAddress("TIMELOCK_CANCELLER_ADDRESS")
+            timelockCanceller: vm.envAddress("TIMELOCK_CANCELLER_ADDRESS"),
+            nttManager: vm.envAddress("NTT_MANAGER_ADDRESS")
         });
     }
 }

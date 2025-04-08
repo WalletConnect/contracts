@@ -1,7 +1,7 @@
 mint.t.sol
-├── when caller is not bridge
-│   └── it should revert with OnlyBridge
-└── when caller is bridge
+├── when caller is not minter
+│   └── it should revert with CallerNotMinter
+└── when caller is minter
     ├── when supply would not exceed type(uint208).max
     │   ├── it should mint tokens to the specified address
     │   ├── it should increase the total supply

@@ -8,7 +8,7 @@ import { L2WCTStore } from "../stores/L2WCTStore.sol";
 
 contract L2WCTHandler is BaseHandler {
     L2WCTStore public store;
-    address public bridge;
+    address public minter;
     address public admin;
     address public manager;
 
@@ -21,7 +21,7 @@ contract L2WCTHandler is BaseHandler {
         BaseHandler(WCT(address(0)), _l2wct)
     {
         store = _store;
-        bridge = l2wct.BRIDGE();
+        minter = l2wct.minter();
         admin = _admin;
         manager = _manager;
     }
@@ -85,18 +85,18 @@ contract L2WCTHandler is BaseHandler {
         }
     }
 
-    function mint(address to, uint256 amount) public useNewSender(bridge) instrument("mint") {
+    function mint(address to, uint256 amount) public useNewSender(minter) instrument("mint") {
         (, address msgSender,) = vm.readCallers();
         l2wct.mint(to, amount);
         store.addAction("mint", msgSender, to, amount);
         store.addAddressWithBalance(to);
     }
 
-    function burn(uint256 amount) public useNewSender(bridge) instrument("burn") {
+    function burn(uint256 amount) public useNewSender(minter) instrument("burn") {
         address from = store.getRandomAddressWithBalance();
         (, address msgSender,) = vm.readCallers();
         amount = bound(amount, 0, l2wct.balanceOf(from));
-        l2wct.burn(from, amount);
+        l2wct.burn(amount);
         store.addAction("burn", from, msgSender, amount);
         if (l2wct.balanceOf(from) == 0) {
             store.removeAddressWithBalance(from);
@@ -123,5 +123,33 @@ contract L2WCTHandler is BaseHandler {
     function disableTransferRestrictions() public useNewSender(admin) instrument("disableTransferRestrictions") {
         l2wct.disableTransferRestrictions();
         store.setTransferRestrictionsDisabled(true);
+    }
+
+    function crosschainMint(
+        address to,
+        uint256 amount
+    )
+        public
+        useNewSender(SUPERCHAIN_BRIDGE_ADDRESS)
+        instrument("crosschainMint")
+    {
+        l2wct.crosschainMint(to, amount);
+        store.addAction("crosschainMint", SUPERCHAIN_BRIDGE_ADDRESS, to, amount);
+        store.addAddressWithBalance(to);
+    }
+
+    function crosschainBurn(
+        address from,
+        uint256 amount
+    )
+        public
+        useNewSender(SUPERCHAIN_BRIDGE_ADDRESS)
+        instrument("crosschainBurn")
+    {
+        l2wct.crosschainBurn(from, amount);
+        store.addAction("crosschainBurn", from, SUPERCHAIN_BRIDGE_ADDRESS, amount);
+        if (l2wct.balanceOf(from) == 0) {
+            store.removeAddressWithBalance(from);
+        }
     }
 }

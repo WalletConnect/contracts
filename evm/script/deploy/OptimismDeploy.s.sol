@@ -4,6 +4,7 @@ pragma solidity >=0.8.25 <0.9.0;
 import { console2 } from "forge-std/console2.sol";
 import { Timelock } from "src/Timelock.sol";
 import { L2WCT } from "src/L2WCT.sol";
+import { LegacyL2WCT } from "src/legacy/LegacyL2WCT.sol";
 import { WalletConnectConfig } from "src/WalletConnectConfig.sol";
 import { Pauser } from "src/Pauser.sol";
 import { StakeWeight } from "src/StakeWeight.sol";
@@ -36,6 +37,7 @@ struct OptimismDeploymentParams {
     address merkleVesterReown;
     address merkleVesterWalletConnect;
     address merkleVesterBackers;
+    address nttManager;
 }
 
 contract OptimismDeploy is BaseScript {
@@ -132,15 +134,20 @@ contract OptimismDeploy is BaseScript {
 
         if (address(deployments.l2wct) == address(0)) {
             console2.log("Deploying L2WCT...");
-            deployments.l2wct = newL2WCT({
-                initialOwner: address(deployments.adminTimelock),
-                init: L2WCT.Init({
-                    initialAdmin: params.admin,
-                    initialManager: params.manager,
-                    bridge: address(params.opBridge),
-                    remoteToken: remoteToken
-                })
-            });
+            deployments.l2wct = L2WCT(
+                address(
+                    newL2WCT({
+                        initialOwner: address(deployments.adminTimelock),
+                        init: LegacyL2WCT.Init({
+                            initialAdmin: params.admin,
+                            initialManager: params.manager,
+                            bridge: address(params.opBridge),
+                            remoteToken: remoteToken
+                        })
+                    })
+                )
+            );
+            // Keep the old deployment for maintaining the address
         }
 
         if (address(deployments.config) == address(0)) {
@@ -472,7 +479,8 @@ contract OptimismDeploy is BaseScript {
             merkleRoot: vm.envBytes32("MERKLE_ROOT"),
             merkleVesterReown: vm.envAddress("MERKLE_VESTER_REOWN_ADDRESS"),
             merkleVesterWalletConnect: vm.envAddress("MERKLE_VESTER_WALLETCONNECT_ADDRESS"),
-            merkleVesterBackers: vm.envAddress("MERKLE_VESTER_BACKERS_ADDRESS")
+            merkleVesterBackers: vm.envAddress("MERKLE_VESTER_BACKERS_ADDRESS"),
+            nttManager: vm.envAddress("NTT_MANAGER_ADDRESS")
         });
     }
 }
