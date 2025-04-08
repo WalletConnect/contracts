@@ -1,0 +1,11 @@
+
+WCT::burn
+├── when caller is minter
+│   ├── when amount is valid
+│   │   ├── it should burn tokens from minter.
+│   │   ├── it should update total supply.
+│   │   └── it should emit Transfer event.
+│   └── when amount exceeds balance
+│       └── it should revert with ERC20InsufficientBalance.
+└── when caller is not minter
+    └── it should revert with CallerNotMinter.

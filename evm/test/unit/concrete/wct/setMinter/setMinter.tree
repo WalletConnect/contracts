@@ -1,0 +1,10 @@
+WCT::setMinter
+├── when caller is admin
+│   ├── given no minter is set
+│   │   ├── it should set the new minter.
+│   │   └── it should emit NewMinter event.
+│   └── given a minter is already set
+│       ├── it should overwrite the existing minter.
+│       └── it should emit NewMinter event.
+└── when caller is not admin
+    └── it should revert with AccessControlUnauthorizedAccount.
