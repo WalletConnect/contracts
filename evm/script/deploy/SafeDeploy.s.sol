@@ -36,13 +36,23 @@ contract SafeDeploy is BaseScript {
     // Enum for Safe role
     enum SafeRole {
         Admin,
-        Manager
+        Manager,
+        Pauser
     }
 
     function run() public broadcast {
         // Get the role from command line argument
         SafeRole role = SafeRole(vm.envUint("SAFE_ROLE"));
-        string memory roleName = role == SafeRole.Admin ? "admin" : "manager";
+        string memory roleName;
+        if (role == SafeRole.Admin) {
+            roleName = "admin";
+        } else if (role == SafeRole.Manager) {
+            roleName = "manager";
+        } else if (role == SafeRole.Pauser) {
+            roleName = "pauser";
+        } else {
+            revert("Invalid role");
+        }
 
         console2.log("Deploying %s Safe wallet on %s", roleName, getChain(block.chainid).name);
 
