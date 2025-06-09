@@ -6,6 +6,12 @@ evm/out
 
 # All env files except the common.example.env
 *.common.env
+.common.env
+*.secret
+*.key
+*secrets*
+.env.local
+.env.production
 
 # files
 *.log
@@ -20,3 +26,4 @@ airdrop_data.json
 
 # broadcasts
 */broadcast/*
+evm/.common.env
