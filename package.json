@@ -26,6 +26,16 @@
     "prettier:write": "pnpm -r prettier:write",
     "test": "forge test",
     "test:coverage": "forge coverage",
-    "test:coverage:report": "forge coverage --report lcov && genhtml lcov.info --branch-coverage --output-dir coverage"
-  }
+    "test:coverage:report": "forge coverage --report lcov && genhtml lcov.info --branch-coverage --output-dir coverage",
+    "verify:deployments": "tsx verify-deployments.ts",
+    "enhance:deployments": "tsx enhance-deployments.ts",
+    "generate:docs": "tsx generate-deployment-docs.ts",
+    "sync:deployments": "pnpm run enhance:deployments && pnpm run generate:docs && pnpm run verify:deployments"
+  },
+  "devDependencies": {
+    "viem": "^2.20.0",
+    "tsx": "^4.7.0",
+    "@types/node": "^20.0.0"
+  },
+  "packageManager": "pnpm@10.11.0+sha512.6540583f41cc5f628eb3d9773ecee802f4f9ef9923cc45b69890fb47991d4b092964694ec3a4f738a420c918a333062c8b925d312f42e4f0c263eb603551f977"
 }
