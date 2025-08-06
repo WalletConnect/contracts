@@ -1,51 +1,177 @@
-# WalletConnect Decentralization Architecture
+# WalletConnect Protocol
 
-## Overview
+[![Foundry][foundry-shield]][foundry-url] [![License: MIT][license-shield]][license-url]
+[![Discord][discord-shield]][discord-url] [![Docs][docs-shield]][docs-url]
 
-WalletConnect is developing a decentralized infrastructure for permissionless, interoperable messaging between dApps and
-wallets. This project aims to gradually transition from a permissioned to a fully permissionless network, starting with
-the decentralization of the storage layer.
+**The decentralized infrastructure protocol powering WalletConnect's network with cross-chain token economics and
+governance.**
 
-## Key Components
+## What is WalletConnect Protocol?
 
-- WCT Token: Incentivizes node operators and wallets
-- Node Operator Network: Initially permissioned, transitioning to permissionless
-- Performance-based Rewards System
-- Oracle Network: Reporting of node performance
+WalletConnect Protocol is a comprehensive smart contract system that powers the decentralized WalletConnect network. The
+protocol introduces WCT (WalletConnect Token), a cross-chain governance and utility token that enables staking, rewards,
+and network participation across Ethereum, Optimism, and Solana.
 
-## System Architecture
+Key features:
 
-### On-chain Components
+- **Cross-chain token** with native bridging via Wormhole NTT
+- **Vote-escrowed staking** with time-weighted rewards (stWCT)
+- **Perpetual staking** for long-term network alignment
+- **Infrastructure rewards** for network participants
+- **Timelock governance** with multi-signature controls
 
-- Smart Contracts: WCT Token, StakeWeight, StakingRewardDistributor, Node/Wallet Registries, Reward Managers, Oracle,
-  Config Management
-- Utilizes upgradeable contracts and role-based access control
+## Architecture
 
-### Off-chain Components
+The protocol consists of several interconnected modules:
 
-- Node Operators: Run distributed database nodes
-- Oracle Network: Monitors and reports performance
-- WalletConnect Foundation: Initial governance and administration
+### Core Components
 
-## Security Measures
+- **[WCT Token](./evm/src/WCT.sol)**: ERC-20 governance token on Ethereum with Wormhole NTT integration
+- **[L2WCT Token](./evm/src/bridge/L2WCT.sol)**: L2-native token with transfer restrictions and staking capabilities
+- **[StakeWeight](./evm/src/StakeWeight.sol)**: Vote-escrowed staking with time-weighted rewards and perpetual positions
+- **[StakingRewardDistributor](./evm/src/StakingRewardDistributor.sol)**: Handles reward distribution to stakers
 
-- Role-Based Access Control (RBAC)
-- Multi-signature setups
-- Timelock mechanisms
-- Pausable contracts
-- Comprehensive testing suite: unit, integration, fuzz, and invariant testing
+### Governance & Security
 
-## Roadmap
+- **[Timelocks](./evm/src/Timelock.sol)**: 1-week admin timelock, 3-day manager timelock
+- **[Pauser](./evm/src/Pauser.sol)**: Emergency pause functionality for critical contracts
+- **[WalletConnectConfig](./evm/src/WalletConnectConfig.sol)**: Central configuration registry
 
-1. Launch permissioned pre-production environment
-2. Gradual transition to permissionless network
-3. Continuous improvements and security audits
+### Cross-Chain Infrastructure
 
-## Development Approach
+- **Wormhole NTT**: Native Token Transfer for Ethereum ↔ Optimism ↔ Solana bridging
+- **Rate Limits**: Configurable transfer limits between chain pairs
+- **Bridge Security**: Multi-signature controls and emergency pause capabilities
 
-- Utilizes OpenZeppelin contracts
-- Follows Solidity best practices
-- Implements Branching Tree Technique (BTT) for thorough testing
+## Deployments
 
-For more detailed information, please refer to the full [architecture document](./docs/system-architecture.md). For
-deployment addresses, please refer to the [deployment addresses](./DEPLOYMENT_ADDRESSES.md).
+### Production Networks
+
+| Network      | Chain ID | WCT Token                                                                                                                          | Documentation                                                            |
+| ------------ | -------- | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| **Ethereum** | 1        | [`0xeF4461891DfB3AC8572cCf7C794664A8DD927945`](https://etherscan.io/address/0xeF4461891DfB3AC8572cCf7C794664A8DD927945)            | [Full Deployment](./DEPLOYMENT_ADDRESSES.md#ethereum-mainnet-chain-id-1) |
+| **Optimism** | 10       | [`0xeF4461891DfB3AC8572cCf7C794664A8DD927945`](https://optimistic.etherscan.io/address/0xeF4461891DfB3AC8572cCf7C794664A8DD927945) | [Full Deployment](./DEPLOYMENT_ADDRESSES.md#optimism-chain-id-10)        |
+| **Solana**   | -        | [`WCTk5xWdn5SYg56twGj32sUF3W4WFQ48ogezLBuYTBY`](https://explorer.solana.com/address/WCTk5xWdn5SYg56twGj32sUF3W4WFQ48ogezLBuYTBY)   | [Full Deployment](./DEPLOYMENT_ADDRESSES.md#solana)                      |
+
+For complete deployment addresses including staking contracts, governance, and bridges, see
+[DEPLOYMENT_ADDRESSES.md](./DEPLOYMENT_ADDRESSES.md).
+
+## Development
+
+### Prerequisites
+
+- [Foundry](https://getfoundry.sh/) for smart contract development
+- Node.js v18+ and pnpm for deployment scripts
+- Environment variables (see `.common.example.env`)
+
+### Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/WalletConnect/contracts
+cd contracts
+
+# Install dependencies
+cd evm && forge install
+
+# Copy environment variables
+cp .common.example.env .common.env
+# Edit .common.env with your API keys
+```
+
+### Build
+
+```bash
+# Compile contracts
+forge build
+
+# Generate documentation
+forge doc
+```
+
+### Testing
+
+```bash
+# Run all tests
+forge test
+
+# Run specific test suites
+forge test --match-path test/unit         # Unit tests
+forge test --match-path test/integration  # Integration tests
+forge test --match-path test/invariant    # Invariant tests
+forge test --match-path test/fork         # Fork tests (requires RPC)
+
+# Run with coverage
+forge coverage
+
+# Gas reporting
+forge test --gas-report
+```
+
+### Deployment
+
+Deployment scripts use Foundry's forge script system:
+
+```bash
+# Deploy to testnet
+forge script script/deploy/OptimismDeploy.s.sol --rpc-url sepolia --broadcast
+
+# Deploy to mainnet (requires hardware wallet)
+forge script script/deploy/OptimismDeploy.s.sol --rpc-url optimism --broadcast --ledger
+```
+
+See [deployment scripts](./evm/script/deploy/) for network-specific deployments.
+
+## Security
+
+### Security Practices
+
+- All contracts use OpenZeppelin's battle-tested implementations
+- Comprehensive test coverage including unit, integration, and invariant tests
+- Timelock governance with multi-signature controls
+- Emergency pause functionality on critical operations
+- Rate-limited cross-chain transfers
+
+## Contributing
+
+We welcome contributions! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
+
+### Development Process
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Write tests for your changes
+4. Ensure all tests pass (`forge test`)
+5. Commit your changes (`git commit -m 'Add amazing feature'`)
+6. Push to the branch (`git push origin feature/amazing-feature`)
+7. Open a Pull Request
+
+## Community
+
+- **Discord**: [Join our Discord](https://discord.gg/walletconnectnetwork)
+- **Forum**: [Governance Forum](https://governance.walletconnect.network/)
+- **Twitter**: [@walletconnect](https://x.com/walletconnect)
+- **Blog**: [walletconnect.network/blog](https://https://walletconnect.network/blog)
+
+## Documentation
+
+- **[Technical Documentation](./docs/)** - Smart contract architecture and design decisions
+
+## License
+
+This project is licensed under the MIT License - see [LICENSE.md](LICENSE.md) for details.
+
+---
+
+Built with ❤️ by the WalletConnect team
+
+<!-- MARKDOWN LINKS & IMAGES -->
+
+[foundry-shield]: https://img.shields.io/badge/Built%20with-Foundry-FFDB1C.svg?style=for-the-badge
+[foundry-url]: https://getfoundry.sh/
+[license-shield]: https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge
+[license-url]: https://github.com/WalletConnect/contracts/blob/main/LICENSE.md
+[discord-shield]: https://img.shields.io/badge/Discord-Join-7289DA?style=for-the-badge&logo=discord&logoColor=white
+[discord-url]: https://discord.com/invite/walletconnectnetwork
+[docs-shield]: https://img.shields.io/badge/Docs-Read-blue?style=for-the-badge
+[docs-url]: https://docs.walletconnect.network
