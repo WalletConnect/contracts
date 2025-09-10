@@ -37,10 +37,22 @@ claim.t.sol
                 ├── when there are no rewards to claim in the calculated period
                 │   ├── it should return 0
                 │   └── it should not transfer any tokens
-                └── when there are rewards to claim in the calculated period
-                    ├── it should calculate correct reward amount
-                    ├── it should update lastTokenBalance
-                    ├── it should transfer tokens to recipient
-                    ├── it should emit Claimed event with correct parameters
-                    ├── it should return the total claimed amount
-                    └── it should update user's claim cursor to the latest claimed week
+                ├── when there are rewards to claim in the calculated period
+                │   ├── it should calculate correct reward amount
+                │   ├── it should update lastTokenBalance
+                │   ├── it should transfer tokens to recipient
+                │   ├── it should emit Claimed event with correct parameters
+                │   ├── it should return the total claimed amount
+                │   └── it should update user's claim cursor to the latest claimed week
+                ├── when user has a permanent lock
+                │   ├── it should use permanent weight for reward calculation
+                │   ├── it should maintain constant voting power across weeks
+                │   └── it should receive proportional rewards based on permanent weight
+                ├── when user converts from decaying to permanent
+                │   ├── it should correctly calculate rewards for decaying period
+                │   ├── it should correctly calculate rewards for permanent period
+                │   └── it should handle the transition week properly
+                └── when user converts from permanent to decaying
+                    ├── it should correctly calculate rewards for permanent period
+                    ├── it should correctly calculate rewards for new decaying period
+                    └── it should handle the unlock transition properly

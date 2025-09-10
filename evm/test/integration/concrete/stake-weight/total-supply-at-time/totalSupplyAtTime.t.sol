@@ -153,4 +153,211 @@ contract TotalSupplyAtTime_StakeWeight_Integration_Concrete_Test is StakeWeight_
         );
         assertEq(stakeWeight.totalSupplyAtTime(block.timestamp + 1), 0, "Supply at 1 second after expiries should be 0");
     }
+
+    modifier whenQueryingSupplyAtTimeWithPermanentLocks() {
+        _;
+    }
+
+    function test_WhenQueryingSupplyAtTimeWithPermanentLocks() 
+        external 
+        whenQueryingSupplyAtTimeWithPermanentLocks 
+    {
+        // Setup: Create a permanent lock
+        uint256 amount = 1000e18;
+        uint256 duration = 52 weeks; // 1 year permanent lock
+        
+        vm.startPrank(users.alice);
+        deal(address(l2wct), users.alice, amount);
+        l2wct.approve(address(stakeWeight), amount);
+        stakeWeight.createPermanentLock(amount, duration);
+        vm.stopPrank();
+        
+        // Get the permanent weight
+        uint256 permanentWeight = stakeWeight.permanentOf(users.alice);
+        assertGt(permanentWeight, 0, "Permanent weight should be greater than 0");
+        
+        // Test that totalSupply and totalSupplyAtTime(block.timestamp) are equal
+        uint256 totalSupply = stakeWeight.totalSupply();
+        uint256 totalSupplyAtCurrentTime = stakeWeight.totalSupplyAtTime(block.timestamp);
+        
+        assertEq(
+            totalSupply,
+            totalSupplyAtCurrentTime,
+            "totalSupply() should equal totalSupplyAtTime(block.timestamp) with permanent locks"
+        );
+        
+        // Test that the supply includes permanent weight correctly (not double-counted)
+        assertEq(
+            totalSupply,
+            permanentWeight,
+            "Total supply should equal permanent weight when only permanent locks exist"
+        );
+    }
+
+    function test_WhenQueryingSupplyAtTimeWithPermanentLocks_NotDecayOverTime() 
+        external 
+        whenQueryingSupplyAtTimeWithPermanentLocks 
+    {
+        // Setup: Create a permanent lock
+        uint256 amount = 1000e18;
+        uint256 duration = 52 weeks;
+        
+        vm.startPrank(users.alice);
+        deal(address(l2wct), users.alice, amount);
+        l2wct.approve(address(stakeWeight), amount);
+        stakeWeight.createPermanentLock(amount, duration);
+        vm.stopPrank();
+        
+        uint256 initialSupply = stakeWeight.totalSupply();
+        
+        // Warp time forward
+        vm.warp(block.timestamp + 26 weeks);
+        
+        // Permanent locks should not decay
+        uint256 supplyAfterWarp = stakeWeight.totalSupply();
+        uint256 supplyAtTimeAfterWarp = stakeWeight.totalSupplyAtTime(block.timestamp);
+        
+        assertEq(
+            initialSupply,
+            supplyAfterWarp,
+            "Permanent lock supply should not decay over time"
+        );
+        
+        assertEq(
+            supplyAfterWarp,
+            supplyAtTimeAfterWarp,
+            "totalSupply() should equal totalSupplyAtTime(block.timestamp) after time warp"
+        );
+    }
+
+    modifier whenQueryingSupplyAtTimeAfterConversionToPermanent() {
+        _;
+    }
+
+    function test_WhenQueryingSupplyAtTimeAfterConversionToPermanent_ShowsDecayingWeightBefore() 
+        external 
+        whenQueryingSupplyAtTimeAfterConversionToPermanent 
+    {
+        // Create a regular lock first
+        uint256 amount = 1000e18;
+        uint256 lockDuration = 52 weeks;
+        
+        vm.startPrank(users.alice);
+        deal(address(l2wct), users.alice, amount);
+        l2wct.approve(address(stakeWeight), amount);
+        stakeWeight.createLock(amount, block.timestamp + lockDuration);
+        vm.stopPrank();
+        
+        // Get supply before conversion
+        uint256 supplyBeforeConversion = stakeWeight.totalSupply();
+        
+        // Warp forward a bit to see decay
+        vm.warp(block.timestamp + 4 weeks);
+        uint256 decayedSupply = stakeWeight.totalSupply();
+        assertLt(decayedSupply, supplyBeforeConversion, "Regular lock should decay over time");
+        
+        // Query historical supply (should show decaying weight)
+        uint256 historicalSupply = stakeWeight.totalSupplyAtTime(block.timestamp - 2 weeks);
+        assertGt(historicalSupply, decayedSupply, "Historical supply should be higher than current decayed supply");
+    }
+
+    function test_WhenQueryingSupplyAtTimeAfterConversionToPermanent_ShowsConstantWeightAfter() 
+        external 
+        whenQueryingSupplyAtTimeAfterConversionToPermanent 
+    {
+        // Create a regular lock
+        uint256 amount = 1000e18;
+        uint256 lockDuration = 52 weeks;
+        
+        vm.startPrank(users.alice);
+        deal(address(l2wct), users.alice, amount);
+        l2wct.approve(address(stakeWeight), amount);
+        stakeWeight.createLock(amount, block.timestamp + lockDuration);
+        
+        // Convert to permanent
+        stakeWeight.convertToPermanent(52 weeks);
+        vm.stopPrank();
+        
+        uint256 supplyAfterConversion = stakeWeight.totalSupply();
+        
+        // Warp forward and check supply remains constant
+        vm.warp(block.timestamp + 26 weeks);
+        uint256 supplyLater = stakeWeight.totalSupply();
+        
+        assertEq(
+            supplyAfterConversion,
+            supplyLater,
+            "Permanent lock supply should remain constant after conversion"
+        );
+        
+        // Verify totalSupplyAtTime matches
+        assertEq(
+            supplyLater,
+            stakeWeight.totalSupplyAtTime(block.timestamp),
+            "totalSupply() should equal totalSupplyAtTime(block.timestamp) for permanent locks"
+        );
+    }
+
+    function test_MixedPermanentAndRegularLocks_SupplyConsistency() external {
+        // Create a regular lock
+        uint256 regularAmount = 500e18;
+        uint256 regularDuration = 26 weeks;
+        
+        vm.startPrank(users.alice);
+        deal(address(l2wct), users.alice, regularAmount);
+        l2wct.approve(address(stakeWeight), regularAmount);
+        stakeWeight.createLock(regularAmount, block.timestamp + regularDuration);
+        vm.stopPrank();
+        
+        // Create a permanent lock
+        uint256 permanentAmount = 1000e18;
+        uint256 permanentDuration = 52 weeks;
+        
+        vm.startPrank(users.bob);
+        deal(address(l2wct), users.bob, permanentAmount);
+        l2wct.approve(address(stakeWeight), permanentAmount);
+        stakeWeight.createPermanentLock(permanentAmount, permanentDuration);
+        vm.stopPrank();
+        
+        // Verify consistency at current time
+        uint256 totalSupply = stakeWeight.totalSupply();
+        uint256 totalSupplyAtNow = stakeWeight.totalSupplyAtTime(block.timestamp);
+        
+        assertEq(
+            totalSupply,
+            totalSupplyAtNow,
+            "With mixed locks, totalSupply() should equal totalSupplyAtTime(block.timestamp)"
+        );
+        
+        // Verify sum of individual balances equals total supply
+        uint256 aliceBalance = stakeWeight.balanceOf(users.alice);
+        uint256 bobBalance = stakeWeight.balanceOf(users.bob);
+        uint256 sumOfBalances = aliceBalance + bobBalance;
+        
+        assertEq(
+            totalSupply,
+            sumOfBalances,
+            "Total supply should equal sum of all individual balances"
+        );
+        
+        // Warp forward and verify permanent stays constant while regular decays
+        vm.warp(block.timestamp + 13 weeks);
+        
+        uint256 newTotalSupply = stakeWeight.totalSupply();
+        uint256 newTotalSupplyAtNow = stakeWeight.totalSupplyAtTime(block.timestamp);
+        
+        assertEq(
+            newTotalSupply,
+            newTotalSupplyAtNow,
+            "After time warp, totalSupply() should still equal totalSupplyAtTime(block.timestamp)"
+        );
+        
+        // Bob's permanent lock should remain the same
+        uint256 bobNewBalance = stakeWeight.balanceOf(users.bob);
+        assertEq(bobBalance, bobNewBalance, "Permanent lock balance should not change");
+        
+        // Alice's regular lock should have decayed
+        uint256 aliceNewBalance = stakeWeight.balanceOf(users.alice);
+        assertLt(aliceNewBalance, aliceBalance, "Regular lock balance should decay");
+    }
 }

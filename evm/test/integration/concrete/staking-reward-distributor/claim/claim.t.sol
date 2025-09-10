@@ -90,6 +90,103 @@ contract Claim_StakingRewardDistributor_Integration_Concrete_Test is StakeWeight
         _;
     }
 
+    function test_ClaimWithPermanentLock()
+        external
+        whenContractLive
+        whenAuthorizedClaimer
+        whenBlockTimestampIsGreaterThanOrEqualToStartWeekCursor
+    {
+        // Setup: Create permanent lock for alice
+        uint256 amount = 1000 ether;
+        uint256 duration = 52 weeks; // 52 weeks permanent lock
+        
+        deal(address(l2wct), users.alice, amount);
+        vm.startPrank(users.alice);
+        l2wct.approve(address(stakeWeight), amount);
+        stakeWeight.createPermanentLock(amount, duration);
+        vm.stopPrank();
+        
+        // Move time forward by 2 weeks
+        _mineBlocks(defaults.ONE_WEEK_IN_BLOCKS() * 2);
+        
+        // Claim rewards
+        vm.prank(users.alice);
+        uint256 claimedAmount = stakingRewardDistributor.claim(users.alice);
+        
+        // Should receive 2 weeks of rewards
+        uint256 expectedRewards = weeklyAmount * 2;
+        assertEq(claimedAmount, expectedRewards, "Permanent lock should receive full rewards");
+    }
+    
+    function test_ConvertDecayingToPermanentAndClaim()
+        external
+        whenContractLive
+        whenAuthorizedClaimer
+        whenBlockTimestampIsGreaterThanOrEqualToStartWeekCursor
+    {
+        // Setup: Create decaying lock for alice
+        uint256 amount = 1000 ether;
+        uint256 lockTime = block.timestamp + 52 weeks;
+        _createLockForUser(users.alice, amount, lockTime);
+        
+        // Move time forward by 1 week and claim
+        _mineBlocks(defaults.ONE_WEEK_IN_BLOCKS());
+        vm.prank(users.alice);
+        uint256 firstClaim = stakingRewardDistributor.claim(users.alice);
+        assertGt(firstClaim, 0, "Should receive rewards for decaying period");
+        
+        // Convert to permanent (52 weeks)
+        vm.prank(users.alice);
+        stakeWeight.convertToPermanent(52 weeks);
+        
+        // Move time forward by 2 more weeks
+        _mineBlocks(defaults.ONE_WEEK_IN_BLOCKS() * 2);
+        
+        // Claim rewards again
+        vm.prank(users.alice);
+        uint256 secondClaim = stakingRewardDistributor.claim(users.alice);
+        
+        // Should receive 2 weeks of rewards at permanent weight
+        assertEq(secondClaim, weeklyAmount * 2, "Should receive rewards for permanent period");
+    }
+    
+    function test_ConvertPermanentToDecayingAndClaim()
+        external
+        whenContractLive
+        whenAuthorizedClaimer
+        whenBlockTimestampIsGreaterThanOrEqualToStartWeekCursor
+    {
+        // Setup: Create permanent lock for alice
+        uint256 amount = 1000 ether;
+        uint256 duration = 52 weeks;
+        
+        deal(address(l2wct), users.alice, amount);
+        vm.startPrank(users.alice);
+        l2wct.approve(address(stakeWeight), amount);
+        stakeWeight.createPermanentLock(amount, duration);
+        vm.stopPrank();
+        
+        // Move time forward by 1 week and claim
+        _mineBlocks(defaults.ONE_WEEK_IN_BLOCKS());
+        vm.prank(users.alice);
+        uint256 firstClaim = stakingRewardDistributor.claim(users.alice);
+        assertEq(firstClaim, weeklyAmount, "Should receive rewards for permanent period");
+        
+        // Trigger unlock to convert back to decaying
+        vm.prank(users.alice);
+        stakeWeight.triggerUnlock();
+        
+        // Move time forward by 2 more weeks
+        _mineBlocks(defaults.ONE_WEEK_IN_BLOCKS() * 2);
+        
+        // Claim rewards again
+        vm.prank(users.alice);
+        uint256 secondClaim = stakingRewardDistributor.claim(users.alice);
+        
+        // Should receive 2 weeks of rewards at decaying rate
+        assertEq(secondClaim, weeklyAmount * 2, "Should receive rewards for new decaying period");
+    }
+    
     function test_CheckpointTotalSupply()
         external
         whenContractLive

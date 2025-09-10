@@ -128,4 +128,34 @@ contract ForceWithdrawAll_StakeWeight_Integration_Concrete_Test is StakeWeight_I
             l2wct.balanceOf(users.alice), initialBalance + LOCK_AMOUNT, "Tokens should be transferred to recipient"
         );
     }
+
+    function test_ForceWithdrawAll_PermanentLock_Succeeds() external whenCallerIsAdmin givenStakeWeightIsNotPaused {
+        // Create permanent lock for Alice
+        deal(address(l2wct), users.alice, LOCK_AMOUNT);
+        resetPrank(users.alice);
+        l2wct.approve(address(stakeWeight), LOCK_AMOUNT);
+        stakeWeight.createPermanentLock(LOCK_AMOUNT, 52 weeks);
+
+        // Sanity: permanent state
+        assertGt(stakeWeight.permanentOf(users.alice), 0, "permanent weight should be > 0");
+
+        uint256 initialSupply = stakeWeight.supply();
+        uint256 initialBalance = l2wct.balanceOf(users.alice);
+
+        // Admin force withdraw permanent lock
+        resetPrank(users.admin);
+        stakeWeight.forceWithdrawAll(users.alice);
+
+        // Verify lock cleared
+        StakeWeight.LockedBalance memory lock = stakeWeight.locks(users.alice);
+        assertEq(SafeCast.toUint256(lock.amount), 0, "Lock amount should be zero");
+        assertEq(lock.end, 0, "Lock end should be zero");
+        assertEq(lock.transferredAmount, 0, "Transferred amount should be zero");
+        assertEq(stakeWeight.permanentOf(users.alice), 0, "permanent weight should be zero");
+        assertEq(stakeWeight.supply(), initialSupply - LOCK_AMOUNT, "Total supply should decrease by amount");
+        // transferredAmount for permanent path equals amount (transferred on create), but _force path sends only
+        // transferredAmount
+        // For createPermanentLock, transferredAmount == amount, so user receives their tokens back
+        assertEq(l2wct.balanceOf(users.alice), initialBalance + LOCK_AMOUNT, "Tokens returned to user");
+    }
 }

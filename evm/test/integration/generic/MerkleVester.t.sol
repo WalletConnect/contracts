@@ -93,7 +93,7 @@ contract MerkleVesterTest is Base_Test {
     }
 
     function test_MultiAllocationVester() public {
-        uint256 amountToFund = 1e27; // 1 billion tokens
+        uint256 amountToFund = 1e26; // 100 million tokens
         vm.startPrank(users.admin);
         (CalendarAllocation[] memory allocations, bytes32[] memory hashes, bytes32 root) =
             createAllocationsAndMerkleTree("id1", true, true, false, false, amountToFund);

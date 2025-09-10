@@ -161,6 +161,13 @@ contract StakingRewardDistributor is Initializable, Ownable2StepUpgradeable, Ree
         }
 
         uint256 epoch = _findTimestampUserEpoch(user, timestamp, maxUserEpoch);
+        // Check if user was permanent at this epoch
+        uint256 perm = stakeWeight.userPermanentAt(user, epoch);
+        if (perm > 0) {
+            return perm;
+        }
+        
+        // User had a decaying lock, calculate with slope
         StakeWeight.Point memory point = stakeWeight.userPointHistory(user, epoch);
         int128 bias = point.bias - point.slope * SafeCast.toInt128(int256(timestamp - point.timestamp));
         if (bias < 0) {
@@ -258,16 +265,34 @@ contract StakingRewardDistributor is Initializable, Ownable2StepUpgradeable, Ree
                     timeDelta = SafeCast.toInt128(int256(weekCursor_ - point.timestamp));
                 }
                 int128 bias = point.bias - point.slope * timeDelta;
-                if (bias < 0) {
-                    totalSupplyAt[weekCursor_] = 0;
-                } else {
-                    totalSupplyAt[weekCursor_] = SafeCast.toUint256(bias);
-                }
+                uint256 decaying = bias < 0 ? 0 : SafeCast.toUint256(bias);
+                // Add historical permanent snapshot aligned to this epoch
+                uint256 permanentAt = stakeWeight.permanentSupplyByEpoch(epoch);
+                totalSupplyAt[weekCursor_] = decaying + permanentAt;
             }
             weekCursor_ = weekCursor_ + 1 weeks;
         }
 
         weekCursor = weekCursor_;
+    }
+
+    /// @notice Calculate total supply at a specific timestamp (not cached)
+    /// @dev This ensures we always get the correct supply even after conversions
+    function _calculateTotalSupplyAt(uint256 timestamp) internal view returns (uint256) {
+        StakeWeight stakeWeight = StakeWeight(config.getStakeWeight());
+        uint256 epoch = _findTimestampEpoch(timestamp);
+        StakeWeight.Point memory point = stakeWeight.pointHistory(epoch);
+        
+        int128 timeDelta = 0;
+        if (timestamp > point.timestamp) {
+            timeDelta = SafeCast.toInt128(int256(timestamp - point.timestamp));
+        }
+        int128 bias = point.bias - point.slope * timeDelta;
+        uint256 decaying = bias < 0 ? 0 : SafeCast.toUint256(bias);
+        
+        // Add permanent supply at this epoch
+        uint256 permanentAt = stakeWeight.permanentSupplyByEpoch(epoch);
+        return decaying + permanentAt;
     }
 
     /// @notice Update StakeWeight total supply checkpoint
@@ -310,7 +335,18 @@ contract StakingRewardDistributor is Initializable, Ownable2StepUpgradeable, Ree
         StakeWeight.Point memory userPoint = stakeWeight.userPointHistory(user, userEpoch);
 
         if (userWeekCursor == 0) {
-            userWeekCursor = ((userPoint.timestamp + 1 weeks - 1) / 1 weeks) * 1 weeks;
+            // If user locked exactly at week boundary, include that week
+            // Otherwise, round up to next week (no partial week rewards)
+            uint256 userTimestamp = userPoint.timestamp;
+            uint256 weekTimestamp = (userTimestamp / 1 weeks) * 1 weeks;
+            
+            if (userTimestamp == weekTimestamp) {
+                // User locked exactly at week boundary, include this week
+                userWeekCursor = weekTimestamp;
+            } else {
+                // User locked mid-week, start from next week
+                userWeekCursor = weekTimestamp + 1 weeks;
+            }
         }
 
         // userWeekCursor is already at/beyond maxClaimTimestamp
@@ -336,8 +372,20 @@ contract StakingRewardDistributor is Initializable, Ownable2StepUpgradeable, Ree
             if (userWeekCursor >= maxClaimTimestamp) {
                 break;
             }
-            // Move to the new epoch if need to,
-            // else calculate rewards that user should get.
+            // Calculate balance for current week BEFORE moving to new epoch
+            // This properly handles both permanent and decaying locks
+            uint256 balanceOf = this.balanceOfAt(user, userWeekCursor);
+            
+            if (balanceOf > 0 && tokensPerWeek[userWeekCursor] > 0) {
+                // Calculate total supply on-the-fly to handle mid-week conversions correctly
+                uint256 totalSupply = _calculateTotalSupplyAt(userWeekCursor);
+                if (totalSupply > 0) {
+                    toDistribute =
+                        toDistribute + (balanceOf * tokensPerWeek[userWeekCursor]) / totalSupply;
+                }
+            }
+            
+            // Move to the new epoch if needed
             if (userWeekCursor >= userPoint.timestamp && userEpoch <= maxUserEpoch) {
                 userEpoch = userEpoch + 1;
                 prevUserPoint = StakeWeight.Point({
@@ -353,19 +401,14 @@ contract StakingRewardDistributor is Initializable, Ownable2StepUpgradeable, Ree
                 } else {
                     userPoint = stakeWeight.userPointHistory(user, userEpoch);
                 }
-            } else {
-                int128 timeDelta = SafeCast.toInt128(int256(userWeekCursor - prevUserPoint.timestamp));
-                uint256 balanceOf =
-                    SafeCast.toUint256(Math128.max(prevUserPoint.bias - timeDelta * prevUserPoint.slope, 0));
-                if (balanceOf == 0 && userEpoch > maxUserEpoch) {
-                    break;
-                }
-                if (balanceOf > 0) {
-                    toDistribute =
-                        toDistribute + (balanceOf * tokensPerWeek[userWeekCursor]) / totalSupplyAt[userWeekCursor];
-                }
-                userWeekCursor = userWeekCursor + 1 weeks;
             }
+            
+            // Check if we should stop
+            if (balanceOf == 0 && userEpoch > maxUserEpoch) {
+                break;
+            }
+            
+            userWeekCursor = userWeekCursor + 1 weeks;
         }
 
         userEpoch = Math128.min(maxUserEpoch, userEpoch - 1);

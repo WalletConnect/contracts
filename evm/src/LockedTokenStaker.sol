@@ -176,8 +176,8 @@ contract LockedTokenStaker is IPostClaimHandler {
 
         // If the beneficiary has a stake, check if the lock is active
         if (lock.amount > 0) {
-            // If the lock is still active
-            if (lock.end > block.timestamp) {
+            // If the lock is still active (including permanent locks with end == 0)
+            if (lock.end == 0 || lock.end > block.timestamp) {
                 // Decode the extra data to get the root index, decodable args, and proof
                 (uint32 rootIndex, bytes memory decodableArgs, bytes32[] memory proof) =
                     abi.decode(extraData, (uint32, bytes, bytes32[]));

@@ -9,6 +9,8 @@ checkpointTotalSupply.t.sol
 │   │       ├── when weekCursor is greater than point timestamp
 │   │       │   └── it should calculate time delta
 │   │       ├── it should calculate bias
+│   │       ├── when point has slope of zero (permanent)
+│   │       │   └── it should use constant bias without decay
 │   │       ├── when bias is negative
 │   │       │   └── it should set totalSupplyAt for the week to 0
 │   │       ├── when bias is not negative
@@ -17,5 +19,8 @@ checkpointTotalSupply.t.sol
 │   ├── when weekCursor becomes greater than rounded current timestamp
 │   │   └── it should break the loop
 │   └── it should update the contract's weekCursor to the new value
+├── when permanent positions exist
+│   ├── it should correctly record constant supply for permanent weeks
+│   └── it should handle mixed permanent and decaying supplies
 └── when StakeWeight contract is not set in config
     └── it should revert

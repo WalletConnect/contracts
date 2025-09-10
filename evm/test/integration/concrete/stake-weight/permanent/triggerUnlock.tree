@@ -1,0 +1,17 @@
+StakeWeight::triggerUnlock
+├── when contract is paused
+│   └── it should revert
+└── when contract is not paused
+    ├── when user has no lock
+    │   └── it should revert
+    └── when user has a lock
+        ├── when lock is not perpetual
+        │   └── it should revert
+        └── when lock is perpetual
+            ├── it should set end to timestampToFloorWeek(block.timestamp) + perpetualUnlockDuration
+            ├── it should clear perpetualUnlockDuration flag
+            ├── it should calculate new slope based on amount and MAX_LOCK_CAP
+            ├── it should calculate new bias for decay from block.timestamp to end
+            ├── it should trigger checkpoint with transition from slope=0 to slope>0
+            ├── it should preserve historical perpetual weight for past week queries
+            └── it should emit an unlock triggered event

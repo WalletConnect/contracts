@@ -14,6 +14,8 @@ contract StakingRewardDistributorStore {
         uint256 lockedAmount;
         uint256 unlockTime;
         bool hasLock;
+        uint256 lockCreatedAt;  // Ghost variable: timestamp when lock was created
+        bool isPermanent;       // Ghost variable: track if lock is permanent
     }
 
     AllocationData[] public allocations;
@@ -28,6 +30,13 @@ contract StakingRewardDistributorStore {
     uint256 public totalFedRewards;
     uint256 public totalInjectedRewards;
     uint256[] public tokensPerWeekInjectedTimestamps;
+    
+    // Ghost variables for tracking reward distribution timing
+    mapping(uint256 => uint256) public ghost_rewardsPerWeek;  // week => reward amount
+    mapping(uint256 => uint256) public ghost_activeLocksPerWeek;  // week => number of active locks
+    mapping(address => uint256) public ghost_userLockStartWeek;  // user => week when lock started
+    uint256 public ghost_firstRewardWeek;  // First week when rewards were distributed
+    uint256 public ghost_lastRewardWeek;   // Last week when rewards were distributed
 
     function addUser(address user) public {
         if (!isUser[user]) {
@@ -133,6 +142,11 @@ contract StakingRewardDistributorStore {
         if (amount > 0) {
             if (!userInfo[user].hasLock) {
                 userInfo[user].hasLock = true;
+                // Track when lock was created (ghost variable)
+                userInfo[user].lockCreatedAt = block.timestamp;
+                uint256 week = (block.timestamp / 1 weeks) * 1 weeks;
+                ghost_userLockStartWeek[user] = week;
+                ghost_activeLocksPerWeek[week]++;
             }
         } else {
             userInfo[user].hasLock = false;
@@ -143,6 +157,22 @@ contract StakingRewardDistributorStore {
         userInfo[user].unlockTime = time;
         addUser(user);
     }
+    
+    function setUserLockStartWeek(address user, uint256 week) public {
+        ghost_userLockStartWeek[user] = week;
+    }
+    
+    function setFirstRewardWeek(uint256 week) public {
+        if (ghost_firstRewardWeek == 0) {
+            ghost_firstRewardWeek = week;
+        }
+    }
+    
+    function setFirstLockCreatedAt(uint256 timestamp) public {
+        if (firstLockCreatedAt == 0) {
+            firstLockCreatedAt = timestamp;
+        }
+    }
 
     function updateTotalInjectedRewards(uint256 amount, uint256 timestamp) public {
         totalInjectedRewards += amount;
@@ -151,6 +181,15 @@ contract StakingRewardDistributorStore {
 
     function updateTotalFedRewards(uint256 amount) public {
         totalFedRewards += amount;
+        // Track which week received rewards (ghost variable)
+        uint256 week = (block.timestamp / 1 weeks) * 1 weeks;
+        ghost_rewardsPerWeek[week] += amount;
+        if (ghost_firstRewardWeek == 0 || week < ghost_firstRewardWeek) {
+            ghost_firstRewardWeek = week;
+        }
+        if (week > ghost_lastRewardWeek) {
+            ghost_lastRewardWeek = week;
+        }
     }
 
     function getLockedAmount(address user) public view returns (uint256) {

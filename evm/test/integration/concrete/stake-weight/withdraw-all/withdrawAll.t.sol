@@ -38,6 +38,21 @@ contract WithdrawAll_StakeWeight_Integration_Concrete_Test is StakeWeight_Integr
         _;
     }
 
+    function test_RevertWhen_LockIsPermanent() external whenContractIsNotPaused {
+        // Create a permanent lock instead of regular lock
+        uint256 permanentDuration = 52 weeks;
+        deal(address(l2wct), users.alice, LOCK_AMOUNT);
+        vm.startPrank(users.alice);
+        l2wct.approve(address(stakeWeight), LOCK_AMOUNT);
+        stakeWeight.createPermanentLock(LOCK_AMOUNT, permanentDuration);
+        
+        vm.expectRevert(
+            abi.encodeWithSelector(StakeWeight.LockStillActive.selector, type(uint256).max)
+        );
+        stakeWeight.withdrawAll();
+        vm.stopPrank();
+    }
+
     function test_RevertWhen_LockHasNotExpired() external whenContractIsNotPaused whenUserHasLock {
         vm.expectRevert(
             abi.encodeWithSelector(
