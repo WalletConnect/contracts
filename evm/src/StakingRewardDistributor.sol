@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import { Ownable2StepUpgradeable } from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import { AccessControlUpgradeable } from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -11,6 +11,7 @@ import { WalletConnectConfig } from "./WalletConnectConfig.sol";
 import { StakeWeight } from "./StakeWeight.sol";
 import { Math128 } from "./library/Math128.sol";
 import { L2WCT } from "./L2WCT.sol";
+import { Pauser } from "./Pauser.sol";
 /**
  * @title StakingRewardDistributor
  * @notice This contract manages the distribution of staking rewards for the WalletConnect token.
@@ -19,7 +20,7 @@ import { L2WCT } from "./L2WCT.sol";
  * @author WalletConnect
  */
 
-contract StakingRewardDistributor is Initializable, Ownable2StepUpgradeable, ReentrancyGuardUpgradeable {
+contract StakingRewardDistributor is Initializable, AccessControlUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20 for IERC20;
 
     /// @notice Emitted when the contract is killed and emergency return is triggered
@@ -57,8 +58,20 @@ contract StakingRewardDistributor is Initializable, Ownable2StepUpgradeable, Ree
     /// @notice Thrown when an invalid emergency return address is provided
     error InvalidEmergencyReturn();
 
+    /// @notice Thrown when an invalid admin address is provided
+    error InvalidAdmin();
+
     /// @notice Thrown when an unauthorized action is attempted
     error Unauthorized();
+
+    /// @notice Thrown when the contract is paused
+    error Paused();
+
+    // Roles for access control
+    bytes32 public constant REWARD_MANAGER_ROLE = keccak256("REWARD_MANAGER_ROLE");
+
+    // Version for tracking upgrades
+    uint256 public constant VERSION = 2;
 
     /// @notice Thrown when a timestamp is before startWeekCursor
     error InvalidTimestamp();
@@ -130,10 +143,10 @@ contract StakingRewardDistributor is Initializable, Ownable2StepUpgradeable, Ree
     /// @notice Initializes the contract
     /// @param init Initialization parameters
     function initialize(Init memory init) public initializer {
-        __Ownable_init(init.admin);
-        __Ownable2Step_init();
+        __AccessControl_init();
         __ReentrancyGuard_init();
 
+        if (init.admin == address(0)) revert InvalidAdmin();
         if (init.config == address(0)) revert InvalidConfig();
         if (init.emergencyReturn == address(0)) revert InvalidEmergencyReturn();
         config = WalletConnectConfig(init.config);
@@ -143,11 +156,42 @@ contract StakingRewardDistributor is Initializable, Ownable2StepUpgradeable, Ree
         lastTokenTimestamp = startTimeFloorWeek;
         weekCursor = startTimeFloorWeek;
         emergencyReturn = init.emergencyReturn;
+
+        // Grant roles to the admin
+        _grantRole(DEFAULT_ADMIN_ROLE, init.admin);
+        _grantRole(REWARD_MANAGER_ROLE, init.admin);
+    }
+
+    /// @notice Migrate from Ownable to AccessControl - for upgrading live contracts
+    /// @dev MUST be called atomically with upgrade via upgradeToAndCall from ProxyAdmin
+    /// @dev Hardcodes role assignments to prevent front-running during migration:
+    ///      - DEFAULT_ADMIN_ROLE: Optimism Admin Timelock (controls all roles + emergency functions)
+    ///      - REWARD_MANAGER_ROLE: Treasury MultiSig (manages reward operations)
+    function migrateToAccessControl() external reinitializer(2) {
+        // Hardcode addresses for security - prevents front-running attacks
+        address OPTIMISM_ADMIN_TIMELOCK = 0x61cc6aF18C351351148815c5F4813A16DEe7A7E4;
+        address TREASURY_MULTISIG = 0xa86Ca428512D0A18828898d2e656E9eb1b6bA6E7;
+
+        __AccessControl_init();
+
+        // Grant admin role to timelock (can grant/revoke all roles, call kill())
+        _grantRole(DEFAULT_ADMIN_ROLE, OPTIMISM_ADMIN_TIMELOCK);
+
+        // Grant reward manager role to treasury (can call injectReward functions)
+        _grantRole(REWARD_MANAGER_ROLE, TREASURY_MULTISIG);
     }
 
     modifier onlyLive() {
         if (isKilled) revert ContractKilled();
+        _checkNotPaused();
         _;
+    }
+
+    /// @dev Internal function to check if contract is paused
+    function _checkNotPaused() internal view {
+        if (Pauser(config.getPauser()).isStakingRewardDistributorPaused()) {
+            revert Paused();
+        }
     }
 
     /// @notice Get StakeWeight balance of "user" at "timestamp"
@@ -166,7 +210,7 @@ contract StakingRewardDistributor is Initializable, Ownable2StepUpgradeable, Ree
         if (perm > 0) {
             return perm;
         }
-        
+
         // User had a decaying lock, calculate with slope
         StakeWeight.Point memory point = stakeWeight.userPointHistory(user, epoch);
         int128 bias = point.bias - point.slope * SafeCast.toInt128(int256(timestamp - point.timestamp));
@@ -282,14 +326,14 @@ contract StakingRewardDistributor is Initializable, Ownable2StepUpgradeable, Ree
         StakeWeight stakeWeight = StakeWeight(config.getStakeWeight());
         uint256 epoch = _findTimestampEpoch(timestamp);
         StakeWeight.Point memory point = stakeWeight.pointHistory(epoch);
-        
+
         int128 timeDelta = 0;
         if (timestamp > point.timestamp) {
             timeDelta = SafeCast.toInt128(int256(timestamp - point.timestamp));
         }
         int128 bias = point.bias - point.slope * timeDelta;
         uint256 decaying = bias < 0 ? 0 : SafeCast.toUint256(bias);
-        
+
         // Add permanent supply at this epoch
         uint256 permanentAt = stakeWeight.permanentSupplyByEpoch(epoch);
         return decaying + permanentAt;
@@ -339,7 +383,7 @@ contract StakingRewardDistributor is Initializable, Ownable2StepUpgradeable, Ree
             // Otherwise, round up to next week (no partial week rewards)
             uint256 userTimestamp = userPoint.timestamp;
             uint256 weekTimestamp = (userTimestamp / 1 weeks) * 1 weeks;
-            
+
             if (userTimestamp == weekTimestamp) {
                 // User locked exactly at week boundary, include this week
                 userWeekCursor = weekTimestamp;
@@ -375,16 +419,15 @@ contract StakingRewardDistributor is Initializable, Ownable2StepUpgradeable, Ree
             // Calculate balance for current week BEFORE moving to new epoch
             // This properly handles both permanent and decaying locks
             uint256 balanceOf = this.balanceOfAt(user, userWeekCursor);
-            
+
             if (balanceOf > 0 && tokensPerWeek[userWeekCursor] > 0) {
                 // Calculate total supply on-the-fly to handle mid-week conversions correctly
                 uint256 totalSupply = _calculateTotalSupplyAt(userWeekCursor);
                 if (totalSupply > 0) {
-                    toDistribute =
-                        toDistribute + (balanceOf * tokensPerWeek[userWeekCursor]) / totalSupply;
+                    toDistribute = toDistribute + (balanceOf * tokensPerWeek[userWeekCursor]) / totalSupply;
                 }
             }
-            
+
             // Move to the new epoch if needed
             if (userWeekCursor >= userPoint.timestamp && userEpoch <= maxUserEpoch) {
                 userEpoch = userEpoch + 1;
@@ -402,12 +445,12 @@ contract StakingRewardDistributor is Initializable, Ownable2StepUpgradeable, Ree
                     userPoint = stakeWeight.userPointHistory(user, userEpoch);
                 }
             }
-            
+
             // Check if we should stop
             if (balanceOf == 0 && userEpoch > maxUserEpoch) {
                 break;
             }
-            
+
             userWeekCursor = userWeekCursor + 1 weeks;
         }
 
@@ -536,7 +579,7 @@ contract StakingRewardDistributor is Initializable, Ownable2StepUpgradeable, Ree
     }
 
     /// @notice Emergency stop the contract and transfer remaining tokens to the emergency return address
-    function kill() external onlyOwner nonReentrant {
+    function kill() external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
         IERC20 rewardToken = IERC20(config.getL2wct());
         isKilled = true;
         rewardToken.safeTransfer(emergencyReturn, rewardToken.balanceOf(address(this)));
@@ -553,13 +596,13 @@ contract StakingRewardDistributor is Initializable, Ownable2StepUpgradeable, Ree
     /// @notice Inject rewardToken into the contract
     /// @param timestamp The timestamp of the rewardToken to be distributed
     /// @param amount The amount of rewardToken to be distributed
-    function injectReward(uint256 timestamp, uint256 amount) external onlyOwner nonReentrant {
+    function injectReward(uint256 timestamp, uint256 amount) external onlyRole(REWARD_MANAGER_ROLE) nonReentrant {
         _injectReward(timestamp, amount);
     }
 
     /// @notice Inject rewardToken for currect week into the contract
     /// @param amount The amount of rewardToken to be distributed
-    function injectRewardForCurrentWeek(uint256 amount) external onlyOwner nonReentrant {
+    function injectRewardForCurrentWeek(uint256 amount) external onlyRole(REWARD_MANAGER_ROLE) nonReentrant {
         _injectReward(block.timestamp, amount);
     }
 

@@ -12,6 +12,7 @@ import { Staking } from "src/Staking.sol";
 import { StakeWeight } from "src/StakeWeight.sol";
 import { StakingRewardDistributor } from "src/StakingRewardDistributor.sol";
 import { MockERC20 } from "test/mocks/MockERC20.sol";
+import { LockedTokenStaker } from "src/LockedTokenStaker.sol";
 
 function newWCT(address initialOwner, WCT.Init memory init) returns (WCT) {
     bytes32 salt = keccak256(abi.encodePacked("walletconnect.wct"));
@@ -125,6 +126,26 @@ function newStakeWeight(address initialOwner, StakeWeight.Init memory init) retu
     });
 
     return StakeWeight(address(proxy));
+}
+
+function newLockedTokenStaker(
+    address initialOwner,
+    LockedTokenStaker.Init memory init,
+    string memory identifier
+)
+    returns (LockedTokenStaker)
+{
+    require(bytes(identifier).length > 0, "Identifier cannot be empty");
+    bytes32 salt = keccak256(abi.encodePacked("walletconnect.lockedtokenstaker.", identifier));
+
+    LockedTokenStaker impl = new LockedTokenStaker{ salt: salt }();
+    TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy{ salt: salt }({
+        _logic: address(impl),
+        initialOwner: address(initialOwner),
+        _data: abi.encodeCall(LockedTokenStaker.initialize, init)
+    });
+
+    return LockedTokenStaker(address(proxy));
 }
 
 function newMockERC20(address initialOwner) returns (MockERC20) {

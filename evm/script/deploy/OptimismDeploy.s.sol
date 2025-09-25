@@ -22,7 +22,8 @@ import {
     newWalletConnectConfig,
     newPauser,
     newStakeWeight,
-    newStakingRewardDistributor
+    newStakingRewardDistributor,
+    newLockedTokenStaker
 } from "script/helpers/Proxy.sol";
 
 struct OptimismDeploymentParams {
@@ -233,19 +234,36 @@ contract OptimismDeploy is BaseScript {
         }
 
         if (address(deps.lockedTokenStakerReown) == address(0)) {
-            deps.lockedTokenStakerReown = new LockedTokenStaker{
-                salt: keccak256(abi.encodePacked("walletconnect.lockedtokenstaker"))
-            }(deps.merkleVesterReown, WalletConnectConfig(address(deps.config)));
+            deps.lockedTokenStakerReown = newLockedTokenStaker({
+                initialOwner: address(deps.adminTimelock),
+                init: LockedTokenStaker.Init({
+                    vesterContract: address(deps.merkleVesterReown),
+                    config: address(deps.config)
+                }),
+                identifier: "reown"
+            });
         }
 
         if (address(deps.lockedTokenStakerWalletConnect) == address(0)) {
-            deps.lockedTokenStakerWalletConnect =
-                new LockedTokenStaker(deps.merkleVesterWalletConnect, WalletConnectConfig(address(deps.config)));
+            deps.lockedTokenStakerWalletConnect = newLockedTokenStaker({
+                initialOwner: address(deps.adminTimelock),
+                init: LockedTokenStaker.Init({
+                    vesterContract: address(deps.merkleVesterWalletConnect),
+                    config: address(deps.config)
+                }),
+                identifier: "walletconnect"
+            });
         }
 
         if (address(deps.lockedTokenStakerBackers) == address(0)) {
-            deps.lockedTokenStakerBackers =
-                new LockedTokenStaker(deps.merkleVesterBackers, WalletConnectConfig(address(deps.config)));
+            deps.lockedTokenStakerBackers = newLockedTokenStaker({
+                initialOwner: address(deps.adminTimelock),
+                init: LockedTokenStaker.Init({
+                    vesterContract: address(deps.merkleVesterBackers),
+                    config: address(deps.config)
+                }),
+                identifier: "backers"
+            });
         }
 
         if (vm.envOr("BROADCAST", false)) {
@@ -356,9 +374,10 @@ contract OptimismDeploy is BaseScript {
             console2.log("L2WCT default admin is Admin MultiSig");
         }
 
-        // StakingRewardDistributor
-        if (deps.stakingRewardDistributor.owner() != address(params.treasury)) {
-            revert("StakingRewardDistributor owner is not Treasury");
+        // StakingRewardDistributor - check REWARD_MANAGER_ROLE instead of owner
+        bytes32 REWARD_MANAGER_ROLE = keccak256("REWARD_MANAGER_ROLE");
+        if (!deps.stakingRewardDistributor.hasRole(REWARD_MANAGER_ROLE, address(params.treasury))) {
+            revert("StakingRewardDistributor: Treasury does not have REWARD_MANAGER_ROLE");
         }
 
         // Config

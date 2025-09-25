@@ -1,7 +1,7 @@
 injectReward.t.sol
-├── when caller is not owner
-│   └── it should revert
-└── when caller is owner
+├── when caller does not have REWARD_MANAGER_ROLE
+│   └── it should revert with AccessControlUnauthorizedAccount
+└── when caller has REWARD_MANAGER_ROLE
     ├── when amount is greater than zero
     │   ├── when timestamp is in the past
     │   │   ├── when timestamp is before startWeekCursor

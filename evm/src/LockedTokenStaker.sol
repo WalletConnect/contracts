@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
+import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import { AccessControlUpgradeable } from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { StakeWeight } from "src/StakeWeight.sol";
 import { WalletConnectConfig } from "src/WalletConnectConfig.sol";
@@ -22,14 +24,14 @@ import { Pauser } from "./Pauser.sol";
  * @notice This contract handles staking without token transfer, as the tokens are already locked in the vesting
  * contract. Then on postClaim, it prevents claiming with an active lock in the staking contract.
  */
-contract LockedTokenStaker is IPostClaimHandler {
+contract LockedTokenStaker is Initializable, IPostClaimHandler {
     using SafeERC20 for IERC20;
 
     // The address of the vester contract that will call this handler
-    MerkleVester public immutable vesterContract;
+    MerkleVester public vesterContract;
 
     // The configuration for the WalletConnect system
-    WalletConnectConfig public immutable config;
+    WalletConnectConfig public config;
 
     error InvalidCaller();
     error TerminatedAllocation();
@@ -38,14 +40,27 @@ contract LockedTokenStaker is IPostClaimHandler {
     error CannotClaimLockedTokens(uint256 remainingAllocation, uint256 lockedAmount, uint256 claimAmount);
     error Paused();
 
+    /// @notice Initialization parameters
+    struct Init {
+        address vesterContract;
+        address config;
+    }
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
     /**
-     * @notice Constructor to set up the ClaimAndStakeHandler
-     * @param vesterContract_ The address of the vester contract
-     * @param config_ The configuration for the WalletConnect system
+     * @notice Initialize the contract
+     * @param init Initialization parameters
      */
-    constructor(MerkleVester vesterContract_, WalletConnectConfig config_) {
-        vesterContract = vesterContract_;
-        config = config_;
+    function initialize(Init memory init) external initializer {
+        if (init.vesterContract == address(0)) revert InvalidCaller();
+        if (init.config == address(0)) revert InvalidCaller();
+
+        vesterContract = MerkleVester(init.vesterContract);
+        config = WalletConnectConfig(init.config);
     }
 
     modifier whenNotPaused() {
