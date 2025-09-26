@@ -26,9 +26,7 @@ contract InjectReward_StakingRewardDistributor_Integration_Concrete_Test is Stak
         vm.prank(users.alice);
         vm.expectRevert(
             abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector,
-                users.alice,
-                REWARD_MANAGER_ROLE
+                IAccessControl.AccessControlUnauthorizedAccount.selector, users.alice, REWARD_MANAGER_ROLE
             )
         );
         stakingRewardDistributor.injectReward(block.timestamp, INJECTION_AMOUNT);

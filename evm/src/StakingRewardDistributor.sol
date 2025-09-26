@@ -26,7 +26,6 @@ contract StakingRewardDistributor is Initializable, AccessControlUpgradeable, Re
     /// @notice Emitted when the contract is killed and emergency return is triggered
     event Killed();
 
-
     /// @notice Emitted when a token checkpoint is created
     event TokenCheckpointed(uint256 timestamp, uint256 tokens);
 
@@ -53,7 +52,6 @@ contract StakingRewardDistributor is Initializable, AccessControlUpgradeable, Re
     /// @notice Thrown when attempting to interact with a killed contract
     error ContractKilled();
 
-
     /// @notice Thrown when an invalid configuration is provided
     error InvalidConfig();
 
@@ -62,7 +60,6 @@ contract StakingRewardDistributor is Initializable, AccessControlUpgradeable, Re
 
     /// @notice Thrown when an invalid admin address is provided
     error InvalidAdmin();
-
 
     /// @notice Thrown when the contract is paused
     error Paused();
@@ -519,7 +516,6 @@ contract StakingRewardDistributor is Initializable, AccessControlUpgradeable, Re
 
         return total;
     }
-
 
     /// @notice Do Binary Search to find out epoch from timestamp
     /// @param timestamp Timestamp to find epoch

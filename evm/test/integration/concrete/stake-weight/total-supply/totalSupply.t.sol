@@ -108,13 +108,13 @@ contract TotalSupply_StakeWeight_Integration_Concrete_Test is StakeWeight_Integr
         uint256 bobWeight = _calculatePermanentBias(bobAmount, bobDuration);
 
         assertEq(stakeWeight.totalSupply(), aliceWeight + bobWeight, "Total supply should sum permanent weights");
-        
+
         // Verify total supply remains constant over time
         uint256 initialSupply = stakeWeight.totalSupply();
-        
+
         // Advance time significantly
         vm.warp(block.timestamp + 10 weeks);
-        
+
         assertEq(stakeWeight.totalSupply(), initialSupply, "Permanent locks should not decay over time");
     }
 
@@ -143,11 +143,13 @@ contract TotalSupply_StakeWeight_Integration_Concrete_Test is StakeWeight_Integr
 
         // Advance time - permanent should stay constant, decaying should decrease
         vm.warp(block.timestamp + 13 weeks);
-        
+
         uint256 newDecayingWeight = _calculateBias(decayingAmount, decayingLockTime, block.timestamp);
         uint256 expectedSupply = permanentWeight + newDecayingWeight;
-        
-        assertEq(stakeWeight.totalSupply(), expectedSupply, "Supply should reflect permanent constant + decaying reduction");
+
+        assertEq(
+            stakeWeight.totalSupply(), expectedSupply, "Supply should reflect permanent constant + decaying reduction"
+        );
         assertLt(stakeWeight.totalSupply(), initialSupply, "Total supply should decrease due to decaying lock");
     }
 
@@ -165,55 +167,54 @@ contract TotalSupply_StakeWeight_Integration_Concrete_Test is StakeWeight_Integr
 
         // Create decaying lock for Alice
         _createLockForUser(users.alice, amount, initialLockTime);
-        
+
         uint256 initialSupply = stakeWeight.totalSupply();
-        
+
         // Advance time so lock is partially decayed
         vm.warp(block.timestamp + 10 weeks);
-        
+
         uint256 decayedSupply = stakeWeight.totalSupply();
         assertLt(decayedSupply, initialSupply, "Supply should decay over time");
-        
+
         // Get the supply value before conversion to understand the remaining weight
         uint256 remainingWeight = stakeWeight.balanceOf(users.alice);
-        
+
         // Debug: Check totalSupply before conversion
         uint256 totalSupplyBefore = stakeWeight.totalSupply();
         console2.log("Total supply before conversion:", totalSupplyBefore);
         console2.log("Remaining decaying weight:", remainingWeight);
-        
+
         // Convert to permanent
         vm.prank(users.alice);
         stakeWeight.convertToPermanent(permanentDuration);
-        
+
         // Debug: Check totalSupply immediately after
         uint256 totalSupplyImmediately = stakeWeight.totalSupply();
         console2.log("Total supply immediately after conversion:", totalSupplyImmediately);
         console2.log("Expected permanent weight:", _calculatePermanentBias(amount, permanentDuration));
-        console2.log("Difference (old decaying still there?):", totalSupplyImmediately - _calculatePermanentBias(amount, permanentDuration));
-        
+        console2.log(
+            "Difference (old decaying still there?):",
+            totalSupplyImmediately - _calculatePermanentBias(amount, permanentDuration)
+        );
+
         // Calculate expected permanent weight
         uint256 permanentWeight = _calculatePermanentBias(amount, permanentDuration);
-        
+
         // Check user's balance after conversion
         uint256 userBalanceAfter = stakeWeight.balanceOf(users.alice);
         assertEq(userBalanceAfter, permanentWeight, "User balance should match permanent weight");
-        
+
         // After conversion, the totalSupply should equal the user's permanent balance
         // since they are the only user in the system
         uint256 totalSupplyAfter = stakeWeight.totalSupply();
-        assertEq(
-            totalSupplyAfter, 
-            userBalanceAfter, 
-            "Total supply should match the only user's balance"
-        );
-        
+        assertEq(totalSupplyAfter, userBalanceAfter, "Total supply should match the only user's balance");
+
         // Verify the supply stays constant over time (doesn't decay)
         uint256 supplyAfterConversion = totalSupplyAfter;
         vm.warp(block.timestamp + 20 weeks);
-        
+
         assertEq(stakeWeight.totalSupply(), supplyAfterConversion, "Permanent supply should not decay");
-        
+
         // Additional verification: balance should also remain constant
         assertEq(stakeWeight.balanceOf(users.alice), permanentWeight, "User balance should remain constant");
     }

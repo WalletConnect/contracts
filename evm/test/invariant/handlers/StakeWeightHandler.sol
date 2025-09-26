@@ -108,7 +108,7 @@ contract StakeWeightHandler is BaseHandler {
         address user = store.getRandomAddressWithLock();
 
         StakeWeight.LockedBalance memory lock = stakeWeight.locks(user);
-        
+
         // Skip permanent locks (cannot withdraw)
         if (stakeWeight.permanentBaseWeeks(user) > 0) {
             return;
@@ -238,20 +238,27 @@ contract StakeWeightHandler is BaseHandler {
         vm.stopPrank();
     }
 
-    function createPermanentLock(address user, uint256 amount, uint256 duration) public instrument("createPermanentLock") {
+    function createPermanentLock(
+        address user,
+        uint256 amount,
+        uint256 duration
+    )
+        public
+        instrument("createPermanentLock")
+    {
         // Filter out invalid addresses
         vm.assume(user != address(stakeWeight) && user != address(0));
-        
+
         // Check if user already has a lock
         if (store.hasLock(user)) {
             return;
         }
-        
+
         // Set reasonable bounds for amount
         uint256 minAmount = 100 * 10 ** 18; // 100 tokens
         uint256 maxAmount = 10_000 * 10 ** 18; // 10,000 tokens
         amount = bound(amount, minAmount, maxAmount);
-        
+
         // Valid durations per StakeWeight._isValidDuration
         uint256[] memory validDurations = new uint256[](7);
         validDurations[0] = 4 weeks;
@@ -261,23 +268,23 @@ contract StakeWeightHandler is BaseHandler {
         validDurations[4] = 52 weeks;
         validDurations[5] = 78 weeks;
         validDurations[6] = 104 weeks;
-        
+
         // Bound duration to valid index range and pick a valid duration
         uint256 durationIndex = bound(duration, 0, 6);
         duration = validDurations[durationIndex];
-        
+
         // Give user tokens
         deal(address(l2wct), user, amount);
-        
+
         uint256 previousBalance = stakeWeight.balanceOf(user);
-        
+
         vm.startPrank(user);
         l2wct.approve(address(stakeWeight), amount);
         stakeWeight.createPermanentLock(amount, duration);
         vm.stopPrank();
-        
+
         StakeWeight.LockedBalance memory newLock = stakeWeight.locks(user);
-        
+
         store.addAddressWithLock(user);
         store.updateLockedAmount(user, newLock.amount);
         store.updatePreviousBalance(user, previousBalance);
@@ -287,12 +294,12 @@ contract StakeWeightHandler is BaseHandler {
     function convertToPermanent(uint256 duration) public instrument("convertToPermanent") {
         address user = store.getRandomAddressWithLock();
         StakeWeight.LockedBalance memory lock = stakeWeight.locks(user);
-        
+
         // Skip if already permanent or expired
         if (stakeWeight.permanentBaseWeeks(user) > 0 || lock.end <= block.timestamp) {
             return;
         }
-        
+
         // Valid durations for permanent locks
         uint256[] memory validDurations = new uint256[](7);
         validDurations[0] = 4 weeks;
@@ -302,7 +309,7 @@ contract StakeWeightHandler is BaseHandler {
         validDurations[4] = 52 weeks;
         validDurations[5] = 78 weeks;
         validDurations[6] = 104 weeks;
-        
+
         // Pick a duration that's at least as long as remaining lock time
         uint256 remainingTime = lock.end - block.timestamp;
         uint256 selectedDuration;
@@ -315,13 +322,13 @@ contract StakeWeightHandler is BaseHandler {
         if (selectedDuration == 0) {
             selectedDuration = validDurations[6]; // Use max if none found
         }
-        
+
         uint256 previousBalance = stakeWeight.balanceOf(user);
-        
+
         resetPrank(user);
         stakeWeight.convertToPermanent(selectedDuration);
         vm.stopPrank();
-        
+
         store.updatePreviousBalance(user, previousBalance);
         store.updatePreviousEndTime(user, 0); // Now permanent
     }
@@ -329,21 +336,21 @@ contract StakeWeightHandler is BaseHandler {
     function triggerUnlock() public instrument("triggerUnlock") {
         address user = store.getRandomAddressWithLock();
         StakeWeight.LockedBalance memory lock = stakeWeight.locks(user);
-        
+
         // Skip if not permanent
         if (stakeWeight.permanentBaseWeeks(user) == 0) {
             return;
         }
-        
+
         uint256 previousBalance = stakeWeight.balanceOf(user);
-        
+
         resetPrank(user);
         stakeWeight.triggerUnlock();
         vm.stopPrank();
-        
+
         // Calculate new end time
         uint256 newEnd = (block.timestamp / 1 weeks) * 1 weeks + stakeWeight.permanentBaseWeeks(user) * 1 weeks;
-        
+
         store.updatePreviousBalance(user, previousBalance);
         store.updatePreviousEndTime(user, newEnd);
     }
@@ -351,15 +358,15 @@ contract StakeWeightHandler is BaseHandler {
     function updatePermanentLock(uint256 amount, uint256 newDuration) public instrument("updatePermanentLock") {
         address user = store.getRandomAddressWithLock();
         StakeWeight.LockedBalance memory lock = stakeWeight.locks(user);
-        
+
         // Skip if not permanent
         if (stakeWeight.permanentBaseWeeks(user) == 0) {
             return;
         }
-        
+
         // Set reasonable bounds for amount
         amount = bound(amount, 0, 1000 * 10 ** 18);
-        
+
         // Valid durations (must be >= current)
         uint256[] memory validDurations = new uint256[](7);
         validDurations[0] = 4 weeks;
@@ -369,7 +376,7 @@ contract StakeWeightHandler is BaseHandler {
         validDurations[4] = 52 weeks;
         validDurations[5] = 78 weeks;
         validDurations[6] = 104 weeks;
-        
+
         // Find valid durations >= current
         uint256 minIndex = 0;
         uint256 currentDuration = stakeWeight.permanentBaseWeeks(user) * 1 weeks;
@@ -379,27 +386,27 @@ contract StakeWeightHandler is BaseHandler {
                 break;
             }
         }
-        
+
         // Bound to valid range and pick a duration >= current
         uint256 durationIndex = bound(newDuration, minIndex, 6);
         uint256 selectedDuration = validDurations[durationIndex];
-        
+
         if (amount > 0 && l2wct.balanceOf(user) < amount) {
             deal(address(l2wct), user, amount);
         }
-        
+
         uint256 previousBalance = stakeWeight.balanceOf(user);
-        
+
         vm.startPrank(user);
         if (amount > 0) {
             l2wct.approve(address(stakeWeight), amount);
         }
         stakeWeight.updatePermanentLock(amount, selectedDuration);
         vm.stopPrank();
-        
+
         StakeWeight.LockedBalance memory newLock = stakeWeight.locks(user);
         int128 increasedAmount = newLock.amount - lock.amount;
-        
+
         store.updateLockedAmount(user, increasedAmount);
         store.updatePreviousBalance(user, previousBalance);
     }
@@ -407,12 +414,12 @@ contract StakeWeightHandler is BaseHandler {
     function increasePermanentLockDuration(uint256 newDuration) public instrument("increasePermanentLockDuration") {
         address user = store.getRandomAddressWithLock();
         StakeWeight.LockedBalance memory lock = stakeWeight.locks(user);
-        
+
         // Skip if not permanent
         if (stakeWeight.permanentBaseWeeks(user) == 0) {
             return;
         }
-        
+
         // Valid durations (must be > current)
         uint256[] memory validDurations = new uint256[](7);
         validDurations[0] = 4 weeks;
@@ -422,7 +429,7 @@ contract StakeWeightHandler is BaseHandler {
         validDurations[4] = 52 weeks;
         validDurations[5] = 78 weeks;
         validDurations[6] = 104 weeks;
-        
+
         // Pick a duration > current
         uint256 selectedDuration = 0;
         uint256 currentDuration = stakeWeight.permanentBaseWeeks(user) * 1 weeks;
@@ -432,17 +439,17 @@ contract StakeWeightHandler is BaseHandler {
                 break;
             }
         }
-        
+
         if (selectedDuration == 0) {
             return; // Already at max
         }
-        
+
         uint256 previousBalance = stakeWeight.balanceOf(user);
-        
+
         resetPrank(user);
         stakeWeight.increasePermanentLockDuration(selectedDuration);
         vm.stopPrank();
-        
+
         store.updatePreviousBalance(user, previousBalance);
     }
 }

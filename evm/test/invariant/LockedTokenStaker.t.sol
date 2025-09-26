@@ -165,7 +165,8 @@ contract LockedTokenStaker_Invariant_Test is Invariant_Test {
 
             // Check both regular active locks AND permanent locks (end == 0)
             if (lock.end == 0 || lock.end > block.timestamp) {
-                // For active locks (including permanent), ensure the allocation - withdrawn amount is not greater than the lock amount
+                // For active locks (including permanent), ensure the allocation - withdrawn amount is not greater than
+                // the lock amount
                 AllocationData memory allocation = store.getAllocation(staker);
                 Allocation memory alloc =
                     vester.getLeafJustAllocationData(0, allocation.decodableArgs, allocation.proofs);
@@ -266,26 +267,26 @@ contract LockedTokenStaker_Invariant_Test is Invariant_Test {
             }
         }
     }
-    
+
     function invariant_permanentLocksRespectVesting() public view {
         address[] memory stakers = store.getAddressesWithLock();
-        
+
         for (uint256 i = 0; i < stakers.length; i++) {
             address staker = stakers[i];
             StakeWeight.LockedBalance memory lock = stakeWeight.locks(staker);
-            
+
             // Check if this is a permanent lock (end == 0)
             if (lock.end == 0 && lock.amount > 0) {
                 AllocationData memory allocation = store.getAllocation(staker);
-                Allocation memory alloc = 
+                Allocation memory alloc =
                     vester.getLeafJustAllocationData(0, allocation.decodableArgs, allocation.proofs);
                 (,,,,,, uint256 withdrawnAmount) = store.userInfo(staker);
-                
+
                 // Permanent locks should be treated as fully active locks
                 // Therefore, the locked amount plus withdrawn should not exceed allocation
                 uint256 totalUsed = withdrawnAmount + uint256(uint128(lock.amount));
                 assertLe(totalUsed, alloc.totalAllocation, "Permanent lock bypassed vesting restriction");
-                
+
                 // Additionally, permanent locks should prevent any withdrawals beyond
                 // what's available after accounting for the lock
                 uint256 availableForWithdrawal = alloc.totalAllocation - uint256(uint128(lock.amount));

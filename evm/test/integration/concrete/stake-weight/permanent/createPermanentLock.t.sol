@@ -28,21 +28,21 @@ contract CreatePerpetualLock_StakeWeight_Integration_Concrete_Test is StakeWeigh
 
     function test_RevertWhen_UserAlreadyHasLock() external whenContractIsNotPaused {
         uint256 amount = 100 ether;
-        
+
         // Deal tokens to Alice and start pranking as Alice
         deal(address(l2wct), users.alice, amount * 2);
         vm.startPrank(users.alice);
-        
+
         // Approve tokens for locking
         IERC20(address(l2wct)).approve(address(stakeWeight), amount * 2);
-        
+
         // Create initial permanent lock
         stakeWeight.createPermanentLock(amount, VALID_DURATION);
-        
+
         // Attempt to create another lock
         vm.expectRevert(StakeWeight.AlreadyCreatedLock.selector);
         stakeWeight.createPermanentLock(amount, VALID_DURATION);
-        
+
         vm.stopPrank();
     }
 
@@ -65,56 +65,52 @@ contract CreatePerpetualLock_StakeWeight_Integration_Concrete_Test is StakeWeigh
 
     function test_WhenParametersAreValid() external whenContractIsNotPaused givenUserDoesNotHaveALock {
         uint256 amount = 100 ether;
-        
+
         // Deal tokens to Alice and start pranking as Alice
         deal(address(l2wct), users.alice, amount);
         vm.startPrank(users.alice);
-        
+
         // Approve tokens for locking
         IERC20(address(l2wct)).approve(address(stakeWeight), amount);
-        
+
         uint256 supplyBefore = stakeWeight.supply();
-        
+
         // Expect the Deposit event
         vm.expectEmit(true, true, true, true);
         emit Deposit(
-            users.alice, 
-            amount, 
+            users.alice,
+            amount,
             0, // end is 0 for permanent
-            stakeWeight.ACTION_CREATE_LOCK(), 
-            amount, 
+            stakeWeight.ACTION_CREATE_LOCK(),
+            amount,
             block.timestamp
         );
-        
+
         // Create permanent lock
         stakeWeight.createPermanentLock(amount, VALID_DURATION);
-        
+
         // Verify lock was created with correct parameters
         StakeWeight.LockedBalance memory lock = stakeWeight.locks(users.alice);
         assertEq(uint256(int256(lock.amount)), amount, "Locked amount should match");
         assertEq(lock.end, 0, "End should be 0 for permanent lock");
         assertEq(stakeWeight.permanentBaseWeeks(users.alice) * 1 weeks, VALID_DURATION, "Duration should be stored");
-        
+
         // Verify balance is weighted and non-zero
         uint256 currentBalance = stakeWeight.balanceOf(users.alice);
         assertGt(currentBalance, 0, "Balance should be greater than 0");
-        
+
         // Verify balance remains constant over time (permanent characteristic)
         uint256 initialBalance = currentBalance;
         _mineBlocks(10 weeks / defaults.SECONDS_PER_BLOCK());
         uint256 futureBalance = stakeWeight.balanceOf(users.alice);
         assertEq(futureBalance, initialBalance, "Balance should remain constant for permanent");
-        
+
         // Verify total supply was updated
-        assertEq(
-            stakeWeight.supply(),
-            supplyBefore + amount,
-            "Total supply should increase by locked amount"
-        );
-        
+        assertEq(stakeWeight.supply(), supplyBefore + amount, "Total supply should increase by locked amount");
+
         // Verify the lock behaves as permanent (constant weight over time)
         // We don't check internal Point structures, only external behavior
-        
+
         vm.stopPrank();
     }
 }

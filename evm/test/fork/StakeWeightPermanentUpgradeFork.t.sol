@@ -675,7 +675,9 @@ contract StakeWeightPermanentUpgrade_ForkTest is Base_Test {
         bytes memory decodableArgs,
         bytes32[] memory proof,
         bytes memory extraData
-    ) private {
+    )
+        private
+    {
         vm.prank(LOCKED_TOKEN_HOLDER);
         vester.withdraw(1, rootIndex, decodableArgs, proof, IPostClaimHandler(handlerAddr), extraData);
     }

@@ -302,18 +302,25 @@ contract StakingRewardDistributorUpgrade_ForkTest is Base_Test {
 
         bytes[] memory stakeWeightPayloads = new bytes[](1);
         stakeWeightPayloads[0] = abi.encodeWithSelector(
-            ProxyAdmin.upgradeAndCall.selector, ITransparentUpgradeableProxy(STAKE_WEIGHT_PROXY), address(newStakeWeightImpl), ""
+            ProxyAdmin.upgradeAndCall.selector,
+            ITransparentUpgradeableProxy(STAKE_WEIGHT_PROXY),
+            address(newStakeWeightImpl),
+            ""
         );
 
         bytes32 stakeWeightSalt = keccak256("STAKE_WEIGHT_PERMANENT_UPGRADE");
 
         vm.prank(admin);
-        adminTimelock.scheduleBatch(stakeWeightTargets, stakeWeightValues, stakeWeightPayloads, bytes32(0), stakeWeightSalt, MIN_DELAY);
+        adminTimelock.scheduleBatch(
+            stakeWeightTargets, stakeWeightValues, stakeWeightPayloads, bytes32(0), stakeWeightSalt, MIN_DELAY
+        );
 
         vm.warp(block.timestamp + MIN_DELAY + 1);
 
         vm.prank(admin);
-        adminTimelock.executeBatch(stakeWeightTargets, stakeWeightValues, stakeWeightPayloads, bytes32(0), stakeWeightSalt);
+        adminTimelock.executeBatch(
+            stakeWeightTargets, stakeWeightValues, stakeWeightPayloads, bytes32(0), stakeWeightSalt
+        );
 
         // Third, perform the StakingRewardDistributor upgrade
         testUpgradeToAccessControl();

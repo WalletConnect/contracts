@@ -45,10 +45,8 @@ contract WithdrawAll_StakeWeight_Integration_Concrete_Test is StakeWeight_Integr
         vm.startPrank(users.alice);
         l2wct.approve(address(stakeWeight), LOCK_AMOUNT);
         stakeWeight.createPermanentLock(LOCK_AMOUNT, permanentDuration);
-        
-        vm.expectRevert(
-            abi.encodeWithSelector(StakeWeight.LockStillActive.selector, type(uint256).max)
-        );
+
+        vm.expectRevert(abi.encodeWithSelector(StakeWeight.LockStillActive.selector, type(uint256).max));
         stakeWeight.withdrawAll();
         vm.stopPrank();
     }

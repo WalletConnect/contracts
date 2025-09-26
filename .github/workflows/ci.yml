@@ -54,7 +54,7 @@ jobs:
         run: "pnpm install"
 
       - name: "Build the contracts and print their size"
-        run: "cd evm && forge build --sizes"
+        run: "cd evm && forge build --sizes src/**/*.sol --skip src/utils/**/*.sol"
 
       - name: "Add build summary"
         run: |

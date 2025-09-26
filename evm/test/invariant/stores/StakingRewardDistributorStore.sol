@@ -14,8 +14,8 @@ contract StakingRewardDistributorStore {
         uint256 lockedAmount;
         uint256 unlockTime;
         bool hasLock;
-        uint256 lockCreatedAt;  // Ghost variable: timestamp when lock was created
-        bool isPermanent;       // Ghost variable: track if lock is permanent
+        uint256 lockCreatedAt; // Ghost variable: timestamp when lock was created
+        bool isPermanent; // Ghost variable: track if lock is permanent
     }
 
     AllocationData[] public allocations;
@@ -30,13 +30,13 @@ contract StakingRewardDistributorStore {
     uint256 public totalFedRewards;
     uint256 public totalInjectedRewards;
     uint256[] public tokensPerWeekInjectedTimestamps;
-    
+
     // Ghost variables for tracking reward distribution timing
-    mapping(uint256 => uint256) public ghost_rewardsPerWeek;  // week => reward amount
-    mapping(uint256 => uint256) public ghost_activeLocksPerWeek;  // week => number of active locks
-    mapping(address => uint256) public ghost_userLockStartWeek;  // user => week when lock started
-    uint256 public ghost_firstRewardWeek;  // First week when rewards were distributed
-    uint256 public ghost_lastRewardWeek;   // Last week when rewards were distributed
+    mapping(uint256 => uint256) public ghost_rewardsPerWeek; // week => reward amount
+    mapping(uint256 => uint256) public ghost_activeLocksPerWeek; // week => number of active locks
+    mapping(address => uint256) public ghost_userLockStartWeek; // user => week when lock started
+    uint256 public ghost_firstRewardWeek; // First week when rewards were distributed
+    uint256 public ghost_lastRewardWeek; // Last week when rewards were distributed
 
     function addUser(address user) public {
         if (!isUser[user]) {
@@ -157,17 +157,17 @@ contract StakingRewardDistributorStore {
         userInfo[user].unlockTime = time;
         addUser(user);
     }
-    
+
     function setUserLockStartWeek(address user, uint256 week) public {
         ghost_userLockStartWeek[user] = week;
     }
-    
+
     function setFirstRewardWeek(uint256 week) public {
         if (ghost_firstRewardWeek == 0) {
             ghost_firstRewardWeek = week;
         }
     }
-    
+
     function setFirstLockCreatedAt(uint256 timestamp) public {
         if (firstLockCreatedAt == 0) {
             firstLockCreatedAt = timestamp;

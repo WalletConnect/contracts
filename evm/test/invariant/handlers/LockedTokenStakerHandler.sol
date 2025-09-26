@@ -133,7 +133,7 @@ contract LockedTokenStakerHandler is BaseHandler {
     function withdraw(uint256 claimAmount, uint256 seed) public adjustTimestamp(seed) instrument("withdraw") {
         AllocationData memory allocation = store.getRandomAllocation(seed);
 
-        // 100M tokens / 500 allocations = 200k per allocation  
+        // 100M tokens / 500 allocations = 200k per allocation
         uint256 maxAmount = 1e26 / 500;
         claimAmount = bound(claimAmount, 1, maxAmount);
 

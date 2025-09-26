@@ -227,10 +227,7 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
 
         lockedTokenStaker = newLockedTokenStaker({
             initialOwner: users.admin,
-            init: LockedTokenStaker.Init({
-                vesterContract: address(vester),
-                config: address(walletConnectConfig)
-            }),
+            init: LockedTokenStaker.Init({ vesterContract: address(vester), config: address(walletConnectConfig) }),
             identifier: "test"
         });
 
