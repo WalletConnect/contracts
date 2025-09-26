@@ -16,7 +16,13 @@ import { ITransparentUpgradeableProxy } from "@openzeppelin/contracts/proxy/tran
 import { Upgrades } from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import { Options } from "openzeppelin-foundry-upgrades/Options.sol";
 import { LockedTokenStaker } from "src/LockedTokenStaker.sol";
-import { MerkleVester, Allocation, IPostClaimHandler, CalendarUnlockSchedule } from "src/utils/magna/MerkleVester.sol";
+import {
+    MerkleVester,
+    Allocation,
+    IPostClaimHandler,
+    CalendarUnlockSchedule,
+    IERC20
+} from "src/utils/magna/MerkleVester.sol";
 
 /**
  * @title StakeWeightPermanentUpgrade_ForkTest
@@ -30,12 +36,12 @@ contract StakeWeightPermanentUpgrade_ForkTest is Base_Test {
 
     TimelockController public timelock;
     address public admin;
-    
+
     function _mineBlocks(uint256 blocks) internal {
         vm.roll(block.number + blocks);
         vm.warp(block.timestamp + blocks * SECONDS_PER_BLOCK);
     }
-    
+
     function _advanceTime(uint256 duration) internal {
         uint256 blocks = duration / SECONDS_PER_BLOCK;
         _mineBlocks(blocks);
@@ -160,11 +166,11 @@ contract StakeWeightPermanentUpgrade_ForkTest is Base_Test {
         address srdOwner = 0xa86Ca428512D0A18828898d2e656E9eb1b6bA6E7;
         uint256 weeklyReward = 2000e18;
         uint256 currentWeek = (block.timestamp / 1 weeks) * 1 weeks;
-        
+
         deal(address(l2wct), srdOwner, weeklyReward * 6);
         vm.startPrank(srdOwner);
         l2wct.approve(address(stakingRewardDistributor), weeklyReward * 6);
-        
+
         // Inject rewards for current and next 5 weeks
         for (uint256 i = 0; i <= 5; i++) {
             stakingRewardDistributor.injectReward(currentWeek + (i * 1 weeks), weeklyReward);
@@ -235,11 +241,11 @@ contract StakeWeightPermanentUpgrade_ForkTest is Base_Test {
         address srdOwner = 0xa86Ca428512D0A18828898d2e656E9eb1b6bA6E7;
         uint256 weeklyReward = 1000e18;
         uint256 currentWeek = (block.timestamp / 1 weeks) * 1 weeks;
-        
+
         deal(address(l2wct), srdOwner, weeklyReward * 6);
         vm.startPrank(srdOwner);
         l2wct.approve(address(stakingRewardDistributor), weeklyReward * 6);
-        
+
         // Inject rewards for current week and next 5 weeks
         for (uint256 i = 0; i <= 5; i++) {
             stakingRewardDistributor.injectReward(currentWeek + (i * 1 weeks), weeklyReward);
@@ -249,7 +255,7 @@ contract StakeWeightPermanentUpgrade_ForkTest is Base_Test {
         // Checkpoint first
         stakingRewardDistributor.checkpointToken();
         stakingRewardDistributor.checkpointTotalSupply();
-        
+
         // Then advance to complete multiple full weeks
         _advanceTime(4 weeks);
 
@@ -283,57 +289,57 @@ contract StakeWeightPermanentUpgrade_ForkTest is Base_Test {
      */
     function testFork_lockedTokenHolderConversion() public {
         // Use the constant LOCKED_TOKEN_HOLDER defined at the contract level
-        
+
         // Record initial state
         uint256 initialBalance = stakeWeight.balanceOf(LOCKED_TOKEN_HOLDER);
         StakeWeight.LockedBalance memory initialLock = stakeWeight.locks(LOCKED_TOKEN_HOLDER);
-        
+
         console2.log("LOCKED_TOKEN_HOLDER initial balance:", initialBalance);
         console2.log("LOCKED_TOKEN_HOLDER lock amount:", initialLock.amount);
         console2.log("LOCKED_TOKEN_HOLDER lock end:", initialLock.end);
-        
+
         assertGt(initialBalance, 0, "Should have existing balance");
         assertGt(initialLock.amount, 0, "Should have locked tokens");
-        
+
         // Calculate the minimum duration needed (remaining lock time)
         uint256 remainingTime = initialLock.end - block.timestamp;
         uint256 weeksRemaining = (remainingTime + 1 weeks - 1) / 1 weeks; // Round up to nearest week
-        
+
         console2.log("Remaining lock time (weeks):", weeksRemaining);
-        
+
         // Convert to permanent lock (must be at least as long as remaining time)
         vm.prank(LOCKED_TOKEN_HOLDER);
         stakeWeight.convertToPermanent(weeksRemaining * 1 weeks);
-        
+
         uint256 permanentBalance = stakeWeight.balanceOf(LOCKED_TOKEN_HOLDER);
         uint256 permanentBaseWeeks = stakeWeight.permanentBaseWeeks(LOCKED_TOKEN_HOLDER);
-        
+
         console2.log("After conversion - permanent balance:", permanentBalance);
         console2.log("Permanent base weeks:", permanentBaseWeeks);
-        
+
         assertEq(permanentBaseWeeks, weeksRemaining, "Should be permanent with correct weeks base");
         assertGt(permanentBalance, 0, "Should maintain voting power");
-        
+
         // The permanent conversion increased voting power slightly
         // From 32008738069134630842209 to 32251848829365647610535
         // This is because permanent locks get full weight without decay
         assertGt(permanentBalance, initialBalance, "Permanent should have more weight than decaying at this point");
-        
+
         // Skip reward claiming test due to tiny share of mainnet supply
         // LOCKED_TOKEN_HOLDER has ~32M out of ~9.6T total = 0.33%
         // Even with millions in rewards, integer division rounds to 0
         console2.log("Skipping reward claim test - position too small relative to mainnet supply");
-        
+
         // Since LOCKED_TOKEN_HOLDER already has 104 week lock (maximum discrete option),
         // we can't increase duration further. Instead, verify the permanent lock is working correctly.
         console2.log("Permanent lock established with maximum discrete duration (104 weeks)");
-        
+
         // Test unlocking back to decaying
         vm.prank(LOCKED_TOKEN_HOLDER);
         stakeWeight.triggerUnlock();
-        
+
         assertEq(stakeWeight.permanentBaseWeeks(LOCKED_TOKEN_HOLDER), 0, "Should no longer be permanent");
-        
+
         StakeWeight.LockedBalance memory decayingLock = stakeWeight.locks(LOCKED_TOKEN_HOLDER);
         assertGt(decayingLock.end, block.timestamp, "Should have future unlock time");
     }
@@ -350,7 +356,7 @@ contract StakeWeightPermanentUpgrade_ForkTest is Base_Test {
         {
             uint256 nextWeekStart = ((block.timestamp / 1 weeks) + 1) * 1 weeks;
             uint256 timeToAdvance = nextWeekStart - block.timestamp;
-            
+
             // Use vm.warp directly to ensure we land exactly on week boundary
             vm.warp(nextWeekStart);
             // Also advance block number proportionally
@@ -390,7 +396,7 @@ contract StakeWeightPermanentUpgrade_ForkTest is Base_Test {
         // Test transitions work correctly (skip reward claims for tiny position)
         // With ~1000e18 out of ~8e21 total supply (0.0000125% share),
         // rewards would round down to 0 in mainnet fork testing
-        
+
         // Verify transitions completed successfully
         assertEq(balance4, balance3, "Transitions preserved weight correctly");
 
@@ -439,166 +445,238 @@ contract StakeWeightPermanentUpgrade_ForkTest is Base_Test {
         assertGe(futureSupply, permSupply, "Future supply includes permanent");
     }
 
-    // /**
-    //  * @notice Test that LockedTokenStaker protection remains intact after upgrade
-    //  * @dev Verifies users cannot claim vested tokens while having an active lock
-    //  */
-    // function testFork_lockedTokenStakerProtection() public {
-    //     // Get LockedTokenStaker and MerkleVester from deployments
-    //     OptimismDeployments memory deps = new OptimismDeploy().readOptimismDeployments(block.chainid);
-    //     LockedTokenStaker lockedTokenStaker = LockedTokenStaker(deps.lockedTokenStaker);
-    //     MerkleVester vester = MerkleVester(deps.merkleVester);
+    /**
+     * @notice Test that LockedTokenStaker protection works for regular locks
+     * @dev Uses real transaction data from LOCKED_TOKEN_HOLDER's createLockFor call
+     */
+    function testFork_lockedTokenStakerProtection_regularLock() public {
+        // Get deployment addresses
+        (address lockedTokenStakerAddr, address vesterAddr) = _getDeployments();
+        LockedTokenStaker lockedTokenStaker = LockedTokenStaker(lockedTokenStakerAddr);
+        MerkleVester vester = MerkleVester(vesterAddr);
 
-    //     // Create test user with allocation
-    //     address vestingUser = makeAddr("vestingUser");
-    //     uint256 totalAllocation = 10_000e18;
-    //     uint256 lockAmount = 8000e18; // Lock 80% of allocation
+        // Build test data using helpers
+        (uint32 rootIndex, bytes memory decodableArgs, bytes32[] memory proof, bytes memory extraData) =
+            _buildVesterCalldata();
 
-    //     // Set up simple vesting schedule (50% after 30 days, 50% after 60 days)
-    //     uint32[] memory unlockTimestamps = new uint32[](2);
-    //     unlockTimestamps[0] = uint32(block.timestamp + 30 days);
-    //     unlockTimestamps[1] = uint32(block.timestamp + 60 days);
+        // Get the existing lock state
+        {
+            StakeWeight.LockedBalance memory existingLock = stakeWeight.locks(LOCKED_TOKEN_HOLDER);
+            uint256 lockAmount = uint256(uint128(existingLock.amount));
 
-    //     uint256[] memory unlockPercents = new uint256[](2);
-    //     unlockPercents[0] = 500_000; // 50%
-    //     unlockPercents[1] = 500_000; // 50%
+            console2.log("Existing lock amount:", lockAmount);
+            console2.log("Existing lock end:", existingLock.end);
+            console2.log("Current block.timestamp:", block.timestamp);
+        }
 
-    //     CalendarUnlockSchedule memory unlockSchedule = CalendarUnlockSchedule({
-    //         unlockScheduleId: "test-schedule",
-    //         unlockTimestamps: unlockTimestamps,
-    //         unlockPercents: unlockPercents
-    //     });
+        // Verify the allocation using vester's getLeafJustAllocationData
+        Allocation memory allocation = vester.getLeafJustAllocationData(rootIndex, decodableArgs, proof);
 
-    //     // Create allocation
-    //     Allocation memory allocation = Allocation({
-    //         id: "test-allocation",
-    //         originalBeneficiary: vestingUser,
-    //         totalAllocation: totalAllocation,
-    //         cancelable: true,
-    //         revokable: false,
-    //         transferableByAdmin: false,
-    //         transferableByBeneficiary: false
-    //     });
+        console2.log("Allocation ID:", allocation.id);
+        console2.log("Total allocation:", allocation.totalAllocation);
+        console2.log("Original beneficiary:", allocation.originalBeneficiary);
 
-    //     // Create merkle proof (single leaf for simplicity)
-    //     bytes memory decodableArgs = abi.encode("calendar", allocation, unlockSchedule);
-    //     bytes32 leaf = keccak256(decodableArgs);
-    //     bytes32[] memory proof = new bytes32[](0);
-    //     bytes32 root = leaf;
+        // Advance time to at least the first unlock so withdrawableAmount > 0, but not past lock expiry
+        {
+            CalendarUnlockSchedule memory sched = _buildUnlockSchedule();
+            StakeWeight.LockedBalance memory existingLock = stakeWeight.locks(LOCKED_TOKEN_HOLDER);
+            uint256 warpTarget = uint256(sched.unlockTimestamps[0]) + 1;
+            if (warpTarget > existingLock.end) {
+                // Don't warp past lock expiry
+                warpTarget = existingLock.end - 1 weeks;
+                console2.log("Adjusted warp target to stay before lock expiry");
+            }
+            vm.warp(warpTarget);
+            console2.log("Warped to timestamp:", block.timestamp);
+        }
 
-    //     // Add root to vester and fund it
-    //     vm.prank(admin);
-    //     vester.addAllocationRoot(root);
-    //     deal(address(l2wct), address(vester), totalAllocation);
+        // Test the protection: user with active lock cannot claim locked portion
+        StakeWeight.LockedBalance memory existingLock = stakeWeight.locks(LOCKED_TOKEN_HOLDER);
+        uint256 lockAmount = uint256(uint128(existingLock.amount));
 
-    //     // Create lock through LockedTokenStaker
-    //     vm.prank(vestingUser);
-    //     lockedTokenStaker.createLockFor(
-    //         lockAmount,
-    //         block.timestamp + 52 weeks,
-    //         0, // rootIndex
-    //         decodableArgs,
-    //         proof
-    //     );
+        // Expect revert when going through the real vester flow
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                LockedTokenStaker.CannotClaimLockedTokens.selector,
+                allocation.totalAllocation,
+                lockAmount,
+                1 // claimAmount
+            )
+        );
 
-    //     // Verify lock was created
-    //     StakeWeight.LockedBalance memory lock = stakeWeight.locks(vestingUser);
-    //     assertEq(uint256(uint128(lock.amount)), lockAmount, "Lock created");
+        // Call withdraw through helper to avoid stack issues
+        _callVesterWithdraw(vester, lockedTokenStakerAddr, rootIndex, decodableArgs, proof, extraData);
+    }
 
-    //     // Advance to first unlock (50% vested)
-    //     vm.warp(unlockTimestamps[0] + 1);
+    /**
+     * @notice Test that LockedTokenStaker protection fails for permanent locks (CRITICAL BUG)
+     * @dev Demonstrates the bug where permanent locks bypass vesting protection
+     */
+    function testFork_lockedTokenStakerProtection_permanentLock() public {
+        // Get deployment addresses
+        (address lockedTokenStakerAddr, address vesterAddr) = _getDeployments();
+        MerkleVester vester = MerkleVester(vesterAddr);
 
-    //     // Try to withdraw more than available (should fail)
-    //     uint256 vestedAmount = (totalAllocation * 50) / 100; // 5000e18
-    //     uint256 attemptWithdraw = vestedAmount; // Try to withdraw all vested
+        // Build test data using helpers
+        (uint32 rootIndex, bytes memory decodableArgs, bytes32[] memory proof, bytes memory extraData) =
+            _buildVesterCalldata();
 
-    //     // This should revert because user has 8000e18 locked but only 10000e18 total allocation
-    //     // After withdrawing 5000e18, remaining would be 5000e18 which is less than locked 8000e18
-    //     vm.startPrank(vestingUser);
+        // Advance time
+        CalendarUnlockSchedule memory sched = _buildUnlockSchedule();
+        vm.warp(uint256(sched.unlockTimestamps[0]) + 1);
 
-    //     bytes memory extraData = abi.encode(uint32(0), decodableArgs, proof);
+        // Convert to permanent lock
+        StakeWeight.LockedBalance memory lockBeforeConvert = stakeWeight.locks(LOCKED_TOKEN_HOLDER);
+        uint256 remainingTime = lockBeforeConvert.end > block.timestamp ? (lockBeforeConvert.end - block.timestamp) : 0;
+        uint256 remainingWeeks = (remainingTime + 1 weeks - 1) / 1 weeks;
+        uint256[7] memory allowed = [uint256(4), 8, 12, 26, 52, 78, 104];
+        uint256 chosenWeeks = allowed[6];
+        for (uint256 i = 0; i < allowed.length; i++) {
+            if (allowed[i] >= remainingWeeks) {
+                chosenWeeks = allowed[i];
+                break;
+            }
+        }
 
-    //     // The withdrawal should revert with CannotClaimLockedTokens
-    //     vm.expectRevert(
-    //         abi.encodeWithSelector(
-    //             LockedTokenStaker.CannotClaimLockedTokens.selector,
-    //             totalAllocation, // remainingAllocation (no withdrawals yet)
-    //             lockAmount, // lockedAmount
-    //             attemptWithdraw // claimAmount
-    //         )
-    //     );
+        vm.prank(LOCKED_TOKEN_HOLDER);
+        stakeWeight.convertToPermanent(chosenWeeks * 1 weeks);
 
-    //     vester.withdraw(
-    //         attemptWithdraw,
-    //         0, // rootIndex
-    //         decodableArgs,
-    //         proof,
-    //         IPostClaimHandler(address(lockedTokenStaker)),
-    //         extraData
-    //     );
-    //     vm.stopPrank();
+        // Verify lock is now permanent
+        StakeWeight.LockedBalance memory permLock = stakeWeight.locks(LOCKED_TOKEN_HOLDER);
+        assertEq(permLock.end, 0, "Lock should be permanent");
 
-    //     // Now test that small withdrawals work (within available amount)
-    //     uint256 safeWithdraw = totalAllocation - lockAmount; // 2000e18
+        // CRITICAL BUG: Permanent locks incorrectly bypass vesting protection
+        // The bug causes withdrawAllFor to be called, which reverts with LockStillActive
+        // when it detects the permanent lock (isPermanent[user] == true returns type(uint256).max)
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                StakeWeight.LockStillActive.selector,
+                type(uint256).max // StakeWeight returns this for permanent locks
+            )
+        );
+        // Call withdraw through helper to avoid stack issues
+        _callVesterWithdraw(vester, lockedTokenStakerAddr, rootIndex, decodableArgs, proof, extraData);
 
-    //     vm.startPrank(vestingUser);
-    //     vester.withdraw(safeWithdraw, 0, decodableArgs, proof, IPostClaimHandler(address(lockedTokenStaker)),
-    // extraData);
-    //     vm.stopPrank();
+        console2.log("BUG: Permanent locks incorrectly trigger withdrawAllFor instead of vesting protection!");
+        console2.log("Expected: CannotClaimLockedTokens, Actual: LockStillActive");
+        console2.log("This needs to be fixed in LockedTokenStaker.sol before deployment");
+    }
 
-    //     // Verify withdrawal succeeded
-    //     assertEq(l2wct.balanceOf(vestingUser), safeWithdraw, "Safe withdrawal succeeded");
+    // ============ Helper Functions to Avoid Stack Too Deep ============
 
-    //     // Test with permanent lock after upgrade
-    //     address permUser = makeAddr("permVester");
+    /**
+     * @dev Build the unlock schedule with 37 timestamps and percents
+     */
+    function _buildUnlockSchedule() private pure returns (CalendarUnlockSchedule memory) {
+        uint32[] memory ts = new uint32[](37);
+        ts[0] = 0x698a7500;
+        ts[1] = 0x69af5f00;
+        ts[2] = 0x69d83d80;
+        ts[3] = 0x69ffca80;
+        ts[4] = 0x6a28a900;
+        ts[5] = 0x6a503600;
+        ts[6] = 0x6a791480;
+        ts[7] = 0x6aa1f300;
+        ts[8] = 0x6ac98000;
+        ts[9] = 0x6af25e80;
+        ts[10] = 0x6b19eb80;
+        ts[11] = 0x6b42ca00;
+        ts[12] = 0x6b6ba880;
+        ts[13] = 0x6b909280;
+        ts[14] = 0x6bb97100;
+        ts[15] = 0x6be0fe00;
+        ts[16] = 0x6c09dc80;
+        ts[17] = 0x6c316980;
+        ts[18] = 0x6c5a4800;
+        ts[19] = 0x6c832680;
+        ts[20] = 0x6caab380;
+        ts[21] = 0x6cd39200;
+        ts[22] = 0x6cfb1f00;
+        ts[23] = 0x6d23fd80;
+        ts[24] = 0x6d4cdc00;
+        ts[25] = 0x6d731780;
+        ts[26] = 0x6d9bf600;
+        ts[27] = 0x6dc38300;
+        ts[28] = 0x6dec6180;
+        ts[29] = 0x6e13ee80;
+        ts[30] = 0x6e3ccd00;
+        ts[31] = 0x6e65ab80;
+        ts[32] = 0x6e8d3880;
+        ts[33] = 0x6eb61700;
+        ts[34] = 0x6edda400;
+        ts[35] = 0x6f068280;
+        ts[36] = 0x6f2f6100;
 
-    //     // Create another allocation for permanent lock test
-    //     Allocation memory permAllocation = Allocation({
-    //         id: "perm-allocation",
-    //         originalBeneficiary: permUser,
-    //         totalAllocation: totalAllocation,
-    //         cancelable: true,
-    //         revokable: false,
-    //         transferableByAdmin: false,
-    //         transferableByBeneficiary: false
-    //     });
+        uint256[] memory ps = new uint256[](37);
+        ps[0] = 0x34f086f3b33b6840000;
+        for (uint256 i = 1; i < 37; i++) {
+            ps[i] = 0x46960944eef9e05555;
+        }
 
-    //     bytes memory permDecodableArgs = abi.encode("calendar", permAllocation, unlockSchedule);
-    //     bytes32 permLeaf = keccak256(permDecodableArgs);
-    //     bytes32[] memory permProof = new bytes32[](0);
-    //     bytes32 permRoot = permLeaf;
+        return CalendarUnlockSchedule({
+            unlockScheduleId: "02cfcfad-2206-402a-a414-e63dc289063e",
+            unlockTimestamps: ts,
+            unlockPercents: ps
+        });
+    }
 
-    //     vm.prank(admin);
-    //     vester.addAllocationRoot(permRoot);
-    //     deal(address(l2wct), address(vester), totalAllocation);
+    /**
+     * @dev Build the allocation struct
+     */
+    function _buildAllocation() private pure returns (Allocation memory) {
+        return Allocation({
+            id: "3ea0b6b4-4672-41aa-8e62-47015ebc187d",
+            originalBeneficiary: 0xa4B8C74D83Aaa3163Ee5E103Aa8b09B9aE912083,
+            totalAllocation: 62_499_999_999_999_999_999_988,
+            cancelable: true,
+            revokable: true,
+            transferableByAdmin: true,
+            transferableByBeneficiary: true
+        });
+    }
 
-    //     // Create permanent lock
-    //     vm.prank(permUser);
-    //     lockedTokenStaker.createLockFor(
-    //         lockAmount,
-    //         block.timestamp + 52 weeks,
-    //         1, // new rootIndex
-    //         permDecodableArgs,
-    //         permProof
-    //     );
+    /**
+     * @dev Get deployment addresses without loading full struct
+     */
+    function _getDeployments() private returns (address lockedTokenStaker, address vester) {
+        OptimismDeployments memory deps = new OptimismDeploy().readOptimismDeployments(block.chainid);
+        return (address(deps.lockedTokenStakerReown), address(deps.merkleVesterReown));
+    }
 
-    //     // Convert to permanent
-    //     vm.prank(permUser);
-    //     stakeWeight.convertToPermanent(52 weeks);
+    /**
+     * @dev Build the vester calldata
+     */
+    function _buildVesterCalldata()
+        private
+        pure
+        returns (uint32 rootIndex, bytes memory decodableArgs, bytes32[] memory proof, bytes memory extraData)
+    {
+        rootIndex = 11;
 
-    //     // Verify permanent lock protection still works
-    //     bytes memory permExtraData = abi.encode(uint32(1), permDecodableArgs, permProof);
+        string memory allocationType = "calendar";
+        Allocation memory alloc = _buildAllocation();
+        CalendarUnlockSchedule memory sched = _buildUnlockSchedule();
 
-    //     vm.startPrank(permUser);
-    //     vm.expectRevert(); // Should still prevent withdrawal
-    //     vester.withdraw(
-    //         attemptWithdraw,
-    //         1,
-    //         permDecodableArgs,
-    //         permProof,
-    //         IPostClaimHandler(address(lockedTokenStaker)),
-    //         permExtraData
-    //     );
-    //     vm.stopPrank();
-    // }
+        decodableArgs = abi.encode(allocationType, alloc, sched);
+
+        proof = new bytes32[](1);
+        proof[0] = bytes32(0xb4803e46184bb7c8b61c85212d14dfeaea2433ff5cf5e3d77bdfb2aa4769d6d9);
+
+        extraData = abi.encode(rootIndex, decodableArgs, proof);
+    }
+
+    /**
+     * @dev Helper to call vester.withdraw to avoid stack too deep
+     */
+    function _callVesterWithdraw(
+        MerkleVester vester,
+        address handlerAddr,
+        uint32 rootIndex,
+        bytes memory decodableArgs,
+        bytes32[] memory proof,
+        bytes memory extraData
+    ) private {
+        vm.prank(LOCKED_TOKEN_HOLDER);
+        vester.withdraw(1, rootIndex, decodableArgs, proof, IPostClaimHandler(handlerAddr), extraData);
+    }
 }

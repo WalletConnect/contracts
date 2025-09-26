@@ -15,7 +15,7 @@ test = "test"
 auto_detect_solc = false
 block_timestamp = 1_680_220_800 # March 31, 2023 at 00:00 GMT
 bytecode_hash = "none"
-evm_version = "paris" # See https://www.evmdiff.com/features?name=PUSH0&kind=opcode
+evm_version = "cancun"
 fs_permissions = [{ access = "read-write", path = "./deployments"}, { access = "read", path = "./"}]
 ffi = true
 ast = true
