@@ -67,6 +67,10 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
     uint256 public constant MAX_LOCK_CAP = (209 weeks) - 1;
     // Multiplier for the slope calculation
     uint256 public constant MULTIPLIER = 1e18;
+    // Maximum iterations for checkpoint loops (approx 5 years)
+    uint256 private constant MAX_CHECKPOINT_ITERATIONS = 255;
+    // Maximum iterations for binary search
+    uint256 private constant MAX_BINARY_SEARCH_ITERATIONS = 128;
     // Action Types
     uint256 public constant ACTION_DEPOSIT_FOR = 0;
     uint256 public constant ACTION_CREATE_LOCK = 1;
@@ -474,7 +478,7 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
 
         // Go over weeks to fill history and calculate what the current point is
         uint256 weekCursor = _timestampToFloorWeek(lastCheckpoint);
-        for (uint256 i = 0; i < 255; i++) {
+        for (uint256 i = 0; i < MAX_CHECKPOINT_ITERATIONS; i++) {
             // This logic will works for 5 years, if more than that vote power will be broken 😟
             // Bump weekCursor a week
             weekCursor = weekCursor + 1 weeks;
@@ -705,7 +709,7 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
         uint256 max = s.epoch;
 
         // Binary search through epochs
-        for (uint256 i = 0; i < 128; i++) {
+        for (uint256 i = 0; i < MAX_BINARY_SEARCH_ITERATIONS; i++) {
             if (min >= max) {
                 break;
             }
@@ -727,7 +731,7 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
         uint256 min = 0;
         uint256 max = maxEpoch;
         // Loop for 128 times -> enough for 128-bit numbers
-        for (uint256 i = 0; i < 128; i++) {
+        for (uint256 i = 0; i < MAX_BINARY_SEARCH_ITERATIONS; i++) {
             if (min >= max) {
                 break;
             }
@@ -749,7 +753,7 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
         uint256 min = 0;
         uint256 max = s.userPointEpoch[user];
 
-        for (uint256 i = 0; i < 128; i++) {
+        for (uint256 i = 0; i < MAX_BINARY_SEARCH_ITERATIONS; i++) {
             if (min >= max) break;
             uint256 mid = (min + max + 1) / 2;
             if (s.userPointHistory[user][mid].timestamp <= timestamp) {
@@ -768,7 +772,7 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
         StakeWeightStorage storage s = _getStakeWeightStorage();
         uint256 min = 0;
         uint256 max = s.userPointEpoch[user];
-        for (uint256 i = 0; i < 128; i++) {
+        for (uint256 i = 0; i < MAX_BINARY_SEARCH_ITERATIONS; i++) {
             if (min >= max) {
                 break;
             }
@@ -1067,7 +1071,7 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
         Point memory lastPoint = point;
         uint256 weekCursor = _timestampToFloorWeek(point.timestamp);
         // Iterate through weeks to take slopChanges into the account
-        for (uint256 i = 0; i < 255; i++) {
+        for (uint256 i = 0; i < MAX_CHECKPOINT_ITERATIONS; i++) {
             weekCursor = weekCursor + 1 weeks;
             int128 slopeDelta = 0;
             if (weekCursor > timestamp) {

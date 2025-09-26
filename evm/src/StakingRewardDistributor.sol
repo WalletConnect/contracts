@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.25;
+pragma solidity 0.8.25;
 
 import { AccessControlUpgradeable } from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -26,8 +26,6 @@ contract StakingRewardDistributor is Initializable, AccessControlUpgradeable, Re
     /// @notice Emitted when the contract is killed and emergency return is triggered
     event Killed();
 
-    /// @notice Emitted when tokens are added to the contract
-    event Fed(uint256 amount);
 
     /// @notice Emitted when a token checkpoint is created
     event TokenCheckpointed(uint256 timestamp, uint256 tokens);
@@ -43,14 +41,18 @@ contract StakingRewardDistributor is Initializable, AccessControlUpgradeable, Re
     /// @param newRecipient The new recipient address
     event RecipientUpdated(address indexed user, address indexed oldRecipient, address indexed newRecipient);
 
+    /// @notice Emitted when rewards are injected into the system
+    /// @param timestamp The timestamp for the reward injection
+    /// @param amount The amount of rewards injected
+    event RewardInjected(uint256 indexed timestamp, uint256 amount);
+
+    /// @notice Emitted when total supply checkpoint is updated
+    /// @param timestamp The timestamp of the checkpoint
+    event TotalSupplyCheckpointed(uint256 indexed timestamp);
+
     /// @notice Thrown when attempting to interact with a killed contract
     error ContractKilled();
 
-    /// @notice Thrown when the number of users exceeds the maximum allowed
-    error TooManyUsers();
-
-    /// @notice Thrown when an invalid user address is provided
-    error InvalidUser();
 
     /// @notice Thrown when an invalid configuration is provided
     error InvalidConfig();
@@ -61,8 +63,6 @@ contract StakingRewardDistributor is Initializable, AccessControlUpgradeable, Re
     /// @notice Thrown when an invalid admin address is provided
     error InvalidAdmin();
 
-    /// @notice Thrown when an unauthorized action is attempted
-    error Unauthorized();
 
     /// @notice Thrown when the contract is paused
     error Paused();
@@ -72,6 +72,11 @@ contract StakingRewardDistributor is Initializable, AccessControlUpgradeable, Re
 
     // Version for tracking upgrades
     uint256 public constant VERSION = 2;
+
+    // Maximum iterations for reward distribution loops (approx 1 year)
+    uint256 private constant MAX_REWARD_ITERATIONS = 52;
+    // Maximum iterations for binary search
+    uint256 private constant MAX_BINARY_SEARCH_ITERATIONS = 128;
 
     /// @notice Thrown when a timestamp is before startWeekCursor
     error InvalidTimestamp();
@@ -142,7 +147,7 @@ contract StakingRewardDistributor is Initializable, AccessControlUpgradeable, Re
 
     /// @notice Initializes the contract
     /// @param init Initialization parameters
-    function initialize(Init memory init) public initializer {
+    function initialize(Init memory init) external initializer {
         __AccessControl_init();
         __ReentrancyGuard_init();
 
@@ -255,7 +260,7 @@ contract StakingRewardDistributor is Initializable, AccessControlUpgradeable, Re
         lastTokenTimestamp = block.timestamp;
 
         // Iterate through weeks to filled out missing tokensPerWeek (if any)
-        for (uint256 i = 0; i < 52; i++) {
+        for (uint256 i = 0; i < MAX_REWARD_ITERATIONS; i++) {
             nextWeekCursor = thisWeekCursor + 1 weeks;
 
             // if block.timestamp < nextWeekCursor, means nextWeekCursor goes
@@ -298,7 +303,7 @@ contract StakingRewardDistributor is Initializable, AccessControlUpgradeable, Re
 
         stakeWeight.checkpoint();
 
-        for (uint256 i = 0; i < 52; i++) {
+        for (uint256 i = 0; i < MAX_REWARD_ITERATIONS; i++) {
             if (weekCursor_ > roundedTimestamp) {
                 break;
             } else {
@@ -344,6 +349,7 @@ contract StakingRewardDistributor is Initializable, AccessControlUpgradeable, Re
     /// the new epoch week.
     function checkpointTotalSupply() external nonReentrant {
         _checkpointTotalSupply();
+        emit TotalSupplyCheckpointed(block.timestamp);
     }
 
     /// @notice Claim rewardToken
@@ -410,7 +416,7 @@ contract StakingRewardDistributor is Initializable, AccessControlUpgradeable, Re
         StakeWeight.Point memory prevUserPoint = StakeWeight.Point({ bias: 0, slope: 0, timestamp: 0, blockNumber: 0 });
 
         // Go through weeks
-        for (uint256 i = 0; i < 52; i++) {
+        for (uint256 i = 0; i < MAX_REWARD_ITERATIONS; i++) {
             // If userWeekCursor is iterated to be at/beyond maxClaimTimestamp
             // This means we went through all weeks that user subject to claim rewards already
             if (userWeekCursor >= maxClaimTimestamp) {
@@ -514,16 +520,6 @@ contract StakingRewardDistributor is Initializable, AccessControlUpgradeable, Re
         return total;
     }
 
-    /// @notice Receive rewardTokens into the contract and trigger token checkpoint
-    function feed(uint256 amount) external nonReentrant onlyLive returns (bool) {
-        IERC20(config.getL2wct()).safeTransferFrom(msg.sender, address(this), amount);
-
-        _checkpointToken();
-
-        emit Fed(amount);
-
-        return true;
-    }
 
     /// @notice Do Binary Search to find out epoch from timestamp
     /// @param timestamp Timestamp to find epoch
@@ -533,7 +529,7 @@ contract StakingRewardDistributor is Initializable, AccessControlUpgradeable, Re
         uint256 min = 0;
         uint256 max = stakeWeight.epoch();
         // Loop for 128 times -> enough for 128-bit numbers
-        for (uint256 i = 0; i < 128; i++) {
+        for (uint256 i = 0; i < MAX_BINARY_SEARCH_ITERATIONS; i++) {
             if (min >= max) {
                 break;
             }
@@ -563,7 +559,7 @@ contract StakingRewardDistributor is Initializable, AccessControlUpgradeable, Re
     {
         uint256 min = 0;
         uint256 max = maxUserEpoch;
-        for (uint256 i = 0; i < 128; i++) {
+        for (uint256 i = 0; i < MAX_BINARY_SEARCH_ITERATIONS; i++) {
             if (min >= max) {
                 break;
             }
@@ -579,7 +575,7 @@ contract StakingRewardDistributor is Initializable, AccessControlUpgradeable, Re
     }
 
     /// @notice Emergency stop the contract and transfer remaining tokens to the emergency return address
-    function kill() external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
+    function kill() external nonReentrant onlyRole(DEFAULT_ADMIN_ROLE) {
         IERC20 rewardToken = IERC20(config.getL2wct());
         isKilled = true;
         rewardToken.safeTransfer(emergencyReturn, rewardToken.balanceOf(address(this)));
@@ -596,13 +592,13 @@ contract StakingRewardDistributor is Initializable, AccessControlUpgradeable, Re
     /// @notice Inject rewardToken into the contract
     /// @param timestamp The timestamp of the rewardToken to be distributed
     /// @param amount The amount of rewardToken to be distributed
-    function injectReward(uint256 timestamp, uint256 amount) external onlyRole(REWARD_MANAGER_ROLE) nonReentrant {
+    function injectReward(uint256 timestamp, uint256 amount) external nonReentrant onlyRole(REWARD_MANAGER_ROLE) {
         _injectReward(timestamp, amount);
     }
 
     /// @notice Inject rewardToken for currect week into the contract
     /// @param amount The amount of rewardToken to be distributed
-    function injectRewardForCurrentWeek(uint256 amount) external onlyRole(REWARD_MANAGER_ROLE) nonReentrant {
+    function injectRewardForCurrentWeek(uint256 amount) external nonReentrant onlyRole(REWARD_MANAGER_ROLE) {
         _injectReward(block.timestamp, amount);
     }
 
@@ -615,6 +611,7 @@ contract StakingRewardDistributor is Initializable, AccessControlUpgradeable, Re
         lastTokenBalance += amount;
         totalDistributed += amount;
         tokensPerWeek[weekTimestamp] += amount;
+        emit RewardInjected(weekTimestamp, amount);
     }
 
     /// @notice Set recipient address

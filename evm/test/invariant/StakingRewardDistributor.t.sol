@@ -59,17 +59,16 @@ contract StakingRewardDistributor_Invariant_Test is Invariant_Test {
         // - forceWithdrawAll: Admin operation, rarely used
         // - createLockFor: Complex merkle proof validation
         // - updatePermanentLock: Edge cases with permanent lock updates
-        bytes4[] memory selectors = new bytes4[](10);
+        bytes4[] memory selectors = new bytes4[](9);
         selectors[0] = handler.createLock.selector;
         selectors[1] = handler.withdrawAll.selector;
         selectors[2] = handler.claim.selector;
         selectors[3] = handler.setRecipient.selector;
         selectors[4] = handler.injectReward.selector;
-        selectors[5] = handler.feed.selector;
-        selectors[6] = handler.checkpointToken.selector;
-        selectors[7] = handler.checkpointTotalSupply.selector;
-        selectors[8] = handler.createPermanentLock.selector;
-        selectors[9] = handler.convertToPermanent.selector;
+        selectors[5] = handler.checkpointToken.selector;
+        selectors[6] = handler.checkpointTotalSupply.selector;
+        selectors[7] = handler.createPermanentLock.selector;
+        selectors[8] = handler.convertToPermanent.selector;
 
         targetSelector(FuzzSelector(address(handler), selectors));
 
@@ -197,9 +196,9 @@ contract StakingRewardDistributor_Invariant_Test is Invariant_Test {
         // Simplified invariant: Just verify the core accounting relationship
         // totalDistributed should equal what we tracked as fed + injected
         assertEq(
-            store.totalFedRewards() + store.totalInjectedRewards(),
+            store.totalInjectedRewards(),
             stakingRewardDistributor.totalDistributed(),
-            "Total distributed should equal sum of fed and injected rewards"
+            "Total distributed should equal total injected rewards"
         );
 
         // Verify that tokensPerWeek mapping has been populated for active weeks
@@ -465,10 +464,10 @@ contract StakingRewardDistributor_Invariant_Test is Invariant_Test {
 
         vm.startPrank(users.admin);
         l2wct.approve(address(stakingRewardDistributor), initialRewards);
-        stakingRewardDistributor.feed(initialRewards);
+        stakingRewardDistributor.injectRewardForCurrentWeek(initialRewards);
         vm.stopPrank();
 
-        store.updateTotalFedRewards(initialRewards);
+        store.updateTotalInjectedRewards(initialRewards, _timestampToFloorWeek(block.timestamp));
 
         // Perform initial checkpoints to establish supply tracking
         stakingRewardDistributor.checkpointToken();
@@ -490,12 +489,12 @@ contract StakingRewardDistributor_Invariant_Test is Invariant_Test {
     function afterInvariant() public {
         // Log campaign metrics - condensed for clarity
         console2.log("Total calls:", handler.totalCalls());
-        console2.log("Feed/Inject:", handler.calls("feed"), handler.calls("injectReward"));
+        console2.log("Inject rewards:", handler.calls("injectReward"));
         console2.log("Permanent ops:", handler.calls("createPermanentLock"), handler.calls("convertToPermanent"));
 
         // Coverage tracking: log which operations were exercised
         uint256 lockOps = handler.calls("createLock") + handler.calls("createPermanentLock");
-        uint256 rewardOps = handler.calls("injectReward") + handler.calls("feed");
+        uint256 rewardOps = handler.calls("injectReward");
         uint256 checkpointOps = handler.calls("checkpointToken") + handler.calls("checkpointTotalSupply");
 
         // Log coverage for analysis (don't fail tests on low coverage)

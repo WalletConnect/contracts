@@ -127,30 +127,6 @@ contract StakingRewardDistributorHandler is BaseHandler {
         vm.stopPrank();
     }
 
-    function feed(uint256 amount, uint256 seed) public useNewSender(admin) instrument("feed") {
-        // Only adjust time slightly for feed operations to maintain reward continuity
-        uint256 timeJump = bound(seed, 0, 30 minutes);
-        vm.warp(block.timestamp + timeJump);
-
-        // Set safe bounds for reward amounts
-        uint256 minReward = 100 * 1e18;
-        uint256 maxReward = 100_000 * 1e18;
-        uint256 safeReward = 5000 * 1e18;
-
-        if (amount < minReward || amount > maxReward) {
-            amount = safeReward;
-        } else {
-            amount = bound(amount, minReward, maxReward);
-        }
-        vm.assume(amount > 0);
-        deal(address(l2wct), admin, amount);
-        l2wct.approve(address(stakingRewardDistributor), amount);
-        stakingRewardDistributor.feed(amount);
-        store.updateTotalFedRewards(amount);
-        // End admin prank started by useNewSender
-        vm.stopPrank();
-    }
-
     function createLock(address user, uint256 amount, uint256 unlockTime) public instrument("createLock") {
         address srdProxyAdmin = Eip1967Logger.getAdmin(vm, address(stakingRewardDistributor));
         address swProxyAdmin = Eip1967Logger.getAdmin(vm, address(stakeWeight));
