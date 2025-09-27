@@ -56,7 +56,7 @@ abstract contract TransceiverRegistry {
     error DisabledTransceiver(address transceiver);
 
     /// @notice Error when the number of registered transceivers
-    ///         exceeeds (MAX_TRANSCEIVERS = 64).
+    ///         exceeds (MAX_TRANSCEIVERS = 64).
     /// @dev Selector 0x891684c3.
     error TooManyTransceivers();
 
@@ -4701,7 +4701,7 @@ interface IRateLimiterEvents {
     /// @param digest The digest of the message.
     event InboundTransferQueued(bytes32 digest);
 
-    /// @notice Emitted whenn an outbound transfer is queued.
+    /// @notice Emitted when an outbound transfer is queued.
     /// @dev Topic0
     ///      0x69add1952a6a6b9cb86f04d05f0cb605cbb469a50ae916139d34495a9991481f.
     /// @param queueSequence The location of the transfer in the queue.
@@ -5802,7 +5802,7 @@ interface IManagerBase {
     /// @param transceivers The number of transceivers.
     error ThresholdTooHigh(uint256 threshold, uint256 transceivers);
 
-    /// @notice Error when the tranceiver already attested to the message.
+    /// @notice Error when the transceiver already attested to the message.
     ///         To ensure the client does not continue to initiate calls to the attestationReceived function.
     /// @dev Selector 0x2113894.
     /// @param nttManagerMessageHash The hash of the message.
@@ -7290,7 +7290,7 @@ abstract contract ManagerBase is
     }
 
     // @dev Mark a message as executed.
-    // This function will retuns `true` if the message has already been executed.
+    // This function will returns `true` if the message has already been executed.
     function _replayProtect(bytes32 digest) internal returns (bool) {
         // check if this message has already been executed
         if (isMessageExecuted(digest)) {
