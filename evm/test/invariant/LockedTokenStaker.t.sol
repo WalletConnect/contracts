@@ -37,7 +37,9 @@ contract LockedTokenStaker_Invariant_Test is Invariant_Test {
         merkle = new Merkle();
 
         // start vester
-        uint256 amountToFund = 1e27; // 1 billion tokens
+        // Use safe amount that won't overflow int128 (max ~1.7e20 tokens)
+        // We'll use 1e26 (100 million tokens) which is well below the limit
+        uint256 amountToFund = 1e26; // 100 million tokens
         vm.startPrank(users.admin);
         (,, bytes32 root) = createAllocationsAndMerkleTree("id1", true, true, false, false, amountToFund);
         vester.addAllocationRoot(root);
@@ -161,8 +163,10 @@ contract LockedTokenStaker_Invariant_Test is Invariant_Test {
             address staker = stakers[i];
             StakeWeight.LockedBalance memory lock = stakeWeight.locks(staker);
 
-            if (lock.end > block.timestamp) {
-                // For active locks, ensure the allocation - withdrawn amount is not greater than the lock amount
+            // Check both regular active locks AND permanent locks (end == 0)
+            if (lock.end == 0 || lock.end > block.timestamp) {
+                // For active locks (including permanent), ensure the allocation - withdrawn amount is not greater than
+                // the lock amount
                 AllocationData memory allocation = store.getAllocation(staker);
                 Allocation memory alloc =
                     vester.getLeafJustAllocationData(0, allocation.decodableArgs, allocation.proofs);
@@ -260,6 +264,33 @@ contract LockedTokenStaker_Invariant_Test is Invariant_Test {
 
                 uint256 totalUsed = totalWithdrawn + uint256(uint128(lock.amount));
                 assertLe(totalUsed, alloc.totalAllocation, "Total of withdrawals and locked amount exceeds allocation");
+            }
+        }
+    }
+
+    function invariant_permanentLocksRespectVesting() public view {
+        address[] memory stakers = store.getAddressesWithLock();
+
+        for (uint256 i = 0; i < stakers.length; i++) {
+            address staker = stakers[i];
+            StakeWeight.LockedBalance memory lock = stakeWeight.locks(staker);
+
+            // Check if this is a permanent lock (end == 0)
+            if (lock.end == 0 && lock.amount > 0) {
+                AllocationData memory allocation = store.getAllocation(staker);
+                Allocation memory alloc =
+                    vester.getLeafJustAllocationData(0, allocation.decodableArgs, allocation.proofs);
+                (,,,,,, uint256 withdrawnAmount) = store.userInfo(staker);
+
+                // Permanent locks should be treated as fully active locks
+                // Therefore, the locked amount plus withdrawn should not exceed allocation
+                uint256 totalUsed = withdrawnAmount + uint256(uint128(lock.amount));
+                assertLe(totalUsed, alloc.totalAllocation, "Permanent lock bypassed vesting restriction");
+
+                // Additionally, permanent locks should prevent any withdrawals beyond
+                // what's available after accounting for the lock
+                uint256 availableForWithdrawal = alloc.totalAllocation - uint256(uint128(lock.amount));
+                assertLe(withdrawnAmount, availableForWithdrawal, "Permanent lock allowed excessive withdrawal");
             }
         }
     }

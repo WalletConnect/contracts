@@ -25,8 +25,9 @@ contract BalanceOfAtTime_StakeWeight_Integration_Concrete_Test is Base_Test {
     }
 
     function test_BalanceBeforeLastCheckpoint_MaxLock() external givenUserHasLockedTokensForMaxLock {
-        vm.expectRevert();
-        stakeWeight.balanceOfAtTime(users.alice, lockTime - 1);
+        // Should return 0 for timestamps before the lock was created (not revert)
+        uint256 balance = stakeWeight.balanceOfAtTime(users.alice, lockTime - 1);
+        assertEq(balance, 0, "Balance before lock creation should be zero");
     }
 
     function test_BalanceAtLastCheckpoint_MaxLock() external givenUserHasLockedTokensForMaxLock {
@@ -69,8 +70,9 @@ contract BalanceOfAtTime_StakeWeight_Integration_Concrete_Test is Base_Test {
     }
 
     function test_BalanceBeforeLastCheckpoint_HalfMaxLock() external givenUserHasLockedTokensForHalfMaxLock {
-        vm.expectRevert();
-        stakeWeight.balanceOfAtTime(users.alice, lockTime - 1);
+        // Should return 0 for timestamps before the lock was created (not revert)
+        uint256 balance = stakeWeight.balanceOfAtTime(users.alice, lockTime - 1);
+        assertEq(balance, 0, "Balance before lock creation should be zero");
     }
 
     function test_BalanceAtLastCheckpoint_HalfMaxLock() external givenUserHasLockedTokensForHalfMaxLock {

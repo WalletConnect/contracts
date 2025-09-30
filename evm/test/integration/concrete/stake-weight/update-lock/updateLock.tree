@@ -4,9 +4,12 @@ updateLock.t.sol
 └── given contract is not paused
     ├── when user has no existing lock
     │   └── it should revert with NonExistentLock
-    ├── when user has an expired lock
-    │   └── it should revert with ExpiredLock
-    └── when user has an active lock
+    └── when user has a lock
+        ├── when lock is perpetual
+        │   └── it should revert with NotPerpetual
+        ├── when user has an expired lock
+        │   └── it should revert with ExpiredLock
+        └── when user has an active decaying lock
         ├── when amount is zero
         │   └── it should revert with InvalidAmount
         ├── when new unlock time is less than or equal to current lock end

@@ -22,7 +22,8 @@ import {
     newWCT,
     newL2WCT,
     newStakeWeight,
-    newStakingRewardDistributor
+    newStakingRewardDistributor,
+    newLockedTokenStaker
 } from "script/helpers/Proxy.sol";
 import { Eip1967Logger } from "script/utils/Eip1967Logger.sol";
 import { NttManager, IManagerBase, Implementation } from "src/utils/wormhole/NttManagerFlat.sol";
@@ -224,8 +225,11 @@ abstract contract Base_Test is Test, Events, Constants, Utils {
             true // Direct claim allowed
         );
 
-        lockedTokenStaker =
-            new LockedTokenStaker({ vesterContract_: MerkleVester(address(vester)), config_: walletConnectConfig });
+        lockedTokenStaker = newLockedTokenStaker({
+            initialOwner: users.admin,
+            init: LockedTokenStaker.Init({ vesterContract: address(vester), config: address(walletConnectConfig) }),
+            identifier: "test"
+        });
 
         // Update the WalletConnectConfig with the necessary contracts.
         walletConnectConfig.updateL2wct(address(l2wct));

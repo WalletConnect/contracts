@@ -49,4 +49,11 @@ abstract contract StakeWeight_Integration_Shared_Test is Integration_Test {
 
         return bias;
     }
+
+    function _calculatePermanentBias(uint256 amount, uint256 duration) internal view returns (uint256) {
+        // Match the exact calculation order used in balanceOf for permanent positions
+        uint256 maxLock = stakeWeight.MAX_LOCK_CAP();
+        uint256 weight = (amount * duration) / maxLock;
+        return weight;
+    }
 }

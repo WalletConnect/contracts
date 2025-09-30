@@ -10,11 +10,15 @@ forceWithdrawAll.t.sol
         └── when stake weight is not paused
             ├── when user has no lock
             │   └── it should revert with non existent lock error
-            └── when user has lock
-                ├── when lock has no transferred amount
-                │   └── it should not transfer any tokens
-                └── when lock has transferred amount
-                    ├── it should transfer tokens to recipient
-                    ├── it should clear the lock
-                    ├── it should update supply
-                    └── it should emit correct events
+            ├── when user has lock
+            │   ├── when lock has no transferred amount
+            │   │   └── it should not transfer any tokens
+            │   └── when lock has transferred amount
+            │       ├── it should transfer tokens to recipient
+            │       ├── it should clear the lock
+            │       ├── it should update supply
+            │       └── it should emit correct events
+            └── when user has permanent lock
+                ├── it should clear the lock and permanent weight
+                ├── it should decrease supply by lock amount
+                └── it should return tokens to the user

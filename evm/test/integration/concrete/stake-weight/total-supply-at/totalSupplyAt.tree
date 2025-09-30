@@ -6,6 +6,12 @@ totalSupplyAt.t.sol
 ├── when querying supply at a block with active locks
 │   ├── it should return the sum of all active locks at that block
 │   └── it should be less than or equal to the current totalSupply
+├── when querying supply at a block with permanent locks
+│   ├── it should include permanent positions with constant weight
+│   └── it should not decay permanent positions over blocks
+├── when querying supply at a block after conversion to permanent
+│   ├── it should show decaying weight before conversion block
+│   └── it should show constant weight after conversion block
 ├── when querying supply at a block after some locks have expired
 │   ├── it should only include non-expired locks in the total supply
 │   └── it should be less than the original totalSupply

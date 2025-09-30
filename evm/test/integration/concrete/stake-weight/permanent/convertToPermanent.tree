@@ -1,0 +1,25 @@
+StakeWeight::convertToPerpetual
+├── when contract is paused
+│   └── it should revert
+└── when contract is not paused
+    ├── when user has no lock
+    │   └── it should revert
+    └── when user has a lock
+        ├── when lock is already perpetual
+        │   └── it should revert
+        ├── when lock is expired
+        │   └── it should revert
+        ├── when duration is not in valid set
+        │   └── it should revert
+        ├── when new duration is shorter than remaining lock time
+        │   └── it should revert
+        ├── when multiple conversions in same week
+        │   └── it should allow multiple conversions
+        └── when conversion is valid
+            ├── it should convert to perpetual
+            ├── it should set perpetualUnlockDuration
+            ├── it should clear end timestamp
+            ├── it should set slope to zero
+            ├── it should calculate new weighted bias
+            ├── it should preserve lock amount
+            └── it should emit a conversion event
