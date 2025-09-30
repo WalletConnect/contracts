@@ -1,0 +1,42 @@
+name: Claude Auto Review
+on:
+  pull_request:
+    types: [opened]
+    branches: [main]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: WalletConnect/actions/claude/auto-review@master
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          project_context: |
+            Tech Stack: Solidity + Foundry (Ethereum/Optimism)
+            Testing: Foundry tests with Branch-Based Testing structure
+            Cross-chain: Wormhole NTT for token bridging
+
+            Review Focus Areas:
+            - **Token Supply Safety**: WCT max 1B tokens, int128 safety (max 1e26), no holder >15%
+            - **Checkpoint Loop Limits**: StakeWeight (255 iterations), StakingRewardDistributor (52 iterations)
+            - **Time-based Logic**: Use _mineBlocks() for time advancement, beware of >52 week gaps
+            - **Access Control**: Verify role-based permissions (using AccessControl pattern)
+            - **Upgradeability**: UUPS proxy patterns, storage layout compatibility
+            - **Test Coverage**: Concrete tests for specific paths, fuzz tests for ranges
+            - **Foundry Patterns**: vm.prank applies to NEXT call only, use startPrank/stopPrank for multi-call
+            - **Reward Distribution**: Use injectReward() not deprecated feed()
+
+            Critical Security Concerns:
+            - Checkpoint arithmetic overflow risks (int128 bounds)
+            - Cross-chain message validation (Wormhole NTT)
+            - Vote-escrowed staking time manipulation
+            - Reward calculation precision and rounding
