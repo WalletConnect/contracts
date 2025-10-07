@@ -33,19 +33,7 @@ contract ForceWithdrawAll_StakeWeight_Integration_Concrete_Test is StakeWeight_I
         stakeWeight.forceWithdrawAll(address(0));
     }
 
-    function test_RevertGiven_StakeWeightIsPaused() external whenCallerIsAdmin {
-        resetPrank(users.pauser);
-        pauser.setIsStakeWeightPaused(true);
-        resetPrank(users.admin);
-        vm.expectRevert(StakeWeight.Paused.selector);
-        stakeWeight.forceWithdrawAll(users.bob);
-    }
-
-    modifier givenStakeWeightIsNotPaused() {
-        _;
-    }
-
-    function test_RevertWhen_UserHasNoLock() external whenCallerIsAdmin givenStakeWeightIsNotPaused {
+    function test_RevertWhen_UserHasNoLock() external whenCallerIsAdmin {
         vm.expectRevert(StakeWeight.NonExistentLock.selector);
         stakeWeight.forceWithdrawAll(users.bob);
     }
@@ -59,12 +47,7 @@ contract ForceWithdrawAll_StakeWeight_Integration_Concrete_Test is StakeWeight_I
         _;
     }
 
-    function test_ForceWithdrawAll_WithNoTransferredAmount()
-        external
-        whenCallerIsAdmin
-        givenStakeWeightIsNotPaused
-        whenUserHasLock
-    {
+    function test_ForceWithdrawAll_WithNoTransferredAmount() external whenCallerIsAdmin whenUserHasLock {
         uint256 initialSupply = stakeWeight.supply();
         uint256 initialBalance = l2wct.balanceOf(users.alice);
 
@@ -86,12 +69,7 @@ contract ForceWithdrawAll_StakeWeight_Integration_Concrete_Test is StakeWeight_I
         assertEq(l2wct.balanceOf(users.alice), initialBalance, "No tokens should be transferred");
     }
 
-    function test_ForceWithdrawAll_WithTransferredAmount()
-        external
-        whenCallerIsAdmin
-        givenStakeWeightIsNotPaused
-        whenUserHasLock
-    {
+    function test_ForceWithdrawAll_WithTransferredAmount() external whenCallerIsAdmin whenUserHasLock {
         // We increase the lock amount to have a transferred amount
         deal(address(l2wct), users.alice, LOCK_AMOUNT);
         resetPrank(users.alice);
@@ -129,7 +107,7 @@ contract ForceWithdrawAll_StakeWeight_Integration_Concrete_Test is StakeWeight_I
         );
     }
 
-    function test_ForceWithdrawAll_PermanentLock_Succeeds() external whenCallerIsAdmin givenStakeWeightIsNotPaused {
+    function test_ForceWithdrawAll_PermanentLock_Succeeds() external whenCallerIsAdmin {
         // Create permanent lock for Alice
         deal(address(l2wct), users.alice, LOCK_AMOUNT);
         resetPrank(users.alice);
@@ -157,5 +135,41 @@ contract ForceWithdrawAll_StakeWeight_Integration_Concrete_Test is StakeWeight_I
         // transferredAmount
         // For createPermanentLock, transferredAmount == amount, so user receives their tokens back
         assertEq(l2wct.balanceOf(users.alice), initialBalance + LOCK_AMOUNT, "Tokens returned to user");
+    }
+
+    function test_ForceWithdrawAll_WorksDuringPause() external whenCallerIsAdmin whenUserHasLock {
+        // Store lock end before time skip
+        StakeWeight.LockedBalance memory lockBeforePause = stakeWeight.locks(users.alice);
+        uint256 lockEnd = lockBeforePause.end;
+
+        // Pause StakeWeight
+        resetPrank(users.pauser);
+        pauser.setIsStakeWeightPaused(true);
+
+        // Verify system is paused - normal withdrawal should fail
+        resetPrank(users.alice);
+        skip(LOCK_DURATION + 1);
+        vm.expectRevert(StakeWeight.Paused.selector);
+        stakeWeight.withdrawAll();
+
+        // But admin can still force withdraw (critical for handling revoked vestings)
+        resetPrank(users.admin);
+        uint256 initialSupply = stakeWeight.supply();
+        uint256 initialBalance = l2wct.balanceOf(users.alice);
+
+        vm.expectEmit(true, true, true, true);
+        emit Supply(initialSupply, initialSupply - LOCK_AMOUNT);
+
+        vm.expectEmit(true, true, true, true);
+        emit ForcedWithdraw(users.alice, LOCK_AMOUNT, 0, block.timestamp, lockEnd);
+
+        stakeWeight.forceWithdrawAll(users.alice);
+
+        // Verify withdrawal succeeded
+        StakeWeight.LockedBalance memory lock = stakeWeight.locks(users.alice);
+        assertEq(SafeCast.toUint256(lock.amount), 0, "Lock amount should be zero");
+        assertEq(lock.end, 0, "Lock end should be zero");
+        assertEq(stakeWeight.supply(), initialSupply - LOCK_AMOUNT, "Total supply should be updated");
+        assertEq(l2wct.balanceOf(users.alice), initialBalance, "No tokens transferred (not user-transferred)");
     }
 }
