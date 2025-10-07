@@ -588,13 +588,13 @@ contract StakingRewardDistributor is Initializable, AccessControlUpgradeable, Re
     /// @notice Inject rewardToken into the contract
     /// @param timestamp The timestamp of the rewardToken to be distributed
     /// @param amount The amount of rewardToken to be distributed
-    function injectReward(uint256 timestamp, uint256 amount) external nonReentrant onlyRole(REWARD_MANAGER_ROLE) {
+    function injectReward(uint256 timestamp, uint256 amount) external nonReentrant onlyRole(REWARD_MANAGER_ROLE) onlyLive {
         _injectReward(timestamp, amount);
     }
 
     /// @notice Inject rewardToken for currect week into the contract
     /// @param amount The amount of rewardToken to be distributed
-    function injectRewardForCurrentWeek(uint256 amount) external nonReentrant onlyRole(REWARD_MANAGER_ROLE) {
+    function injectRewardForCurrentWeek(uint256 amount) external nonReentrant onlyRole(REWARD_MANAGER_ROLE) onlyLive {
         _injectReward(block.timestamp, amount);
     }
 

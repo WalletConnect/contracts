@@ -1,7 +1,11 @@
 injectReward.t.sol
+├── when contract is killed
+│   └── it should revert with ContractKilled
+├── when contract is paused
+│   └── it should revert with Paused
 ├── when caller does not have REWARD_MANAGER_ROLE
 │   └── it should revert with AccessControlUnauthorizedAccount
-└── when caller has REWARD_MANAGER_ROLE
+└── when caller has REWARD_MANAGER_ROLE and contract is live
     ├── when amount is greater than zero
     │   ├── when timestamp is in the past
     │   │   ├── when timestamp is before startWeekCursor

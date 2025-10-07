@@ -21,6 +21,26 @@ contract InjectReward_StakingRewardDistributor_Integration_Concrete_Test is Stak
         vm.stopPrank();
     }
 
+    function test_RevertWhen_ContractKilled() external {
+        deal(address(l2wct), users.admin, INJECTION_AMOUNT);
+        vm.prank(users.admin);
+        stakingRewardDistributor.kill();
+
+        vm.expectRevert(StakingRewardDistributor.ContractKilled.selector);
+        vm.prank(users.admin);
+        stakingRewardDistributor.injectReward(block.timestamp, INJECTION_AMOUNT);
+    }
+
+    function test_RevertWhen_ContractPaused() external {
+        deal(address(l2wct), users.admin, INJECTION_AMOUNT);
+        vm.prank(users.pauser);
+        pauser.setIsStakingRewardDistributorPaused(true);
+
+        vm.expectRevert(StakingRewardDistributor.Paused.selector);
+        vm.prank(users.admin);
+        stakingRewardDistributor.injectReward(block.timestamp, INJECTION_AMOUNT);
+    }
+
     function test_RevertWhen_CallerIsNotOwner() external {
         bytes32 REWARD_MANAGER_ROLE = keccak256("REWARD_MANAGER_ROLE");
         vm.prank(users.alice);
