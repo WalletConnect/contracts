@@ -213,9 +213,9 @@ contract LockedTokenStaker is Initializable, IPostClaimHandler {
                 uint256 remainingAllocation = allocation.totalAllocation - withdrawn;
 
                 uint256 lockedAmount = SafeCast.toUint256(lock.amount);
-
-                // Check if there's enough unlocked tokens for the claim
-                if (remainingAllocation < lockedAmount + claimAmount) {
+                // Check if there's enough unlocked vesting tokens for the claim
+                // Only count vesting-backed locks (lockedAmount - transferredAmount)
+                if (remainingAllocation < lockedAmount - lock.transferredAmount + claimAmount) {
                     revert CannotClaimLockedTokens(remainingAllocation, lockedAmount, claimAmount);
                 }
             } else {
