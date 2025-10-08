@@ -1121,8 +1121,6 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
     }
 
     function withdrawAllFor(address user) external nonReentrant onlyRole(LOCKED_TOKEN_STAKER_ROLE) {
-        StakeWeightStorage storage s = _getStakeWeightStorage();
-        if (s.isPermanent[user]) revert LockStillActive(type(uint256).max);
         _withdrawAll(user);
     }
 
