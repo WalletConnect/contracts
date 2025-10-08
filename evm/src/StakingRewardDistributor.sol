@@ -586,6 +586,9 @@ contract StakingRewardDistributor is Initializable, AccessControlUpgradeable, Re
     }
 
     /// @notice Inject rewardToken into the contract
+    /// @dev IMPORTANT: Tokens must be injected via this function to be claimable.
+    ///      Tokens sent directly to the contract (not via injectReward) are not mapped
+    ///      to tokensPerWeek and remain locked until the contract is killed via kill().
     /// @param timestamp The timestamp of the rewardToken to be distributed
     /// @param amount The amount of rewardToken to be distributed
     function injectReward(uint256 timestamp, uint256 amount) external nonReentrant onlyRole(REWARD_MANAGER_ROLE) onlyLive {
