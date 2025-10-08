@@ -1383,7 +1383,7 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
             uint256 oldWeight = s.permanentStakeWeight[msg.sender];
 
             // Calculate new weight based on total amount and new duration
-            uint256 totalAmount = uint256(int256(lock.amount));
+            uint256 totalAmount = SafeCast.toUint256(int256(lock.amount));
             uint256 newWeight = Math.mulDiv(totalAmount, newBaseWeeks * 1 weeks, MAX_LOCK_CAP);
 
             // Update user's permanent weight
@@ -1455,7 +1455,7 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
 
         // Calculate new weight with increased duration
         uint256 oldWeight = s.permanentStakeWeight[msg.sender];
-        uint256 totalAmount = uint256(int256(lock.amount));
+        uint256 totalAmount = SafeCast.toUint256(int256(lock.amount));
         uint256 newWeight = Math.mulDiv(totalAmount, uint256(newBaseWeeks) * 1 weeks, MAX_LOCK_CAP);
 
         // Update user's permanent weight
