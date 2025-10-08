@@ -272,12 +272,8 @@ contract StakingRewardDistributor is Initializable, AccessControlUpgradeable, Re
                 }
                 break;
             } else {
-                if (deltaSinceLastTimestamp == 0 && nextWeekCursor == timeCursor) {
-                    tokensPerWeek[thisWeekCursor] = tokensPerWeek[thisWeekCursor] + toDistribute;
-                } else {
-                    tokensPerWeek[thisWeekCursor] = tokensPerWeek[thisWeekCursor]
-                        + ((toDistribute * (nextWeekCursor - timeCursor)) / deltaSinceLastTimestamp);
-                }
+                tokensPerWeek[thisWeekCursor] = tokensPerWeek[thisWeekCursor]
+                    + ((toDistribute * (nextWeekCursor - timeCursor)) / deltaSinceLastTimestamp);
             }
             timeCursor = nextWeekCursor;
             thisWeekCursor = nextWeekCursor;
