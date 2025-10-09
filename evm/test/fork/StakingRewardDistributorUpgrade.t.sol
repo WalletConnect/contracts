@@ -8,7 +8,9 @@ import { L2WCT } from "src/L2WCT.sol";
 import { WalletConnectConfig } from "src/WalletConnectConfig.sol";
 import { Pauser } from "src/Pauser.sol";
 import { TimelockController } from "@openzeppelin/contracts/governance/TimelockController.sol";
-import { ITransparentUpgradeableProxy } from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {
+    ITransparentUpgradeableProxy
+} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import { ProxyAdmin } from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
@@ -42,6 +44,37 @@ contract StakingRewardDistributorUpgrade_ForkTest is Base_Test {
     bytes32 public constant PROPOSER_ROLE = keccak256("PROPOSER_ROLE");
     bytes32 public constant EXECUTOR_ROLE = keccak256("EXECUTOR_ROLE");
 
+    uint256 public constant WEEK = 7 days;
+
+    address[] internal targetUsers;
+    uint256[5] internal WEEK_OFFSETS = [uint256(0), 4 * WEEK, 12 * WEEK, 26 * WEEK, 52 * WEEK];
+
+    struct DistributorBaseline {
+        uint256 totalDistributed;
+        uint256 lastTokenBalance;
+        uint256 weekCursor;
+        uint256 startWeekCursor;
+        bool recorded;
+    }
+
+    struct DistributorUserBaseline {
+        uint256 weekCursor;
+        uint256 userEpoch;
+        address recipient;
+        bool recorded;
+    }
+
+    struct DistributorWeekBaseline {
+        uint256 balanceOfAt;
+        uint256 tokensPerWeek;
+        bool recorded;
+    }
+
+    DistributorBaseline internal distributorBaseline;
+    uint256 internal baselineCurrentWeek;
+    mapping(address => DistributorUserBaseline) internal userBaselines;
+    mapping(bytes32 => DistributorWeekBaseline) internal weekBaselines;
+
     function setUp() public override {
         // Fork Optimism at a recent block
         vm.createSelectFork("optimism", 130_432_882);
@@ -59,12 +92,174 @@ contract StakingRewardDistributorUpgrade_ForkTest is Base_Test {
         admin = vm.envOr("ADMIN_ADDRESS", 0x398A2749487B2a91f2f543C01F7afD19AEE4b6b0);
 
         super.setUp();
+        _ensureTargetUsersInitialized();
+    }
+
+    /// @dev Helper function to upgrade Pauser contract with StakingRewardDistributor pause support
+    function _upgradePauser() internal {
+        address pauserProxy = config.getPauser();
+        ProxyAdmin pauserProxyAdmin = ProxyAdmin(PAUSER_PROXY_ADMIN);
+
+        Pauser newPauserImpl = new Pauser();
+
+        address[] memory pauserTargets = new address[](1);
+        pauserTargets[0] = address(pauserProxyAdmin);
+
+        uint256[] memory pauserValues = new uint256[](1);
+        pauserValues[0] = 0;
+
+        bytes[] memory pauserPayloads = new bytes[](1);
+        pauserPayloads[0] = abi.encodeWithSelector(
+            ProxyAdmin.upgradeAndCall.selector, ITransparentUpgradeableProxy(pauserProxy), address(newPauserImpl), ""
+        );
+
+        bytes32 pauserSalt = keccak256("PAUSER_UPGRADE_FOR_SRD");
+
+        vm.prank(admin);
+        adminTimelock.scheduleBatch(pauserTargets, pauserValues, pauserPayloads, bytes32(0), pauserSalt, MIN_DELAY);
+
+        vm.warp(block.timestamp + MIN_DELAY + 1);
+
+        vm.prank(admin);
+        adminTimelock.executeBatch(pauserTargets, pauserValues, pauserPayloads, bytes32(0), pauserSalt);
+    }
+
+    function _ensureTargetUsersInitialized() internal {
+        if (targetUsers.length != 0) {
+            return;
+        }
+        targetUsers = new address[](10);
+        targetUsers[0] = 0xD4ca0fB58552876dF6E9422dCFC5B07b0dB2c229;
+        targetUsers[1] = 0x6EC113A5BE0F12C04d81899F80A88490F1A4796c;
+        targetUsers[2] = 0xBF8395b92069B85FdD9Ea6FAb19A1C6F2b79dc22;
+        targetUsers[3] = 0x2A8f753fB144f0AB4cc77F4a3Ace4543dF0AA7E9;
+        targetUsers[4] = 0xb5f5DF3E2C2758794062A7daab910a66566552bf;
+        targetUsers[5] = 0x6Af2a94A29237Ee5f4874733811a72A53db658c6;
+        targetUsers[6] = 0x5C799a0804882c7973704e2567E22f9cEF382026;
+        targetUsers[7] = 0xeC0fE68cD9A79a67dCc0Ca71e1da163e2a3900Ea;
+        targetUsers[8] = 0x813C6f672907183FC4d0b44F7124A194447A784d;
+        targetUsers[9] = 0x6d135a7eb13eA6C7EE7455ce078081251c78ACfd;
+    }
+
+    function _captureBaselinesIfNeeded() internal {
+        if (distributorBaseline.recorded) {
+            return;
+        }
+
+        distributorBaseline.recorded = true;
+        distributorBaseline.totalDistributed = stakingRewardDistributorProxy.totalDistributed();
+        distributorBaseline.lastTokenBalance = stakingRewardDistributorProxy.lastTokenBalance();
+        distributorBaseline.weekCursor = stakingRewardDistributorProxy.weekCursor();
+        distributorBaseline.startWeekCursor = stakingRewardDistributorProxy.startWeekCursor();
+
+        baselineCurrentWeek = (block.timestamp / WEEK) * WEEK;
+
+        for (uint256 i = 0; i < targetUsers.length; i++) {
+            _captureUserBaseline(targetUsers[i]);
+        }
+    }
+
+    function _captureUserBaseline(address user) internal {
+        DistributorUserBaseline storage baseline = userBaselines[user];
+        baseline.weekCursor = stakingRewardDistributorProxy.weekCursorOf(user);
+        baseline.userEpoch = stakingRewardDistributorProxy.userEpochOf(user);
+        baseline.recipient = stakingRewardDistributorProxy.getRecipient(user);
+        baseline.recorded = true;
+
+        uint256 startWeekCursor = distributorBaseline.startWeekCursor;
+        for (uint256 i = 0; i < WEEK_OFFSETS.length; i++) {
+            uint256 offset = WEEK_OFFSETS[i];
+            if (baselineCurrentWeek < offset) {
+                continue;
+            }
+            _recordWeekBaseline(user, baselineCurrentWeek - offset, startWeekCursor);
+        }
+    }
+
+    function _recordWeekBaseline(address user, uint256 targetWeek, uint256 startWeekCursor) internal {
+        if (targetWeek < startWeekCursor) {
+            return;
+        }
+
+        bytes32 key = keccak256(abi.encode(user, targetWeek));
+        DistributorWeekBaseline storage weekBaseline = weekBaselines[key];
+        weekBaseline.balanceOfAt = stakingRewardDistributorProxy.balanceOfAt(user, targetWeek);
+        weekBaseline.tokensPerWeek = stakingRewardDistributorProxy.tokensPerWeek(targetWeek);
+        weekBaseline.recorded = true;
+    }
+
+    function _assertBaselines() internal view {
+        if (!distributorBaseline.recorded) {
+            return;
+        }
+
+        assertEq(
+            stakingRewardDistributorProxy.totalDistributed(),
+            distributorBaseline.totalDistributed,
+            "totalDistributed drifted"
+        );
+        assertEq(
+            stakingRewardDistributorProxy.lastTokenBalance(),
+            distributorBaseline.lastTokenBalance,
+            "lastTokenBalance drifted"
+        );
+        assertEq(stakingRewardDistributorProxy.weekCursor(), distributorBaseline.weekCursor, "weekCursor drifted");
+        assertEq(
+            stakingRewardDistributorProxy.startWeekCursor(),
+            distributorBaseline.startWeekCursor,
+            "startWeekCursor drifted"
+        );
+
+        uint256 startWeekCursor = distributorBaseline.startWeekCursor;
+        for (uint256 i = 0; i < targetUsers.length; i++) {
+            _assertUserBaseline(targetUsers[i], startWeekCursor);
+        }
+    }
+
+    function _assertUserBaseline(address user, uint256 startWeekCursor) internal view {
+        DistributorUserBaseline storage baseline = userBaselines[user];
+        if (!baseline.recorded) {
+            return;
+        }
+
+        assertEq(stakingRewardDistributorProxy.weekCursorOf(user), baseline.weekCursor, "weekCursorOf drifted for user");
+        assertEq(stakingRewardDistributorProxy.userEpochOf(user), baseline.userEpoch, "userEpochOf drifted for user");
+        assertEq(stakingRewardDistributorProxy.getRecipient(user), baseline.recipient, "recipient drifted for user");
+
+        for (uint256 i = 0; i < WEEK_OFFSETS.length; i++) {
+            uint256 offset = WEEK_OFFSETS[i];
+            if (baselineCurrentWeek < offset) {
+                continue;
+            }
+            _assertWeekBaseline(user, baselineCurrentWeek - offset, startWeekCursor);
+        }
+    }
+
+    function _assertWeekBaseline(address user, uint256 targetWeek, uint256 startWeekCursor) internal view {
+        if (targetWeek < startWeekCursor) {
+            return;
+        }
+
+        bytes32 key = keccak256(abi.encode(user, targetWeek));
+        DistributorWeekBaseline storage weekBaseline = weekBaselines[key];
+        if (!weekBaseline.recorded) {
+            return;
+        }
+
+        assertEq(
+            stakingRewardDistributorProxy.balanceOfAt(user, targetWeek), weekBaseline.balanceOfAt, "balanceOfAt drifted"
+        );
+        assertEq(
+            stakingRewardDistributorProxy.tokensPerWeek(targetWeek), weekBaseline.tokensPerWeek, "tokensPerWeek drifted"
+        );
     }
 
     function testUpgradeToAccessControl() public {
         // Verify initial state - should be owned by treasury
         address currentOwner = Ownable(address(stakingRewardDistributorProxy)).owner();
         assertEq(currentOwner, TREASURY_MULTISIG, "Current owner should be treasury");
+
+        _captureBaselinesIfNeeded();
 
         // Deploy new implementation with AccessControl
         newImplementation = new StakingRewardDistributor();
@@ -133,10 +328,15 @@ contract StakingRewardDistributorUpgrade_ForkTest is Base_Test {
         // Verify old owner functions no longer work
         vm.expectRevert(); // Should revert because owner() doesn't exist anymore
         Ownable(address(stakingRewardDistributorProxy)).owner();
+
+        _assertBaselines();
     }
 
     function testRewardManagerCanInjectRewards() public {
-        // First perform the upgrade
+        // First upgrade Pauser to add StakingRewardDistributor pause support
+        _upgradePauser();
+
+        // Then perform the StakingRewardDistributor upgrade
         testUpgradeToAccessControl();
 
         // Get L2WCT from config
@@ -262,33 +462,9 @@ contract StakingRewardDistributorUpgrade_ForkTest is Base_Test {
 
     function testPauserIntegration() public {
         // First, upgrade the Pauser contract to add the new pause flag
+        _upgradePauser();
+
         address pauserProxy = config.getPauser();
-        ProxyAdmin pauserProxyAdmin = ProxyAdmin(PAUSER_PROXY_ADMIN);
-
-        // Deploy new Pauser implementation with StakingRewardDistributor pause support
-        Pauser newPauserImpl = new Pauser();
-
-        // Schedule Pauser upgrade through timelock
-        address[] memory pauserTargets = new address[](1);
-        pauserTargets[0] = address(pauserProxyAdmin);
-
-        uint256[] memory pauserValues = new uint256[](1);
-        pauserValues[0] = 0;
-
-        bytes[] memory pauserPayloads = new bytes[](1);
-        pauserPayloads[0] = abi.encodeWithSelector(
-            ProxyAdmin.upgradeAndCall.selector, ITransparentUpgradeableProxy(pauserProxy), address(newPauserImpl), ""
-        );
-
-        bytes32 pauserSalt = keccak256("PAUSER_UPGRADE_FOR_SRD");
-
-        vm.prank(admin);
-        adminTimelock.scheduleBatch(pauserTargets, pauserValues, pauserPayloads, bytes32(0), pauserSalt, MIN_DELAY);
-
-        vm.warp(block.timestamp + MIN_DELAY + 1);
-
-        vm.prank(admin);
-        adminTimelock.executeBatch(pauserTargets, pauserValues, pauserPayloads, bytes32(0), pauserSalt);
 
         // Second, upgrade StakeWeight to add permanent staking support
         ProxyAdmin stakeWeightProxyAdmin = ProxyAdmin(STAKE_WEIGHT_PROXY_ADMIN);

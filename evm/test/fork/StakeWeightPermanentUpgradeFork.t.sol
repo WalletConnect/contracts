@@ -12,7 +12,9 @@ import { OptimismDeployments } from "script/Base.s.sol";
 import { OptimismDeploy } from "script/deploy/OptimismDeploy.s.sol";
 import { console2 } from "forge-std/console2.sol";
 import { ProxyAdmin } from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
-import { ITransparentUpgradeableProxy } from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {
+    ITransparentUpgradeableProxy
+} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import { Upgrades } from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import { Options } from "openzeppelin-foundry-upgrades/Options.sol";
 import { LockedTokenStaker } from "src/LockedTokenStaker.sol";
@@ -34,8 +36,38 @@ contract StakeWeightPermanentUpgrade_ForkTest is Base_Test {
     uint256 public constant WEEK = 7 days;
     uint256 public constant SECONDS_PER_BLOCK = 2; // Optimism block time
 
+    address[] internal targetUsers;
+    uint256[5] internal WEEK_OFFSETS = [uint256(0), 4 * WEEK, 12 * WEEK, 26 * WEEK, 52 * WEEK];
+
     TimelockController public timelock;
     address public admin;
+    uint256 internal baselineCurrentWeek;
+
+    struct UserBaseline {
+        uint256 balance;
+        uint256 permanentBalance;
+        uint256 permanentBaseWeeks;
+        int128 lockAmount;
+        uint256 lockEnd;
+        bool recorded;
+    }
+
+    struct WeekBaseline {
+        uint256 stakeWeightBalance;
+        bool recorded;
+    }
+
+    function _tryStakeWeightUintCall(bytes memory data) internal view returns (bool ok, uint256 value) {
+        bytes memory ret;
+        (ok, ret) = address(stakeWeight).staticcall(data);
+        if (!ok || ret.length == 0) {
+            return (false, 0);
+        }
+        value = abi.decode(ret, (uint256));
+    }
+
+    mapping(address => UserBaseline) internal userBaselines;
+    mapping(bytes32 => WeekBaseline) internal weekBaselines;
 
     function _mineBlocks(uint256 blocks) internal {
         vm.roll(block.number + blocks);
@@ -96,6 +128,20 @@ contract StakeWeightPermanentUpgrade_ForkTest is Base_Test {
 
         super.setUp();
 
+        if (targetUsers.length == 0) {
+            targetUsers = new address[](10);
+            targetUsers[0] = 0xD4ca0fB58552876dF6E9422dCFC5B07b0dB2c229;
+            targetUsers[1] = 0x6EC113A5BE0F12C04d81899F80A88490F1A4796c;
+            targetUsers[2] = 0xBF8395b92069B85FdD9Ea6FAb19A1C6F2b79dc22;
+            targetUsers[3] = 0x2A8f753fB144f0AB4cc77F4a3Ace4543dF0AA7E9;
+            targetUsers[4] = 0xb5f5DF3E2C2758794062A7daab910a66566552bf;
+            targetUsers[5] = 0x6Af2a94A29237Ee5f4874733811a72A53db658c6;
+            targetUsers[6] = 0x5C799a0804882c7973704e2567E22f9cEF382026;
+            targetUsers[7] = 0xeC0fE68cD9A79a67dCc0Ca71e1da163e2a3900Ea;
+            targetUsers[8] = 0x813C6f672907183FC4d0b44F7124A194447A784d;
+            targetUsers[9] = 0x6d135a7eb13eA6C7EE7455ce078081251c78ACfd;
+        }
+
         // Record initial state before upgrade using old interface
         console2.log("Recording initial state");
         initialTotalSupply = oldStakeWeight.totalSupply();
@@ -109,9 +155,15 @@ contract StakeWeightPermanentUpgrade_ForkTest is Base_Test {
         console2.log("Initial user lock end:", initialUserLock.end);
         console2.log("Successfully read all initial state");
 
+        // Record baseline views prior to switching implementations
+        _captureBaselines();
+
         // Validate and perform the upgrade
         console2.log("About to call _validateAndUpgrade");
         _validateAndUpgrade();
+
+        // Ensure baseline views remain identical immediately after upgrade
+        _assertBaselines();
     }
 
     function _validateAndUpgrade() internal {
@@ -138,12 +190,141 @@ contract StakeWeightPermanentUpgrade_ForkTest is Base_Test {
         console2.log("ProxyAdmin address:", STAKE_WEIGHT_PROXY_ADMIN);
 
         vm.startPrank(address(timelock));
-        ProxyAdmin(STAKE_WEIGHT_PROXY_ADMIN).upgradeAndCall(
-            ITransparentUpgradeableProxy(address(stakeWeight)), newStakeWeightImpl, ""
-        );
+        ProxyAdmin(STAKE_WEIGHT_PROXY_ADMIN)
+            .upgradeAndCall(ITransparentUpgradeableProxy(address(stakeWeight)), newStakeWeightImpl, "");
         vm.stopPrank();
 
         console2.log("Upgrade completed successfully");
+    }
+
+    function _captureBaselines() internal {
+        baselineCurrentWeek = (block.timestamp / WEEK) * WEEK;
+        for (uint256 i = 0; i < targetUsers.length; i++) {
+            _captureUserBaseline(targetUsers[i]);
+        }
+    }
+
+    function _captureUserBaseline(address user) internal {
+        UserBaseline storage baseline = userBaselines[user];
+        baseline.balance = stakeWeight.balanceOf(user);
+
+        (bool okPermanent, uint256 permanentWeight) =
+            _tryStakeWeightUintCall(abi.encodeWithSelector(StakeWeight.permanentOf.selector, user));
+        baseline.permanentBalance = okPermanent ? permanentWeight : 0;
+
+        (bool okBaseWeeks, uint256 baseWeeks) =
+            _tryStakeWeightUintCall(abi.encodeWithSelector(StakeWeight.permanentBaseWeeks.selector, user));
+        baseline.permanentBaseWeeks = okBaseWeeks ? baseWeeks : 0;
+        StakeWeight.LockedBalance memory lockData = stakeWeight.locks(user);
+        baseline.lockAmount = lockData.amount;
+        baseline.lockEnd = lockData.end;
+        baseline.recorded = true;
+
+        uint256 startWeekCursor = stakingRewardDistributor.startWeekCursor();
+        for (uint256 i = 0; i < WEEK_OFFSETS.length; i++) {
+            uint256 offset = WEEK_OFFSETS[i];
+            if (baselineCurrentWeek < offset) {
+                continue;
+            }
+            _recordWeekBaseline(user, baselineCurrentWeek - offset, startWeekCursor);
+        }
+    }
+
+    function _recordWeekBaseline(address user, uint256 targetWeek, uint256 startWeekCursor) internal {
+        if (targetWeek < startWeekCursor) {
+            return;
+        }
+
+        (bool okWeekBalance, uint256 historicalBalance) =
+            _tryStakeWeightUintCall(abi.encodeWithSelector(StakeWeight.balanceOfAtTime.selector, user, targetWeek));
+
+        bytes32 key = keccak256(abi.encode(user, targetWeek));
+        WeekBaseline storage weekBaseline = weekBaselines[key];
+        if (!okWeekBalance) {
+            weekBaseline.recorded = false;
+            return;
+        }
+
+        weekBaseline.stakeWeightBalance = historicalBalance;
+        weekBaseline.recorded = true;
+    }
+
+    function _assertBaselines() internal {
+        for (uint256 i = 0; i < targetUsers.length; i++) {
+            _assertUserBaseline(targetUsers[i]);
+        }
+    }
+
+    function _assertUserBaseline(address user) internal {
+        UserBaseline storage baseline = userBaselines[user];
+        if (!baseline.recorded) {
+            return;
+        }
+
+        assertEq(stakeWeight.balanceOf(user), baseline.balance, "balanceOf deviated post-upgrade");
+
+        (bool okPermanent, uint256 currentPermanent) =
+            _tryStakeWeightUintCall(abi.encodeWithSelector(StakeWeight.permanentOf.selector, user));
+        if (baseline.permanentBalance == 0 && !okPermanent) {
+            currentPermanent = 0;
+        } else {
+            assertTrue(okPermanent, "permanentOf unavailable post-upgrade");
+        }
+        assertEq(currentPermanent, baseline.permanentBalance, "permanent weight deviated post-upgrade");
+
+        (bool okBaseWeeks, uint256 currentBaseWeeks) =
+            _tryStakeWeightUintCall(abi.encodeWithSelector(StakeWeight.permanentBaseWeeks.selector, user));
+        if (baseline.permanentBaseWeeks == 0 && !okBaseWeeks) {
+            currentBaseWeeks = 0;
+        } else {
+            assertTrue(okBaseWeeks, "permanentBaseWeeks unavailable post-upgrade");
+        }
+        assertEq(currentBaseWeeks, baseline.permanentBaseWeeks, "permanent base weeks deviated");
+        StakeWeight.LockedBalance memory lockData = stakeWeight.locks(user);
+        assertEq(int256(lockData.amount), int256(baseline.lockAmount), "lock amount deviated post-upgrade");
+        assertEq(lockData.end, baseline.lockEnd, "lock end deviated post-upgrade");
+
+        uint256 startWeekCursor = stakingRewardDistributor.startWeekCursor();
+        for (uint256 i = 0; i < WEEK_OFFSETS.length; i++) {
+            uint256 offset = WEEK_OFFSETS[i];
+            if (baselineCurrentWeek < offset) {
+                continue;
+            }
+            _assertWeekBaseline(user, baselineCurrentWeek - offset, startWeekCursor);
+        }
+    }
+
+    function testFork_regressionFuzz(uint256 userSeed, uint256 offsetSeed) public {
+        vm.assume(targetUsers.length > 0);
+        address user = targetUsers[userSeed % targetUsers.length];
+        UserBaseline storage baseline = userBaselines[user];
+        vm.assume(baseline.recorded);
+
+        uint256 offset = WEEK_OFFSETS[offsetSeed % WEEK_OFFSETS.length];
+        if (baselineCurrentWeek < offset) {
+            return;
+        }
+
+        uint256 targetWeek = baselineCurrentWeek - offset;
+        _assertUserBaseline(user);
+
+        uint256 startWeekCursor = stakingRewardDistributor.startWeekCursor();
+        _assertWeekBaseline(user, targetWeek, startWeekCursor);
+    }
+
+    function _assertWeekBaseline(address user, uint256 targetWeek, uint256 startWeekCursor) internal view {
+        if (targetWeek < startWeekCursor) {
+            return;
+        }
+
+        bytes32 key = keccak256(abi.encode(user, targetWeek));
+        WeekBaseline storage weekBaseline = weekBaselines[key];
+        if (!weekBaseline.recorded) {
+            return;
+        }
+
+        uint256 currentBalance = stakeWeight.balanceOfAtTime(user, targetWeek);
+        assertEq(currentBalance, weekBaseline.stakeWeightBalance, "Historical balance drift detected");
     }
 
     /**
@@ -614,9 +795,7 @@ contract StakeWeightPermanentUpgrade_ForkTest is Base_Test {
         }
 
         return CalendarUnlockSchedule({
-            unlockScheduleId: "02cfcfad-2206-402a-a414-e63dc289063e",
-            unlockTimestamps: ts,
-            unlockPercents: ps
+            unlockScheduleId: "02cfcfad-2206-402a-a414-e63dc289063e", unlockTimestamps: ts, unlockPercents: ps
         });
     }
 
