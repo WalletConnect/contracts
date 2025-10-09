@@ -35,7 +35,10 @@ contract StakeWeightHandler is BaseHandler {
     }
 
     function createLock(address user, uint256 amount, uint256 unlockTime) public instrument("createLock") {
-        vm.assume(user != address(stakeWeight));
+        vm.assume(
+            user != address(stakeWeight) && user != address(0) && user != address(l2wct) && user != address(wct)
+                && user != address(lockedTokenStaker)
+        );
         if (!store.hasLock(user) && l2wct.balanceOf(user) == 0) {
             // Set a reasonable range for initial token amounts
             uint256 minAmount = 100 * 10 ** 18; // 100 tokens
@@ -247,7 +250,10 @@ contract StakeWeightHandler is BaseHandler {
         instrument("createPermanentLock")
     {
         // Filter out invalid addresses
-        vm.assume(user != address(stakeWeight) && user != address(0));
+        vm.assume(
+            user != address(stakeWeight) && user != address(0) && user != address(l2wct) && user != address(wct)
+                && user != address(lockedTokenStaker)
+        );
 
         // Check if user already has a lock
         if (store.hasLock(user)) {
@@ -277,6 +283,7 @@ contract StakeWeightHandler is BaseHandler {
         deal(address(l2wct), user, amount);
 
         uint256 previousBalance = stakeWeight.balanceOf(user);
+        uint256 previousBaseWeeks = stakeWeight.permanentBaseWeeks(user);
 
         vm.startPrank(user);
         l2wct.approve(address(stakeWeight), amount);
@@ -289,6 +296,7 @@ contract StakeWeightHandler is BaseHandler {
         store.updateLockedAmount(user, newLock.amount);
         store.updatePreviousBalance(user, previousBalance);
         store.updatePreviousEndTime(user, 0); // Permanent locks have no end time
+        store.updatePreviousPermanentBaseWeeks(user, previousBaseWeeks);
     }
 
     function convertToPermanent(uint256 duration) public instrument("convertToPermanent") {
@@ -324,6 +332,7 @@ contract StakeWeightHandler is BaseHandler {
         }
 
         uint256 previousBalance = stakeWeight.balanceOf(user);
+        uint256 previousBaseWeeks = stakeWeight.permanentBaseWeeks(user);
 
         resetPrank(user);
         stakeWeight.convertToPermanent(selectedDuration);
@@ -331,6 +340,7 @@ contract StakeWeightHandler is BaseHandler {
 
         store.updatePreviousBalance(user, previousBalance);
         store.updatePreviousEndTime(user, 0); // Now permanent
+        store.updatePreviousPermanentBaseWeeks(user, previousBaseWeeks);
     }
 
     function triggerUnlock() public instrument("triggerUnlock") {
@@ -343,6 +353,7 @@ contract StakeWeightHandler is BaseHandler {
         }
 
         uint256 previousBalance = stakeWeight.balanceOf(user);
+        uint256 previousBaseWeeks = stakeWeight.permanentBaseWeeks(user);
 
         resetPrank(user);
         stakeWeight.triggerUnlock();
@@ -353,6 +364,7 @@ contract StakeWeightHandler is BaseHandler {
 
         store.updatePreviousBalance(user, previousBalance);
         store.updatePreviousEndTime(user, newEnd);
+        store.updatePreviousPermanentBaseWeeks(user, previousBaseWeeks);
     }
 
     function updatePermanentLock(uint256 amount, uint256 newDuration) public instrument("updatePermanentLock") {
@@ -396,6 +408,7 @@ contract StakeWeightHandler is BaseHandler {
         }
 
         uint256 previousBalance = stakeWeight.balanceOf(user);
+        uint256 previousBaseWeeks = stakeWeight.permanentBaseWeeks(user);
 
         vm.startPrank(user);
         if (amount > 0) {
@@ -409,6 +422,7 @@ contract StakeWeightHandler is BaseHandler {
 
         store.updateLockedAmount(user, increasedAmount);
         store.updatePreviousBalance(user, previousBalance);
+        store.updatePreviousPermanentBaseWeeks(user, previousBaseWeeks);
     }
 
     function increasePermanentLockDuration(uint256 newDuration) public instrument("increasePermanentLockDuration") {
@@ -445,11 +459,13 @@ contract StakeWeightHandler is BaseHandler {
         }
 
         uint256 previousBalance = stakeWeight.balanceOf(user);
+        uint256 previousBaseWeeks = stakeWeight.permanentBaseWeeks(user);
 
         resetPrank(user);
         stakeWeight.increasePermanentLockDuration(selectedDuration);
         vm.stopPrank();
 
         store.updatePreviousBalance(user, previousBalance);
+        store.updatePreviousPermanentBaseWeeks(user, previousBaseWeeks);
     }
 }

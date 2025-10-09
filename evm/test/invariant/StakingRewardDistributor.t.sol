@@ -360,8 +360,15 @@ contract StakingRewardDistributor_Invariant_Test is Invariant_Test {
 
     function invariant_noRewardsBeforeLockCreation() public view {
         // VALID INVARIANT: Users cannot claim rewards from periods before their lock existed
+        // NOTE: Addresses that are recipients (setRecipient) are excluded - they can receive
+        // rewards without having a lock themselves
         address[] memory users = store.getUsers();
         for (uint256 i = 0; i < users.length; i++) {
+            // Skip addresses that are set as recipients - they can have rewards without locks
+            if (store.isRecipient(users[i])) {
+                continue;
+            }
+
             uint256 lockCreatedWeek = store.ghost_userLockStartWeek(users[i]);
             if (lockCreatedWeek > 0 && lockCreatedWeek > store.ghost_firstRewardWeek()) {
                 // Check if user has balance before lock creation

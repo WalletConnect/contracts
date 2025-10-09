@@ -234,4 +234,14 @@ contract StakingRewardDistributorStore {
 
         return usersWithLocks;
     }
+
+    function isRecipient(address addr) public view returns (bool) {
+        // Check if this address is set as a recipient for any user
+        for (uint256 i = 0; i < users.length; i++) {
+            if (userInfo[users[i]].setRecipient == addr) {
+                return true;
+            }
+        }
+        return false;
+    }
 }

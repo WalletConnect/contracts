@@ -6,7 +6,7 @@ out = "out"
 libs = ["lib", "../node_modules"]
 solc = "0.8.25" # Pin specific version for reproducibility
 optimizer = true
-optimizer_runs = 200
+optimizer_runs = 10_000 # Match deployed contracts (DO NOT CHANGE - affects storage layout)
 fuzz = { runs = 256 }              # Reduced for faster normal runs
 invariant = { runs = 10, depth = 15, fail_on_revert = false } # Keep false for now to match current behavior
 gas_reports = ["*"]               # Generate gas reports for all contracts
@@ -15,7 +15,7 @@ test = "test"
 auto_detect_solc = false
 block_timestamp = 1_680_220_800 # March 31, 2023 at 00:00 GMT
 bytecode_hash = "none"
-evm_version = "cancun"
+evm_version = "cancun" # Needed for MerkleVester interactions
 fs_permissions = [{ access = "read-write", path = "./deployments"}, { access = "read", path = "./"}]
 ffi = true
 ast = true

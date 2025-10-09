@@ -75,9 +75,12 @@ contract StakingRewardDistributorHandler is BaseHandler {
         uint256 timeJump = bound(seed, 0, 1 hours);
         vm.warp(block.timestamp + timeJump);
 
+        address srdProxyAdmin = Eip1967Logger.getAdmin(vm, address(stakingRewardDistributor));
+        address swProxyAdmin = Eip1967Logger.getAdmin(vm, address(stakeWeight));
         vm.assume(
             recipient != address(0) && recipient != address(stakeWeight)
-                && recipient != address(stakingRewardDistributor)
+                && recipient != address(stakingRewardDistributor) && recipient != srdProxyAdmin
+                && recipient != swProxyAdmin && recipient != address(l2wct) && recipient != address(wct)
         );
         address[] memory usersWithLocks = store.getUsersWithLocks();
         if (usersWithLocks.length == 0) {
@@ -132,7 +135,7 @@ contract StakingRewardDistributorHandler is BaseHandler {
         address swProxyAdmin = Eip1967Logger.getAdmin(vm, address(stakeWeight));
         vm.assume(
             user != address(stakeWeight) && user != address(stakingRewardDistributor) && user != srdProxyAdmin
-                && user != swProxyAdmin && user != address(0)
+                && user != swProxyAdmin && user != address(0) && user != address(l2wct) && user != address(wct)
         );
 
         // Skip if user already has a lock
@@ -289,7 +292,7 @@ contract StakingRewardDistributorHandler is BaseHandler {
         address swProxyAdmin = Eip1967Logger.getAdmin(vm, address(stakeWeight));
         vm.assume(
             user != address(stakeWeight) && user != address(stakingRewardDistributor) && user != srdProxyAdmin
-                && user != swProxyAdmin && user != address(0)
+                && user != swProxyAdmin && user != address(0) && user != address(l2wct) && user != address(wct)
         );
 
         (,,,, bool hasLock,,) = store.userInfo(user);
