@@ -129,6 +129,22 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
         }
     }
 
+    function _requireNotPaused(StakeWeightStorage storage s) private view {
+        _requireNotPausedConfig(s.config);
+    }
+
+    function _requireNotPausedConfig(WalletConnectConfig config_) private view {
+        if (Pauser(config_.getPauser()).isStakeWeightPaused()) revert Paused();
+    }
+
+    function _validatePermanentDuration(uint256 duration) private pure returns (uint256 durationWeeks) {
+        durationWeeks = duration / 1 weeks;
+        if (
+            durationWeeks != 4 && durationWeeks != 8 && durationWeeks != 12 && durationWeeks != 26
+                && durationWeeks != 52 && durationWeeks != 78 && durationWeeks != 104
+        ) revert InvalidDuration(duration);
+    }
+
     /*//////////////////////////////////////////////////////////////////////////
                                     EVENTS
     //////////////////////////////////////////////////////////////////////////*/
@@ -595,7 +611,7 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
     /// floored down to whole weeks
     function createLock(uint256 amount, uint256 unlockTime) external nonReentrant {
         StakeWeightStorage storage s = _getStakeWeightStorage();
-        if (Pauser(s.config.getPauser()).isStakeWeightPaused()) revert Paused();
+        _requireNotPaused(s);
         _createLock(msg.sender, amount, unlockTime, true);
     }
 
@@ -609,7 +625,7 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
         onlyRole(LOCKED_TOKEN_STAKER_ROLE)
     {
         StakeWeightStorage storage s = _getStakeWeightStorage();
-        if (Pauser(s.config.getPauser()).isStakeWeightPaused()) revert Paused();
+        _requireNotPaused(s);
         _createLock(for_, amount, unlockTime, false);
     }
 
@@ -634,7 +650,7 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
 
     function depositFor(address for_, uint256 amount) external nonReentrant {
         StakeWeightStorage storage s = _getStakeWeightStorage();
-        if (Pauser(s.config.getPauser()).isStakeWeightPaused()) revert Paused();
+        _requireNotPaused(s);
         if (L2WCT(s.config.getL2wct()).transferRestrictionsDisabledAfter() >= block.timestamp) {
             revert TransferRestrictionsEnabled();
         }
@@ -799,7 +815,7 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
     /// @param amount The amount of WCT to be added to the lock
     function increaseLockAmount(uint256 amount) external nonReentrant {
         StakeWeightStorage storage s = _getStakeWeightStorage();
-        if (Pauser(s.config.getPauser()).isStakeWeightPaused()) revert Paused();
+        _requireNotPaused(s);
         _increaseLockAmount(msg.sender, amount, true);
     }
 
@@ -812,7 +828,7 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
         onlyRole(LOCKED_TOKEN_STAKER_ROLE)
     {
         StakeWeightStorage storage s = _getStakeWeightStorage();
-        if (Pauser(s.config.getPauser()).isStakeWeightPaused()) revert Paused();
+        _requireNotPaused(s);
         _increaseLockAmount(for_, amount, false);
     }
 
@@ -829,7 +845,7 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
     /// @param newUnlockTime The new unlock time to be updated
     function increaseUnlockTime(uint256 newUnlockTime) external nonReentrant {
         StakeWeightStorage storage s = _getStakeWeightStorage();
-        if (Pauser(s.config.getPauser()).isStakeWeightPaused()) revert Paused();
+        _requireNotPaused(s);
         if (s.isPermanent[msg.sender]) revert AlreadyPermanent();
 
         LockedBalance memory locked = s.locks[msg.sender];
@@ -849,7 +865,7 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
     /// @param unlockTime The new unlock time
     function updateLock(uint256 amount, uint256 unlockTime) external nonReentrant {
         StakeWeightStorage storage s = _getStakeWeightStorage();
-        if (Pauser(s.config.getPauser()).isStakeWeightPaused()) revert Paused();
+        _requireNotPaused(s);
         if (s.isPermanent[msg.sender]) revert AlreadyPermanent();
 
         LockedBalance memory lock = s.locks[msg.sender];
@@ -872,26 +888,21 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
     /// @param duration The duration for future unlocking (must be >= remaining lock time)
     function convertToPermanent(uint256 duration) external nonReentrant {
         StakeWeightStorage storage s = _getStakeWeightStorage();
-        if (Pauser(s.config.getPauser()).isStakeWeightPaused()) revert Paused();
+        _requireNotPaused(s);
 
         LockedBalance memory lock = s.locks[msg.sender];
         if (lock.amount == 0) revert NonExistentLock();
         if (s.isPermanent[msg.sender]) revert AlreadyPermanent();
         if (lock.end <= block.timestamp) revert ExpiredLock(block.timestamp, lock.end);
 
-        // Validate duration - must be 4, 8, 12, 26, 52, 78, or 104 weeks
-        uint256 durationWeeks = duration / 1 weeks;
-        if (
-            durationWeeks != 4 && durationWeeks != 8 && durationWeeks != 12 && durationWeeks != 26
-                && durationWeeks != 52 && durationWeeks != 78 && durationWeeks != 104
-        ) revert InvalidDuration(duration);
+        uint256 baseWeeks = _validatePermanentDuration(duration);
 
         // Ensure new duration is not shorter than remaining lock time
         uint256 remainingTime = lock.end - block.timestamp;
         if (duration < remainingTime) revert DurationTooShort(duration, remainingTime);
 
         // Store base weeks for later unlock
-        s.permanentBaseWeeks[msg.sender] = duration / 1 weeks;
+        s.permanentBaseWeeks[msg.sender] = baseWeeks;
 
         // TWO-PHASE CHECKPOINT for clean conversion:
         // Phase 1: Remove all decaying weight (amount -> 0)
@@ -936,7 +947,7 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
     /// @notice Trigger unlocking of a permanent position
     function triggerUnlock() external nonReentrant {
         StakeWeightStorage storage s = _getStakeWeightStorage();
-        if (Pauser(s.config.getPauser()).isStakeWeightPaused()) revert Paused();
+        _requireNotPaused(s);
 
         LockedBalance memory lock = s.locks[msg.sender];
         if (lock.amount == 0) revert NonExistentLock();
@@ -978,14 +989,8 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
     /// @param duration The duration that determines weight multiplier (must be in valid set)
     function createPermanentLock(uint256 amount, uint256 duration) external nonReentrant {
         StakeWeightStorage storage s = _getStakeWeightStorage();
-        if (Pauser(s.config.getPauser()).isStakeWeightPaused()) revert Paused();
-
-        // Validate duration - must be 4, 8, 12, 26, 52, 78, or 104 weeks
-        uint256 durationWeeks = duration / 1 weeks;
-        if (
-            durationWeeks != 4 && durationWeeks != 8 && durationWeeks != 12 && durationWeeks != 26
-                && durationWeeks != 52 && durationWeeks != 78 && durationWeeks != 104
-        ) revert InvalidDuration(duration);
+        _requireNotPaused(s);
+        uint256 durationWeeks = _validatePermanentDuration(duration);
 
         // Check user doesn't already have a lock
         LockedBalance memory existing = s.locks[msg.sender];
@@ -1010,7 +1015,7 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
         // 4) Mark permanent and set weight using safe mulDiv
         uint256 permanentWeight = Math.mulDiv(amount, duration, MAX_LOCK_CAP);
         s.isPermanent[msg.sender] = true;
-        s.permanentBaseWeeks[msg.sender] = duration / 1 weeks;
+        s.permanentBaseWeeks[msg.sender] = durationWeeks;
         s.permanentStakeWeight[msg.sender] = permanentWeight;
         s.permanentTotalSupply += permanentWeight;
 
@@ -1179,7 +1184,7 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
     function _withdrawAll(address user) internal {
         StakeWeightStorage storage s = _getStakeWeightStorage();
         WalletConnectConfig wcConfig = s.config;
-        if (Pauser(wcConfig.getPauser()).isStakeWeightPaused()) revert Paused();
+        _requireNotPausedConfig(wcConfig);
         if (s.isPermanent[user]) revert LockStillActive(type(uint256).max); // Prevent withdrawal of permanent locks
         LockedBalance memory lock = s.locks[user];
         uint256 amount = SafeCast.toUint256(lock.amount);
@@ -1330,7 +1335,7 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
     /// @param newDuration The new duration in weeks (must be in valid set and >= current duration)
     function updatePermanentLock(uint256 amount, uint256 newDuration) external nonReentrant {
         StakeWeightStorage storage s = _getStakeWeightStorage();
-        if (Pauser(s.config.getPauser()).isStakeWeightPaused()) revert Paused();
+        _requireNotPaused(s);
 
         LockedBalance memory lock = s.locks[msg.sender];
 
@@ -1341,19 +1346,10 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
         if (!s.isPermanent[msg.sender]) revert NotPermanent();
 
         uint256 currentBaseWeeks = s.permanentBaseWeeks[msg.sender];
-        uint256 newBaseWeeks = newDuration / 1 weeks;
+        uint256 newBaseWeeks = _validatePermanentDuration(newDuration);
 
-        // Validate new duration if changing
-        if (newBaseWeeks != currentBaseWeeks) {
-            if (
-                newBaseWeeks != 4 && newBaseWeeks != 8 && newBaseWeeks != 12 && newBaseWeeks != 26 && newBaseWeeks != 52
-                    && newBaseWeeks != 78 && newBaseWeeks != 104
-            ) {
-                revert InvalidDuration(newDuration);
-            }
-            if (newBaseWeeks < currentBaseWeeks) {
-                revert InvalidDuration(newDuration); // Simplified: duration must increase
-            }
+        if (newBaseWeeks != currentBaseWeeks && newBaseWeeks < currentBaseWeeks) {
+            revert InvalidDuration(newDuration); // Simplified: duration must increase when changing
         }
 
         // Store previous lock state for checkpointing
@@ -1425,7 +1421,7 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
     /// @param newDuration The new duration in weeks (must be in valid set and greater than current)
     function increasePermanentLockDuration(uint256 newDuration) external nonReentrant {
         StakeWeightStorage storage s = _getStakeWeightStorage();
-        if (Pauser(s.config.getPauser()).isStakeWeightPaused()) revert Paused();
+        _requireNotPaused(s);
 
         LockedBalance memory lock = s.locks[msg.sender];
 
@@ -1436,17 +1432,8 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
         if (!s.isPermanent[msg.sender]) revert NotPermanent();
 
         uint256 currentBaseWeeks = s.permanentBaseWeeks[msg.sender];
-        uint256 newBaseWeeks = newDuration / 1 weeks;
+        uint256 newBaseWeeks = _validatePermanentDuration(newDuration);
 
-        // Validate new duration
-        if (
-            newBaseWeeks != 4 && newBaseWeeks != 8 && newBaseWeeks != 12 && newBaseWeeks != 26 && newBaseWeeks != 52
-                && newBaseWeeks != 78 && newBaseWeeks != 104
-        ) {
-            revert InvalidDuration(newDuration);
-        }
-
-        // Check duration is actually increasing
         if (newBaseWeeks <= currentBaseWeeks) {
             revert InvalidDuration(newDuration); // Simplified: duration must increase
         }
