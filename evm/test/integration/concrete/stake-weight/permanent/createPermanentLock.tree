@@ -1,0 +1,18 @@
+StakeWeight::createPermanentLock
+├── when contract is paused
+│   └── it should revert
+└── when contract is not paused
+    ├── when user already has a lock
+    │   └── it should revert
+    └── when user does not have a lock
+        ├── when amount is zero
+        │   └── it should revert
+        ├── when duration is not in valid set
+        │   └── it should revert
+        └── when parameters are valid
+            ├── it should create a permanent lock
+            ├── it should set permanentUnlockDuration to duration
+            ├── it should set slope to zero
+            ├── it should calculate weighted bias based on duration
+            ├── it should update total supply
+            └── it should emit a Deposit event

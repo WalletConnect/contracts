@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.25;
+pragma solidity 0.8.25;
 
-import { Ownable2StepUpgradeable } from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import { AccessControlUpgradeable } from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -11,6 +11,7 @@ import { WalletConnectConfig } from "./WalletConnectConfig.sol";
 import { StakeWeight } from "./StakeWeight.sol";
 import { Math128 } from "./library/Math128.sol";
 import { L2WCT } from "./L2WCT.sol";
+import { Pauser } from "./Pauser.sol";
 /**
  * @title StakingRewardDistributor
  * @notice This contract manages the distribution of staking rewards for the WalletConnect token.
@@ -19,14 +20,11 @@ import { L2WCT } from "./L2WCT.sol";
  * @author WalletConnect
  */
 
-contract StakingRewardDistributor is Initializable, Ownable2StepUpgradeable, ReentrancyGuardUpgradeable {
+contract StakingRewardDistributor is Initializable, AccessControlUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20 for IERC20;
 
     /// @notice Emitted when the contract is killed and emergency return is triggered
     event Killed();
-
-    /// @notice Emitted when tokens are added to the contract
-    event Fed(uint256 amount);
 
     /// @notice Emitted when a token checkpoint is created
     event TokenCheckpointed(uint256 timestamp, uint256 tokens);
@@ -42,14 +40,17 @@ contract StakingRewardDistributor is Initializable, Ownable2StepUpgradeable, Ree
     /// @param newRecipient The new recipient address
     event RecipientUpdated(address indexed user, address indexed oldRecipient, address indexed newRecipient);
 
+    /// @notice Emitted when rewards are injected into the system
+    /// @param timestamp The timestamp for the reward injection
+    /// @param amount The amount of rewards injected
+    event RewardInjected(uint256 indexed timestamp, uint256 amount);
+
+    /// @notice Emitted when total supply checkpoint is updated
+    /// @param timestamp The timestamp of the checkpoint
+    event TotalSupplyCheckpointed(uint256 indexed timestamp);
+
     /// @notice Thrown when attempting to interact with a killed contract
     error ContractKilled();
-
-    /// @notice Thrown when the number of users exceeds the maximum allowed
-    error TooManyUsers();
-
-    /// @notice Thrown when an invalid user address is provided
-    error InvalidUser();
 
     /// @notice Thrown when an invalid configuration is provided
     error InvalidConfig();
@@ -57,8 +58,22 @@ contract StakingRewardDistributor is Initializable, Ownable2StepUpgradeable, Ree
     /// @notice Thrown when an invalid emergency return address is provided
     error InvalidEmergencyReturn();
 
-    /// @notice Thrown when an unauthorized action is attempted
-    error Unauthorized();
+    /// @notice Thrown when an invalid admin address is provided
+    error InvalidAdmin();
+
+    /// @notice Thrown when the contract is paused
+    error Paused();
+
+    // Roles for access control
+    bytes32 public constant REWARD_MANAGER_ROLE = keccak256("REWARD_MANAGER_ROLE");
+
+    // Version for tracking upgrades
+    uint256 public constant VERSION = 2;
+
+    // Maximum iterations for reward distribution loops (approx 1 year)
+    uint256 private constant MAX_REWARD_ITERATIONS = 52;
+    // Maximum iterations for binary search
+    uint256 private constant MAX_BINARY_SEARCH_ITERATIONS = 128;
 
     /// @notice Thrown when a timestamp is before startWeekCursor
     error InvalidTimestamp();
@@ -129,11 +144,11 @@ contract StakingRewardDistributor is Initializable, Ownable2StepUpgradeable, Ree
 
     /// @notice Initializes the contract
     /// @param init Initialization parameters
-    function initialize(Init memory init) public initializer {
-        __Ownable_init(init.admin);
-        __Ownable2Step_init();
+    function initialize(Init memory init) external initializer {
+        __AccessControl_init();
         __ReentrancyGuard_init();
 
+        if (init.admin == address(0)) revert InvalidAdmin();
         if (init.config == address(0)) revert InvalidConfig();
         if (init.emergencyReturn == address(0)) revert InvalidEmergencyReturn();
         config = WalletConnectConfig(init.config);
@@ -143,11 +158,42 @@ contract StakingRewardDistributor is Initializable, Ownable2StepUpgradeable, Ree
         lastTokenTimestamp = startTimeFloorWeek;
         weekCursor = startTimeFloorWeek;
         emergencyReturn = init.emergencyReturn;
+
+        // Grant roles to the admin
+        _grantRole(DEFAULT_ADMIN_ROLE, init.admin);
+        _grantRole(REWARD_MANAGER_ROLE, init.admin);
+    }
+
+    /// @notice Migrate from Ownable to AccessControl - for upgrading live contracts
+    /// @dev MUST be called atomically with upgrade via upgradeToAndCall from ProxyAdmin
+    /// @dev Hardcodes role assignments to prevent front-running during migration:
+    ///      - DEFAULT_ADMIN_ROLE: Optimism Admin Timelock (controls all roles + emergency functions)
+    ///      - REWARD_MANAGER_ROLE: Treasury MultiSig (manages reward operations)
+    function migrateToAccessControl() external reinitializer(2) {
+        // Hardcode addresses for security - prevents front-running attacks
+        address OPTIMISM_ADMIN_TIMELOCK = 0x61cc6aF18C351351148815c5F4813A16DEe7A7E4;
+        address TREASURY_MULTISIG = 0xa86Ca428512D0A18828898d2e656E9eb1b6bA6E7;
+
+        __AccessControl_init();
+
+        // Grant admin role to timelock (can grant/revoke all roles, call kill())
+        _grantRole(DEFAULT_ADMIN_ROLE, OPTIMISM_ADMIN_TIMELOCK);
+
+        // Grant reward manager role to treasury (can call injectReward functions)
+        _grantRole(REWARD_MANAGER_ROLE, TREASURY_MULTISIG);
     }
 
     modifier onlyLive() {
         if (isKilled) revert ContractKilled();
+        _checkNotPaused();
         _;
+    }
+
+    /// @dev Internal function to check if contract is paused
+    function _checkNotPaused() internal view {
+        if (Pauser(config.getPauser()).isStakingRewardDistributorPaused()) {
+            revert Paused();
+        }
     }
 
     /// @notice Get StakeWeight balance of "user" at "timestamp"
@@ -161,6 +207,13 @@ contract StakingRewardDistributor is Initializable, Ownable2StepUpgradeable, Ree
         }
 
         uint256 epoch = _findTimestampUserEpoch(user, timestamp, maxUserEpoch);
+        // Check if user was permanent at this epoch
+        uint256 perm = stakeWeight.userPermanentAt(user, epoch);
+        if (perm > 0) {
+            return perm;
+        }
+
+        // User had a decaying lock, calculate with slope
         StakeWeight.Point memory point = stakeWeight.userPointHistory(user, epoch);
         int128 bias = point.bias - point.slope * SafeCast.toInt128(int256(timestamp - point.timestamp));
         if (bias < 0) {
@@ -204,7 +257,7 @@ contract StakingRewardDistributor is Initializable, Ownable2StepUpgradeable, Ree
         lastTokenTimestamp = block.timestamp;
 
         // Iterate through weeks to filled out missing tokensPerWeek (if any)
-        for (uint256 i = 0; i < 52; i++) {
+        for (uint256 i = 0; i < MAX_REWARD_ITERATIONS; i++) {
             nextWeekCursor = thisWeekCursor + 1 weeks;
 
             // if block.timestamp < nextWeekCursor, means nextWeekCursor goes
@@ -219,12 +272,8 @@ contract StakingRewardDistributor is Initializable, Ownable2StepUpgradeable, Ree
                 }
                 break;
             } else {
-                if (deltaSinceLastTimestamp == 0 && nextWeekCursor == timeCursor) {
-                    tokensPerWeek[thisWeekCursor] = tokensPerWeek[thisWeekCursor] + toDistribute;
-                } else {
-                    tokensPerWeek[thisWeekCursor] = tokensPerWeek[thisWeekCursor]
-                        + ((toDistribute * (nextWeekCursor - timeCursor)) / deltaSinceLastTimestamp);
-                }
+                tokensPerWeek[thisWeekCursor] = tokensPerWeek[thisWeekCursor]
+                    + ((toDistribute * (nextWeekCursor - timeCursor)) / deltaSinceLastTimestamp);
             }
             timeCursor = nextWeekCursor;
             thisWeekCursor = nextWeekCursor;
@@ -247,7 +296,7 @@ contract StakingRewardDistributor is Initializable, Ownable2StepUpgradeable, Ree
 
         stakeWeight.checkpoint();
 
-        for (uint256 i = 0; i < 52; i++) {
+        for (uint256 i = 0; i < MAX_REWARD_ITERATIONS; i++) {
             if (weekCursor_ > roundedTimestamp) {
                 break;
             } else {
@@ -258,11 +307,10 @@ contract StakingRewardDistributor is Initializable, Ownable2StepUpgradeable, Ree
                     timeDelta = SafeCast.toInt128(int256(weekCursor_ - point.timestamp));
                 }
                 int128 bias = point.bias - point.slope * timeDelta;
-                if (bias < 0) {
-                    totalSupplyAt[weekCursor_] = 0;
-                } else {
-                    totalSupplyAt[weekCursor_] = SafeCast.toUint256(bias);
-                }
+                uint256 decaying = bias < 0 ? 0 : SafeCast.toUint256(bias);
+                // Add historical permanent snapshot aligned to this epoch
+                uint256 permanentAt = stakeWeight.permanentSupplyByEpoch(epoch);
+                totalSupplyAt[weekCursor_] = decaying + permanentAt;
             }
             weekCursor_ = weekCursor_ + 1 weeks;
         }
@@ -270,11 +318,31 @@ contract StakingRewardDistributor is Initializable, Ownable2StepUpgradeable, Ree
         weekCursor = weekCursor_;
     }
 
+    /// @notice Calculate total supply at a specific timestamp (not cached)
+    /// @dev This ensures we always get the correct supply even after conversions
+    function _calculateTotalSupplyAt(uint256 timestamp) internal view returns (uint256) {
+        StakeWeight stakeWeight = StakeWeight(config.getStakeWeight());
+        uint256 epoch = _findTimestampEpoch(timestamp);
+        StakeWeight.Point memory point = stakeWeight.pointHistory(epoch);
+
+        int128 timeDelta = 0;
+        if (timestamp > point.timestamp) {
+            timeDelta = SafeCast.toInt128(int256(timestamp - point.timestamp));
+        }
+        int128 bias = point.bias - point.slope * timeDelta;
+        uint256 decaying = bias < 0 ? 0 : SafeCast.toUint256(bias);
+
+        // Add permanent supply at this epoch
+        uint256 permanentAt = stakeWeight.permanentSupplyByEpoch(epoch);
+        return decaying + permanentAt;
+    }
+
     /// @notice Update StakeWeight total supply checkpoint
     /// @dev This function can be called independently or at the first claim of
     /// the new epoch week.
     function checkpointTotalSupply() external nonReentrant {
         _checkpointTotalSupply();
+        emit TotalSupplyCheckpointed(block.timestamp);
     }
 
     /// @notice Claim rewardToken
@@ -310,7 +378,18 @@ contract StakingRewardDistributor is Initializable, Ownable2StepUpgradeable, Ree
         StakeWeight.Point memory userPoint = stakeWeight.userPointHistory(user, userEpoch);
 
         if (userWeekCursor == 0) {
-            userWeekCursor = ((userPoint.timestamp + 1 weeks - 1) / 1 weeks) * 1 weeks;
+            // If user locked exactly at week boundary, include that week
+            // Otherwise, round up to next week (no partial week rewards)
+            uint256 userTimestamp = userPoint.timestamp;
+            uint256 weekTimestamp = (userTimestamp / 1 weeks) * 1 weeks;
+
+            if (userTimestamp == weekTimestamp) {
+                // User locked exactly at week boundary, include this week
+                userWeekCursor = weekTimestamp;
+            } else {
+                // User locked mid-week, start from next week
+                userWeekCursor = weekTimestamp + 1 weeks;
+            }
         }
 
         // userWeekCursor is already at/beyond maxClaimTimestamp
@@ -330,14 +409,25 @@ contract StakingRewardDistributor is Initializable, Ownable2StepUpgradeable, Ree
         StakeWeight.Point memory prevUserPoint = StakeWeight.Point({ bias: 0, slope: 0, timestamp: 0, blockNumber: 0 });
 
         // Go through weeks
-        for (uint256 i = 0; i < 52; i++) {
+        for (uint256 i = 0; i < MAX_REWARD_ITERATIONS; i++) {
             // If userWeekCursor is iterated to be at/beyond maxClaimTimestamp
             // This means we went through all weeks that user subject to claim rewards already
             if (userWeekCursor >= maxClaimTimestamp) {
                 break;
             }
-            // Move to the new epoch if need to,
-            // else calculate rewards that user should get.
+            // Calculate balance for current week BEFORE moving to new epoch
+            // This properly handles both permanent and decaying locks
+            uint256 balanceOf = this.balanceOfAt(user, userWeekCursor);
+
+            if (balanceOf > 0 && tokensPerWeek[userWeekCursor] > 0) {
+                // Calculate total supply on-the-fly to handle mid-week conversions correctly
+                uint256 totalSupply = _calculateTotalSupplyAt(userWeekCursor);
+                if (totalSupply > 0) {
+                    toDistribute = toDistribute + (balanceOf * tokensPerWeek[userWeekCursor]) / totalSupply;
+                }
+            }
+
+            // Move to the new epoch if needed
             if (userWeekCursor >= userPoint.timestamp && userEpoch <= maxUserEpoch) {
                 userEpoch = userEpoch + 1;
                 prevUserPoint = StakeWeight.Point({
@@ -353,19 +443,14 @@ contract StakingRewardDistributor is Initializable, Ownable2StepUpgradeable, Ree
                 } else {
                     userPoint = stakeWeight.userPointHistory(user, userEpoch);
                 }
-            } else {
-                int128 timeDelta = SafeCast.toInt128(int256(userWeekCursor - prevUserPoint.timestamp));
-                uint256 balanceOf =
-                    SafeCast.toUint256(Math128.max(prevUserPoint.bias - timeDelta * prevUserPoint.slope, 0));
-                if (balanceOf == 0 && userEpoch > maxUserEpoch) {
-                    break;
-                }
-                if (balanceOf > 0) {
-                    toDistribute =
-                        toDistribute + (balanceOf * tokensPerWeek[userWeekCursor]) / totalSupplyAt[userWeekCursor];
-                }
-                userWeekCursor = userWeekCursor + 1 weeks;
             }
+
+            // Check if we should stop
+            if (balanceOf == 0 && userEpoch > maxUserEpoch) {
+                break;
+            }
+
+            userWeekCursor = userWeekCursor + 1 weeks;
         }
 
         userEpoch = Math128.min(maxUserEpoch, userEpoch - 1);
@@ -428,17 +513,6 @@ contract StakingRewardDistributor is Initializable, Ownable2StepUpgradeable, Ree
         return total;
     }
 
-    /// @notice Receive rewardTokens into the contract and trigger token checkpoint
-    function feed(uint256 amount) external nonReentrant onlyLive returns (bool) {
-        IERC20(config.getL2wct()).safeTransferFrom(msg.sender, address(this), amount);
-
-        _checkpointToken();
-
-        emit Fed(amount);
-
-        return true;
-    }
-
     /// @notice Do Binary Search to find out epoch from timestamp
     /// @param timestamp Timestamp to find epoch
     function _findTimestampEpoch(uint256 timestamp) internal view returns (uint256) {
@@ -447,7 +521,7 @@ contract StakingRewardDistributor is Initializable, Ownable2StepUpgradeable, Ree
         uint256 min = 0;
         uint256 max = stakeWeight.epoch();
         // Loop for 128 times -> enough for 128-bit numbers
-        for (uint256 i = 0; i < 128; i++) {
+        for (uint256 i = 0; i < MAX_BINARY_SEARCH_ITERATIONS; i++) {
             if (min >= max) {
                 break;
             }
@@ -477,7 +551,7 @@ contract StakingRewardDistributor is Initializable, Ownable2StepUpgradeable, Ree
     {
         uint256 min = 0;
         uint256 max = maxUserEpoch;
-        for (uint256 i = 0; i < 128; i++) {
+        for (uint256 i = 0; i < MAX_BINARY_SEARCH_ITERATIONS; i++) {
             if (min >= max) {
                 break;
             }
@@ -493,7 +567,7 @@ contract StakingRewardDistributor is Initializable, Ownable2StepUpgradeable, Ree
     }
 
     /// @notice Emergency stop the contract and transfer remaining tokens to the emergency return address
-    function kill() external onlyOwner nonReentrant {
+    function kill() external nonReentrant onlyRole(DEFAULT_ADMIN_ROLE) {
         IERC20 rewardToken = IERC20(config.getL2wct());
         isKilled = true;
         rewardToken.safeTransfer(emergencyReturn, rewardToken.balanceOf(address(this)));
@@ -508,15 +582,18 @@ contract StakingRewardDistributor is Initializable, Ownable2StepUpgradeable, Ree
     }
 
     /// @notice Inject rewardToken into the contract
+    /// @dev IMPORTANT: Tokens must be injected via this function to be claimable.
+    ///      Tokens sent directly to the contract (not via injectReward) are not mapped
+    ///      to tokensPerWeek and remain locked until the contract is killed via kill().
     /// @param timestamp The timestamp of the rewardToken to be distributed
     /// @param amount The amount of rewardToken to be distributed
-    function injectReward(uint256 timestamp, uint256 amount) external onlyOwner nonReentrant {
+    function injectReward(uint256 timestamp, uint256 amount) external nonReentrant onlyRole(REWARD_MANAGER_ROLE) onlyLive {
         _injectReward(timestamp, amount);
     }
 
     /// @notice Inject rewardToken for currect week into the contract
     /// @param amount The amount of rewardToken to be distributed
-    function injectRewardForCurrentWeek(uint256 amount) external onlyOwner nonReentrant {
+    function injectRewardForCurrentWeek(uint256 amount) external nonReentrant onlyRole(REWARD_MANAGER_ROLE) onlyLive {
         _injectReward(block.timestamp, amount);
     }
 
@@ -529,6 +606,7 @@ contract StakingRewardDistributor is Initializable, Ownable2StepUpgradeable, Ree
         lastTokenBalance += amount;
         totalDistributed += amount;
         tokensPerWeek[weekTimestamp] += amount;
+        emit RewardInjected(weekTimestamp, amount);
     }
 
     /// @notice Set recipient address

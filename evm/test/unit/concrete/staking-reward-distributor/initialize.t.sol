@@ -6,7 +6,6 @@ import { StakingRewardDistributor } from "src/StakingRewardDistributor.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { WalletConnectConfig } from "src/WalletConnectConfig.sol";
 import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
-import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 contract Initialize_StakingRewardDistributor_Unit_Concrete_Test is Base_Test {
     function setUp() public override {
@@ -32,8 +31,9 @@ contract Initialize_StakingRewardDistributor_Unit_Concrete_Test is Base_Test {
             )
         );
 
-        // Check that the owner is set correctly
-        assertEq(stakingRewardDistributor.owner(), users.admin);
+        // Check that the DEFAULT_ADMIN_ROLE is granted correctly
+        bytes32 DEFAULT_ADMIN_ROLE = 0x00;
+        assertTrue(stakingRewardDistributor.hasRole(DEFAULT_ADMIN_ROLE, users.admin));
 
         // Check that the start time is set correctly
         assertEq(stakingRewardDistributor.startWeekCursor(), (startTime / 1 weeks) * 1 weeks);
@@ -67,7 +67,7 @@ contract Initialize_StakingRewardDistributor_Unit_Concrete_Test is Base_Test {
             config: address(walletConnectConfig)
         });
 
-        vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableInvalidOwner.selector, address(0)));
+        vm.expectRevert(StakingRewardDistributor.InvalidAdmin.selector);
         new ERC1967Proxy(
             address(implementation), abi.encodeWithSelector(StakingRewardDistributor.initialize.selector, init)
         );

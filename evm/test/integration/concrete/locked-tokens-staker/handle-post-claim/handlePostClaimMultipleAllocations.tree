@@ -1,0 +1,29 @@
+handlePostClaimMultipleAllocations.t.sol
+├── given user has multiple allocations
+│   ├── when user locks from allocation A1 only
+│   │   ├── when user claims from A1
+│   │   │   ├── given claim amount within unlocked amount
+│   │   │   │   └── it should transfer tokens to withdrawal address
+│   │   │   └── given claim amount exceeds unlocked amount
+│   │   │       └── it should revert with CannotClaimLockedTokens
+│   │   └── when user claims from A2 (unlocked allocation)
+│   │       └── it should transfer full claim amount to withdrawal address
+│   ├── when user locks from both allocations
+│   │   ├── when user claims from A1
+│   │   │   ├── given claim amount within A1's unlocked amount
+│   │   │   │   └── it should transfer tokens to withdrawal address
+│   │   │   └── given claim amount exceeds A1's unlocked amount
+│   │   │       └── it should revert with CannotClaimLockedTokens
+│   │   └── when user claims from A2
+│   │       ├── given claim amount within A2's unlocked amount
+│   │       │   └── it should transfer tokens to withdrawal address
+│   │       └── given claim amount exceeds A2's unlocked amount
+│   │           └── it should revert with CannotClaimLockedTokens
+│   └── when total lock exceeds vestingBackedTotal
+│       ├── when allocationBackedLock is capped by vestingBackedTotal
+│       │   └── it should use capped value for validation
+│       └── when user adds own tokens via StakeWeight
+│           └── it should not count own tokens against allocation locks
+└── given lock expires during claim sequence
+    ├── it should withdraw expired lock on first claim
+    └── it should allow claiming previously locked amount

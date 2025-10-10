@@ -76,6 +76,9 @@ abstract contract Events {
     );
     event Supply(uint256 previousSupply, uint256 newSupply);
     event MaxLockUpdated(uint256 previousMaxLock, uint256 newMaxLock);
+    event PermanentConversion(address indexed user, uint256 duration, uint256 timestamp);
+    event UnlockTriggered(address indexed user, uint256 endTime, uint256 timestamp);
+    event DurationIncreased(address indexed user, uint256 newDuration, uint256 timestamp);
     /*//////////////////////////////////////////////////////////////////////////
                                 STAKING-REWARD-DISTRIBUTOR
     //////////////////////////////////////////////////////////////////////////*/

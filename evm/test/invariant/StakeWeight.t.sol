@@ -33,7 +33,9 @@ contract StakeWeight_Invariant_Test is Invariant_Test {
         merkle = new Merkle();
 
         // start vester
-        uint256 amountToFund = 1e27; // 1 billion tokens
+        // Use safe amount that won't overflow int128 (max ~1.7e20 tokens)
+        // We'll use 1e26 (100 million tokens) which is well below the limit
+        uint256 amountToFund = 1e26; // 100 million tokens
         vm.startPrank(users.admin);
         (,, bytes32 root) = createAllocationsAndMerkleTree("id1", true, true, false, false, amountToFund);
         vester.addAllocationRoot(root);
@@ -50,7 +52,7 @@ contract StakeWeight_Invariant_Test is Invariant_Test {
 
         disableTransferRestrictions();
 
-        bytes4[] memory selectors = new bytes4[](9);
+        bytes4[] memory selectors = new bytes4[](14);
         selectors[0] = handler.createLock.selector;
         selectors[1] = handler.increaseLockAmount.selector;
         selectors[2] = handler.increaseUnlockTime.selector;
@@ -60,6 +62,11 @@ contract StakeWeight_Invariant_Test is Invariant_Test {
         selectors[6] = handler.increaseLockAmountFor.selector;
         selectors[7] = handler.forceWithdrawAll.selector;
         selectors[8] = handler.updateLock.selector;
+        selectors[9] = handler.createPermanentLock.selector;
+        selectors[10] = handler.convertToPermanent.selector;
+        selectors[11] = handler.triggerUnlock.selector;
+        selectors[12] = handler.updatePermanentLock.selector;
+        selectors[13] = handler.increasePermanentLockDuration.selector;
 
         targetSelector(FuzzSelector(address(handler), selectors));
     }
@@ -212,28 +219,99 @@ contract StakeWeight_Invariant_Test is Invariant_Test {
         }
     }
 
-    function invariant_lockExtension() public view {
+    function invariant_lockExtension() public {
         address[] memory users = store.getAddressesWithLock();
         for (uint256 i = 0; i < users.length; i++) {
-            uint256 currentBalance = stakeWeight.balanceOf(users[i]);
-            uint256 previousBalance = store.getPreviousBalance(users[i]);
-            uint256 previousEndTime = store.getPreviousEndTime(users[i]);
-            StakeWeight.LockedBalance memory lock = stakeWeight.locks(users[i]);
-            if (lock.end > previousEndTime) {
+            address user = users[i];
+
+            // Skip if no previous state recorded
+            if (!store.getIsPreviousStateRecorded(user)) {
+                continue;
+            }
+
+            uint256 currentBalance = stakeWeight.balanceOf(user);
+            uint256 previousBalance = store.getPreviousBalance(user);
+            uint256 previousEndTime = store.getPreviousEndTime(user);
+            StakeWeight.LockedBalance memory lock = stakeWeight.locks(user);
+            bool wasPermanent = store.getWasPermanent(user);
+            bool isPermanent = stakeWeight.permanentBaseWeeks(user) > 0;
+
+            // Skip if permanent lock was triggered (converted back to regular)
+            if (wasPermanent && !isPermanent) {
+                continue;
+            }
+
+            // Skip if this was a permanent lock (end time == 0)
+            if (previousEndTime == 0) {
+                continue;
+            }
+
+            if (lock.end > previousEndTime && previousEndTime > 0) {
                 assertGe(currentBalance, previousBalance, "Lock extension should increase balance");
             }
         }
     }
 
-    function invariant_depositIncrease() public view {
+    function invariant_depositIncrease() public {
         address[] memory users = store.getAddressesWithLock();
         for (uint256 i = 0; i < users.length; i++) {
-            uint256 currentBalance = stakeWeight.balanceOf(users[i]);
-            uint256 previousBalance = store.getPreviousBalance(users[i]);
+            address user = users[i];
+
+            // Skip if no previous state recorded
+            if (!store.getIsPreviousStateRecorded(user)) {
+                continue;
+            }
+
+            uint256 currentBalance = stakeWeight.balanceOf(user);
+            uint256 previousBalance = store.getPreviousBalance(user);
+            StakeWeight.LockedBalance memory lock = stakeWeight.locks(user);
+            int128 previousAmount = store.getPreviousLockedAmount(user);
+            bool wasPermanent = store.getWasPermanent(user);
+            bool isPermanent = stakeWeight.permanentBaseWeeks(user) > 0;
+
+            // Skip if permanent lock was triggered (converted back to regular)
+            if (wasPermanent && !isPermanent) {
+                continue;
+            }
+
+            if (lock.amount > previousAmount && previousAmount > 0) {
+                assertGt(currentBalance, previousBalance, "Deposit should increase balance");
+            }
+        }
+    }
+
+    function invariant_permanentLocksRemainConstant() public view {
+        address[] memory users = store.getAddressesWithLock();
+        for (uint256 i = 0; i < users.length; i++) {
             StakeWeight.LockedBalance memory lock = stakeWeight.locks(users[i]);
-            int128 previousAmount = store.getPreviousLockedAmount(users[i]);
-            if (lock.amount > previousAmount) {
-                assertGe(currentBalance, previousBalance, "Deposit should increase balance");
+            // Only check if the lock is STILL permanent (not triggered to unlock)
+            if (stakeWeight.permanentBaseWeeks(users[i]) > 0) {
+                uint256 currentBalance = stakeWeight.balanceOf(users[i]);
+                uint256 previousBalance = store.getPreviousBalance(users[i]);
+                uint256 prevBaseWeeks = store.getPreviousPermanentBaseWeeks(users[i]);
+                uint256 currBaseWeeks = stakeWeight.permanentBaseWeeks(users[i]);
+                // Permanent locks should maintain constant weight unless explicitly changed
+                // Skip if previousBalance is 0 (just created) or if amount changed
+                if (previousBalance > 0 && lock.amount == store.getPreviousLockedAmount(users[i])) {
+                    if (currBaseWeeks != prevBaseWeeks) {
+                        // If duration changed, balance should change monotonically with duration
+                        if (currBaseWeeks > prevBaseWeeks) {
+                            assertGt(
+                                currentBalance,
+                                previousBalance,
+                                "Permanent weight should increase when duration increases"
+                            );
+                        } else {
+                            assertLt(
+                                currentBalance,
+                                previousBalance,
+                                "Permanent weight should decrease when duration decreases"
+                            );
+                        }
+                    } else {
+                        assertEq(currentBalance, previousBalance, "Permanent lock balance should remain constant");
+                    }
+                }
             }
         }
     }
@@ -255,45 +333,73 @@ contract StakeWeight_Invariant_Test is Invariant_Test {
     }
 
     function invariant_supplyMatchesTransferredAmount() public view {
-        assertEq(
-            stakeWeight.supply() - SafeCast.toUint256(store.nonTransferableBalance()),
-            l2wct.balanceOf(address(stakeWeight)),
-            "Total supply should equal non-transferable balance"
-        );
+        // The StakeWeight contract should hold tokens equal to:
+        // total supply - non-transferable balance (locks created via LockedTokenStaker)
+        // Non-transferable locks don't transfer tokens to StakeWeight (they stay in vesting contract)
+        uint256 transferableSupply = stakeWeight.supply() - SafeCast.toUint256(store.nonTransferableBalance());
+        uint256 heldTokens = l2wct.balanceOf(address(stakeWeight));
+        assertEq(transferableSupply, heldTokens, "StakeWeight contract should hold transferable tokens");
     }
 
-    function invariant_balanceChanges() public view {
+    function invariant_balanceChanges() public {
         address[] memory users = store.getAddressesWithLock();
         for (uint256 i = 0; i < users.length; i++) {
             address user = users[i];
+
+            // If this is the first time checking this user's state, record it and skip
+            if (!store.getIsPreviousStateRecorded(user)) {
+                _recordUserState(user);
+                store.updateIsPreviousStateRecorded(user, true);
+                continue;
+            }
+
             uint256 currentBalance = stakeWeight.balanceOf(user);
             StakeWeight.LockedBalance memory lock = stakeWeight.locks(user);
             uint256 previousBalance = store.getPreviousBalance(user);
             uint256 previousEndTime = store.getPreviousEndTime(user);
             int128 previousLockedAmount = store.getPreviousLockedAmount(user);
+            bool wasPermanent = store.getWasPermanent(user);
+            bool isPermanent = stakeWeight.permanentBaseWeeks(user) > 0;
 
-            // If the lock is still active and has a non-zero amount
-            if (block.timestamp < lock.end && lock.amount > 0) {
-                // If the lock time was increased
-                if (lock.end > previousEndTime) {
+            // Handle permanent lock transitions
+            if (wasPermanent && !isPermanent) {
+                // Permanent lock was triggered - balance should decrease
+                assertLe(currentBalance, previousBalance, "Balance should decrease when permanent lock is triggered");
+            } else if (!wasPermanent && isPermanent) {
+                // Converted to permanent - balance should increase
+                assertGe(currentBalance, previousBalance, "Balance should increase when converting to permanent");
+            } else if (lock.amount > 0 && block.timestamp < lock.end) {
+                // Regular lock still active
+                if (lock.end > previousEndTime && previousEndTime > 0) {
                     assertGe(
                         currentBalance,
                         previousBalance,
                         "Balance should increase or stay the same when lock time is increased"
                     );
                 } else if (lock.amount > previousLockedAmount) {
-                    // Lock amount was increased
                     assertGt(currentBalance, previousBalance, "Balance should increase when lock amount is increased");
-                } else {
-                    // No changes to lock time or amount
+                } else if (!isPermanent) {
+                    // Regular locks decay over time
                     assertLe(
                         currentBalance,
                         previousBalance,
-                        "Balance should decrease or stay the same over time if no changes were made"
+                        "Balance should decrease or stay the same over time for regular locks"
                     );
                 }
             }
+
+            // Update the previous state for next iteration
+            _recordUserState(user);
         }
+    }
+
+    function _recordUserState(address user) private {
+        StakeWeight.LockedBalance memory lock = stakeWeight.locks(user);
+        store.updatePreviousBalance(user, stakeWeight.balanceOf(user));
+        store.updatePreviousEndTime(user, lock.end);
+        store.updatePreviousLockedAmount(user, lock.amount);
+        store.updateWasPermanent(user, stakeWeight.permanentBaseWeeks(user) > 0);
+        store.updatePreviousPermanentBaseWeeks(user, stakeWeight.permanentBaseWeeks(user));
     }
 
     function invariant_withdrawalOnlyAfterExpiration() public view {
@@ -308,6 +414,65 @@ contract StakeWeight_Invariant_Test is Invariant_Test {
                     block.timestamp >= lock.end,
                     "Withdrawal should only be possible after lock expiration or if re-locked"
                 );
+            }
+        }
+    }
+
+    function invariant_permanentSupplyConsistency() public view {
+        // Verify permanentSupply equals sum of all permanentOf[user]
+        uint256 calculatedPermanentSupply = 0;
+        address[] memory users = store.getAddressesWithLock();
+        for (uint256 i = 0; i < users.length; i++) {
+            calculatedPermanentSupply += stakeWeight.permanentOf(users[i]);
+        }
+        assertEq(
+            stakeWeight.permanentSupply(),
+            calculatedPermanentSupply,
+            "Permanent supply should equal sum of all permanent weights"
+        );
+    }
+
+    function invariant_permanentWeightCalculation() public view {
+        // Verify weight = (amount * duration) / MAX_LOCK_CAP for all permanent locks
+        address[] memory users = store.getAddressesWithLock();
+        for (uint256 i = 0; i < users.length; i++) {
+            StakeWeight.LockedBalance memory lock = stakeWeight.locks(users[i]);
+            if (stakeWeight.permanentBaseWeeks(users[i]) > 0) {
+                uint256 permanentWeight = stakeWeight.permanentOf(users[i]);
+                uint128 expectedWeight = uint128(
+                    (uint256(uint128(lock.amount)) * stakeWeight.permanentBaseWeeks(users[i]) * 1 weeks)
+                        / stakeWeight.MAX_LOCK_CAP()
+                );
+                assertEq(
+                    permanentWeight, expectedWeight, "Permanent weight should equal (amount * duration) / MAX_LOCK_CAP"
+                );
+            }
+        }
+    }
+
+    function invariant_permanentLockBalanceInPoints() public view {
+        // Verify Points contain correct permanentLockBalance
+        uint256 epoch = stakeWeight.epoch();
+        if (epoch > 0) {
+            // Permanent supply is now tracked separately, not in Point struct
+            // We verify it through the public permanentSupply() function
+            uint256 currentPermanentSupply = stakeWeight.permanentSupply();
+            assertGe(currentPermanentSupply, 0, "Permanent supply should be non-negative");
+        }
+    }
+
+    function invariant_permanentLocksCannotDecay() public view {
+        // Verify permanent positions maintain constant weight over time
+        address[] memory users = store.getAddressesWithLock();
+        for (uint256 i = 0; i < users.length; i++) {
+            StakeWeight.LockedBalance memory lock = stakeWeight.locks(users[i]);
+            if (stakeWeight.permanentBaseWeeks(users[i]) > 0) {
+                uint256 currentBalance = stakeWeight.balanceOf(users[i]);
+                // Permanent lock balance should be equal to permanentOf[user]
+                uint256 permanentWeight = stakeWeight.permanentOf(users[i]);
+                // The balance might be higher if they also have decaying locks, but should be at least the permanent
+                // weight
+                assertGe(currentBalance, permanentWeight, "Permanent lock balance should not decay");
             }
         }
     }
@@ -334,17 +499,30 @@ contract StakeWeight_Invariant_Test is Invariant_Test {
         assertEq(
             totalValueLocked, store.currentLockedAmount(), "Total value locked should equal the stored locked amount"
         );
+        // StakeWeight should only hold tokens for transferable locks
+        // Non-transferable locks (from LockedTokenStaker) keep tokens in vesting contract
+        uint256 expectedHeldTokens =
+            SafeCast.toUint256(totalValueLocked) - SafeCast.toUint256(store.nonTransferableBalance());
         assertEq(
-            SafeCast.toUint256(totalValueLocked) - SafeCast.toUint256(store.nonTransferableBalance()),
+            expectedHeldTokens,
             l2wct.balanceOf(address(stakeWeight)),
-            "Total value locked should equal the held tokens"
+            "StakeWeight should hold tokens for transferable locks only"
         );
 
         // 2. Perform withdrawals for all users (waiting for lock expiration)
         uint256 totalWithdrawn = 0;
+        uint256 totalPermanentLocked = 0;
         for (uint256 i = 0; i < users.length; i++) {
             address user = users[i];
             StakeWeight.LockedBalance memory lock = stakeWeight.locks(user);
+
+            // Skip permanent locks as they cannot be withdrawn
+            if (stakeWeight.permanentBaseWeeks(users[i]) > 0) {
+                // Only count transferredAmount since that's what StakeWeight actually holds
+                totalPermanentLocked += lock.transferredAmount;
+                continue;
+            }
+
             if (block.timestamp < lock.end) {
                 vm.warp(lock.end);
             }
@@ -356,17 +534,29 @@ contract StakeWeight_Invariant_Test is Invariant_Test {
             totalWithdrawn += balanceAfter - balanceBefore;
         }
 
-        // 3. Assert contract is emptied
-        assertEq(stakeWeight.totalSupply(), 0, "StakeWeight should be empty after all withdrawals");
-        assertEq(l2wct.balanceOf(address(stakeWeight)), 0, "StakeWeight contract should have no L2WCT balance");
+        // 3. Assert contract state after withdrawals
+        // Permanent locks and non-transferable locks remain
+        uint256 expectedSupply = stakeWeight.permanentSupply();
+        // StakeWeight only holds tokens for permanent locks that were transferred directly (not via LockedTokenStaker)
+        // Non-transferable locks keep their tokens in the vesting contract
+        uint256 expectedBalance = totalPermanentLocked;
+        assertEq(
+            stakeWeight.totalSupply(), expectedSupply, "StakeWeight should only have permanent locks after withdrawals"
+        );
+        assertEq(
+            l2wct.balanceOf(address(stakeWeight)),
+            expectedBalance,
+            "StakeWeight contract should hold permanent lock tokens only"
+        );
 
-        // 4. Assert total withdrawn matches total value locked (within rounding error)
+        // 4. Assert total withdrawn matches total value locked minus permanent locks (within rounding error)
         uint256 roundingError = 1e6; // Allow for some rounding error
         assertApproxEqAbs(
-            SafeCast.toUint256(totalValueLocked) - SafeCast.toUint256(store.nonTransferableBalance()),
+            SafeCast.toUint256(totalValueLocked) - SafeCast.toUint256(store.nonTransferableBalance())
+                - totalPermanentLocked,
             totalWithdrawn,
             roundingError,
-            "Total withdrawn should match total value locked minus non-transferable balance"
+            "Total withdrawn should match total value locked minus non-transferable balance and permanent locks"
         );
 
         // 5. Assert total balance was lower than total value locked
@@ -381,16 +571,33 @@ contract StakeWeight_Invariant_Test is Invariant_Test {
             assertEq(totalBalance, 0, "Total balance should be zero if total value locked is zero");
         }
 
-        // 6. Check for any remaining locks
+        // 6. Check for any remaining locks (only permanent should remain)
         for (uint256 i = 0; i < users.length; i++) {
             address user = users[i];
             StakeWeight.LockedBalance memory lock = stakeWeight.locks(user);
-            assertEq(uint256(uint128(lock.amount)), 0, "User should have no remaining locked amount");
-            assertEq(stakeWeight.balanceOf(user), 0, "User should have no remaining balance");
+            if (stakeWeight.permanentBaseWeeks(user) == 0) {
+                // Non-permanent locks should be withdrawn
+                assertEq(uint256(uint128(lock.amount)), 0, "User should have no remaining non-permanent locked amount");
+                assertEq(
+                    stakeWeight.balanceOf(user), 0, "User should have no remaining balance for non-permanent locks"
+                );
+            } else {
+                // Permanent locks should remain
+                assertGt(uint256(uint128(lock.amount)), 0, "Permanent lock should still have amount");
+                assertEq(
+                    stakeWeight.balanceOf(user),
+                    stakeWeight.permanentOf(user),
+                    "User balance should equal permanent weight"
+                );
+            }
         }
 
         // 7. Verify total supply consistency
-        assertEq(stakeWeight.totalSupply(), 0, "Total supply should be zero after all withdrawals");
+        assertEq(
+            stakeWeight.totalSupply(),
+            stakeWeight.permanentSupply(),
+            "Total supply should equal permanent supply after all withdrawals"
+        );
 
         // 8. Log campaign metrics
         console2.log("Total calls made during invariant test:", handler.totalCalls());

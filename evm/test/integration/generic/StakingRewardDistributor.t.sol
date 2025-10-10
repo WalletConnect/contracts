@@ -579,13 +579,13 @@ contract StakingRewardDistributor_Test is Base_Test {
         assertEq(userBalanceAfterSecondClaim, userBalance, "User balance should not change after claiming again");
     }
 
-    function testFeedWeeksAfterWeekCursor() public {
+    function testInjectRewardWeeksAfterWeekCursor() public {
         vm.warp(stakingRewardDistributor.startWeekCursor() + 4 weeks);
         uint256 injectAmount = 88_888e18;
         deal(address(l2wct), address(users.admin), injectAmount);
         vm.startPrank(users.admin);
         l2wct.approve(address(stakingRewardDistributor), injectAmount);
-        stakingRewardDistributor.feed(injectAmount);
+        stakingRewardDistributor.injectRewardForCurrentWeek(injectAmount);
         vm.stopPrank();
         // Check that the contract balance has increased by the injected amount
         assertEq(
@@ -593,24 +593,22 @@ contract StakingRewardDistributor_Test is Base_Test {
             injectAmount,
             "Contract balance should increase by injected amount"
         );
-        // Check that the tokensPerWeek array has distributed the amount over the weeks
-        uint256 totalTokensPerWeek = 0;
-        for (uint256 i = 0; i < 4; i++) {
-            totalTokensPerWeek +=
-                stakingRewardDistributor.tokensPerWeek(stakingRewardDistributor.startWeekCursor() + 1 weeks * i);
-        }
-        assertApproxEqAbs(
-            totalTokensPerWeek, injectAmount, 1e6, "Total tokens per week should be equal to injected amount"
+        // Check that the tokensPerWeek for current week has the full amount
+        uint256 currentWeek = _timestampToFloorWeek(block.timestamp);
+        assertEq(
+            stakingRewardDistributor.tokensPerWeek(currentWeek),
+            injectAmount,
+            "Current week should have the full injected amount"
         );
     }
 
-    function testFeedWeeksAndTimeAfterWeekCursor() public {
+    function testInjectRewardWeeksAndTimeAfterWeekCursor() public {
         vm.warp(stakingRewardDistributor.startWeekCursor() + 4 weeks + 1 days + 18 hours); // 1/4 of the week in
         uint256 injectAmount = 88_888e18;
         deal(address(l2wct), address(users.admin), injectAmount);
         vm.startPrank(users.admin);
         l2wct.approve(address(stakingRewardDistributor), injectAmount);
-        stakingRewardDistributor.feed(injectAmount);
+        stakingRewardDistributor.injectRewardForCurrentWeek(injectAmount);
         vm.stopPrank();
         // Check that the contract balance has increased by the injected amount
         assertEq(
@@ -618,14 +616,12 @@ contract StakingRewardDistributor_Test is Base_Test {
             injectAmount,
             "Contract balance should increase by injected amount"
         );
-        // Check that the tokensPerWeek array has distributed the amount over the weeks
-        uint256 totalTokensPerWeek = 0;
-        for (uint256 i = 0; i < 5; i++) {
-            totalTokensPerWeek +=
-                stakingRewardDistributor.tokensPerWeek(stakingRewardDistributor.startWeekCursor() + 1 weeks * i);
-        }
-        assertApproxEqAbs(
-            totalTokensPerWeek, injectAmount, 1e6, "Total tokens per week should be equal to injected amount"
+        // Check that the tokensPerWeek for current week has the full amount
+        uint256 currentWeek = _timestampToFloorWeek(block.timestamp);
+        assertEq(
+            stakingRewardDistributor.tokensPerWeek(currentWeek),
+            injectAmount,
+            "Current week should have the full injected amount"
         );
     }
 

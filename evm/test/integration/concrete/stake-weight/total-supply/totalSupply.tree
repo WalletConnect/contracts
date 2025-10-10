@@ -8,8 +8,15 @@ totalSupply.t.sol
 ├── given multiple users have locks
 │   ├── it should correctly sum all active locks
 │   └── it should handle different lock durations correctly
+├── given permanent locks exist
+│   ├── it should include permanent positions with weighted bias
+│   ├── it should remain constant over time for permanent positions
+│   └── it should handle mix of permanent and decaying positions
 ├── after a lock expires
 │   ├── it should not include the expired lock in the total supply
 │   └── it should decrease the total supply accordingly
+├── after converting decaying to permanent
+│   ├── it should update total supply with new weighted bias
+│   └── it should stop decay for converted position
 └── given all locks expire
     └── it should return to zero
