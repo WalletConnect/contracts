@@ -4,9 +4,12 @@ withdrawAll.t.sol
 └── given contract is not paused
     ├── when user has no lock
     │   └── it should revert with NonExistentLock error
-    ├── when user has a lock but it hasn't expired
-    │   └── it should revert with LockStillActive error
-    └── when user has an expired lock
+    └── when user has a lock
+        ├── when lock is permanent
+        │   └── it should revert with LockStillActive error
+        ├── when lock is decaying but hasn't expired
+        │   └── it should revert with LockStillActive error
+        └── when lock is decaying and has expired
         ├── it should transfer the full amount to the user
         ├── it should set the lock amount to zero
         ├── it should set the lock end to zero

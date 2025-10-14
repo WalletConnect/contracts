@@ -1,0 +1,20 @@
+StakeWeight::increasePerpetualLockDuration
+├── when contract is paused
+│   └── it should revert
+└── when contract is not paused
+    ├── when user has no lock
+    │   └── it should revert with NonExistentLock
+    └── when user has a lock
+        ├── when lock is not perpetual
+        │   └── it should revert with NotPerpetual
+        └── when lock is perpetual
+            ├── when new duration is not in valid set
+            │   └── it should revert with InvalidDuration
+            ├── when new duration is shorter than or equal to current
+            │   └── it should revert with DurationNotIncreased
+            └── when new duration is valid and longer
+                ├── it should update perpetualUnlockDuration
+                ├── it should recalculate weight with new multiplier
+                ├── it should maintain perpetual status
+                ├── it should trigger checkpoint
+                └── it should emit a DurationIncreased event

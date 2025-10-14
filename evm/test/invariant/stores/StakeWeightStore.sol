@@ -14,6 +14,9 @@ contract StakeWeightStore {
         uint256 previousBalance;
         uint256 previousEndTime;
         int128 previousLockedAmount;
+        bool isPreviousStateRecorded;
+        bool wasPermanent; // Track if the lock was permanent before the last operation
+        uint256 previousPermanentBaseWeeks; // Track previous permanent duration in weeks
     }
 
     mapping(address => UserInfo) public userInfo;
@@ -117,6 +120,14 @@ contract StakeWeightStore {
         userInfo[user].previousEndTime = endTime;
     }
 
+    function updatePreviousLockedAmount(address user, int128 amount) public {
+        userInfo[user].previousLockedAmount = amount;
+    }
+
+    function updatePreviousPermanentBaseWeeks(address user, uint256 baseWeeks) public {
+        userInfo[user].previousPermanentBaseWeeks = baseWeeks;
+    }
+
     function setHasBeenForcedWithdrawn(address user, bool value) public {
         hasBeenForcedWithdrawn[user] = value;
     }
@@ -139,5 +150,25 @@ contract StakeWeightStore {
 
     function getPreviousLockedAmount(address user) public view returns (int128) {
         return userInfo[user].previousLockedAmount;
+    }
+
+    function updateIsPreviousStateRecorded(address user, bool recorded) public {
+        userInfo[user].isPreviousStateRecorded = recorded;
+    }
+
+    function getIsPreviousStateRecorded(address user) public view returns (bool) {
+        return userInfo[user].isPreviousStateRecorded;
+    }
+
+    function updateWasPermanent(address user, bool permanent) public {
+        userInfo[user].wasPermanent = permanent;
+    }
+
+    function getWasPermanent(address user) public view returns (bool) {
+        return userInfo[user].wasPermanent;
+    }
+
+    function getPreviousPermanentBaseWeeks(address user) public view returns (uint256) {
+        return userInfo[user].previousPermanentBaseWeeks;
     }
 }

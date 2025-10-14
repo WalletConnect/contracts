@@ -1,0 +1,23 @@
+{
+  "LockedTokenStakerBackersP3": {
+    "admin": "0x8B79481a2d8EEbe0F4d6Fd1705b0598540875407",
+    "implementation": "0xB52b4633eA577A143fAa811127CeE7163b023bFb",
+    "proxy": "0x37BAdde9E3c9E108065Db36dCcce91E00556e334"
+  },
+  "LockedTokenStakerReownP3": {
+    "admin": "0x54594f1aF2A6bd876bF0f6d45FB7c3cb54eFB5d5",
+    "implementation": "0xABB9F4CCb5025c446c7FF2e000c705332d21f760",
+    "proxy": "0xCcCf4C051C6F5a82D6bD76a1F66fc3cCdE8b3D6b"
+  },
+  "LockedTokenStakerWalletConnectP3": {
+    "admin": "0xBa900e340f781A18C34Ff9D73CDb9756329a71d9",
+    "implementation": "0xEc32c9280163795921caF79205C6850C67023F04",
+    "proxy": "0xb6034870fdd84f09cB63433297C667A1A7771824"
+  },
+  "NewImplementations": {
+    "Pauser": "0xf69771dAc1c783F6Ae6ddbC3BF6B4869E7c43a70",
+    "StakeWeight": "0x3ad012e14f6c27dd4a990d09126fcc255b024564",
+    "StakingRewardDistributor": "0x98c27ae4C11F67CDE0E3aFDf90fBba01Bf826238"
+  },
+  "chainId": 10
+}

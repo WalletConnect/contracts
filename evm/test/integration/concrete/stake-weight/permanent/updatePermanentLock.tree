@@ -1,0 +1,27 @@
+StakeWeight::updatePerpetualLock
+├── when contract is paused
+│   └── it should revert
+└── when contract is not paused
+    ├── when user has no lock
+    │   └── it should revert with NonExistentLock
+    └── when user has a lock
+        ├── when lock is not perpetual
+        │   └── it should revert with NotPerpetual
+        └── when lock is perpetual
+            ├── when amount is zero
+            │   └── it should revert with InvalidAmount
+            ├── when new duration is not in valid set
+            │   └── it should revert with InvalidDuration
+            ├── when new duration is shorter than or equal to current
+            │   └── it should revert with DurationNotIncreased
+            └── when amount and duration are valid
+                ├── when amount exceeds user's balance
+                │   └── it should revert
+                └── when amount is within user's balance
+                    ├── it should increase the lock amount
+                    ├── it should update perpetualUnlockDuration
+                    ├── it should maintain perpetual status (end = 0)
+                    ├── it should update the supply
+                    ├── it should transfer tokens from the user
+                    ├── it should trigger checkpoint with new values
+                    └── it should emit both Deposit and DurationIncreased events

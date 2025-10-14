@@ -58,7 +58,8 @@ contract LockedTokenStakerHandler is BaseHandler {
         }
 
         // Bound the amount and unlock time
-        uint256 maxAmount = 1e27 / 500 / 4; // Similar to StakeWeightHandler
+        // 100M tokens / 500 allocations / 4 unlock periods = 50k per allocation
+        uint256 maxAmount = 1e26 / 500 / 4;
         amount = bound(amount, 1, maxAmount);
         unlockTime = bound(unlockTime, block.timestamp + 1 weeks, block.timestamp + stakeWeight.maxLock());
 
@@ -105,7 +106,12 @@ contract LockedTokenStakerHandler is BaseHandler {
 
         // Bound the amount
         uint256 minAmount = 10 * 10 ** 18;
-        uint256 maxAmount = 1e27 / 500 / 4 - SafeCast.toUint256(previousLock.amount);
+        // 100M tokens / 500 allocations / 4 unlock periods
+        uint256 maxAmount = 1e26 / 500 / 4;
+        if (SafeCast.toUint256(previousLock.amount) >= maxAmount) {
+            return; // Already at max
+        }
+        maxAmount = maxAmount - SafeCast.toUint256(previousLock.amount);
         amount = bound(amount, minAmount, maxAmount);
 
         vm.prank(allocation.beneficiary);
@@ -127,7 +133,8 @@ contract LockedTokenStakerHandler is BaseHandler {
     function withdraw(uint256 claimAmount, uint256 seed) public adjustTimestamp(seed) instrument("withdraw") {
         AllocationData memory allocation = store.getRandomAllocation(seed);
 
-        uint256 maxAmount = 1e27 / 500;
+        // 100M tokens / 500 allocations = 200k per allocation
+        uint256 maxAmount = 1e26 / 500;
         claimAmount = bound(claimAmount, 1, maxAmount);
 
         bytes memory extraData = abi.encode(0, allocation.decodableArgs, allocation.proofs);

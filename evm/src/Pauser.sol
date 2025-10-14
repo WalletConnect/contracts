@@ -37,6 +37,9 @@ contract Pauser is Initializable, AccessControlUpgradeable {
     /// @notice Flag indicating if wallet reward manager is paused
     bool public isWalletRewardManagerPaused;
 
+    /// @notice Flag indicating if staking reward distributor is paused
+    bool public isStakingRewardDistributorPaused;
+
     /// @notice Configuration for contract initialization
     struct Init {
         address admin;
@@ -111,6 +114,17 @@ contract Pauser is Initializable, AccessControlUpgradeable {
         _setIsWalletRewardManagerPaused(isPaused);
     }
 
+    /// @notice Pauses or unpauses staking reward distributor
+    /// @param isPaused The new pause state
+    function setIsStakingRewardDistributorPaused(bool isPaused) external {
+        if (isPaused) {
+            _checkRole(PAUSER_ROLE);
+        } else {
+            _checkRole(UNPAUSER_ROLE);
+        }
+        _setIsStakingRewardDistributorPaused(isPaused);
+    }
+
     /// @dev Sets the node reward manager pause state
     /// @param isPaused The new pause state
     function _setIsNodeRewardManagerPaused(bool isPaused) private {
@@ -140,6 +154,7 @@ contract Pauser is Initializable, AccessControlUpgradeable {
         _setIsLockedTokenStakerPaused(true);
         _setIsNodeRewardManagerPaused(true);
         _setIsWalletRewardManagerPaused(true);
+        _setIsStakingRewardDistributorPaused(true);
     }
 
     /// @notice Unpauses all actions
@@ -149,6 +164,7 @@ contract Pauser is Initializable, AccessControlUpgradeable {
         _setIsLockedTokenStakerPaused(false);
         _setIsNodeRewardManagerPaused(false);
         _setIsWalletRewardManagerPaused(false);
+        _setIsStakingRewardDistributorPaused(false);
     }
 
     /// @dev Sets the staking pause state
@@ -181,6 +197,17 @@ contract Pauser is Initializable, AccessControlUpgradeable {
             selector: this.isLockedTokenStakerPaused.selector,
             isPaused: isPaused,
             flagName: "isLockedTokenStakerPaused"
+        });
+    }
+
+    /// @dev Sets the staking reward distributor pause state
+    /// @param isPaused The new pause state
+    function _setIsStakingRewardDistributorPaused(bool isPaused) private {
+        isStakingRewardDistributorPaused = isPaused;
+        emit FlagUpdated({
+            selector: this.isStakingRewardDistributorPaused.selector,
+            isPaused: isPaused,
+            flagName: "isStakingRewardDistributorPaused"
         });
     }
 }

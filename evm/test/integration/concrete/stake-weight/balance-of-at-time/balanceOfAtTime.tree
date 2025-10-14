@@ -1,7 +1,7 @@
 balanceOfAtTime.t.sol
 ├── given a user has locked tokens for MAX_LOCK time
 │   ├── when querying balance at a time before last checkpoint
-│   │   └── it should revert due to underflow
+│   │   └── it should return zero
 │   ├── when querying balance at the last checkpoint time
 │   │   └── it should return same as balanceOf
 │   ├── when querying balance shortly after last checkpoint
@@ -14,7 +14,7 @@ balanceOfAtTime.t.sol
 │       └── it should return zero
 ├── given a user has locked tokens for half of MAX_LOCK time
 │   ├── when querying balance at a time before last checkpoint
-│   │   └── it should revert due to underflow
+│   │   └── it should return zero
 │   ├── when querying balance at the last checkpoint time
 │   │   └── it should return same as balanceOf
 │   ├── when querying balance shortly after last checkpoint

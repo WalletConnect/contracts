@@ -114,12 +114,12 @@ abstract contract BaseScript is Script, StdCheats {
             });
         }
         // Length per address is 32 bytes => 64 characters
-        // 10 addresses are needed for the Optimism deployments
-        // If the length is not 0 nor 64 * 14, we assume the deployments are missing contracts and we append as much
-        // as needed to make it 64 * 14 bytes
-        if (data.length != 64 * 14) {
+        // 15 addresses are needed for the Optimism deployments
+        // If the length is not 0 nor 64 * 15, we assume the deployments are missing contracts and we append as much
+        // as needed to make it 64 * 15 bytes
+        if (data.length != 64 * 15) {
             console2.log("Appending zeroes to deployments");
-            while (data.length < 64 * 14) {
+            while (data.length < 64 * 15) {
                 data = bytes.concat(data, abi.encode(bytes32(0)));
             }
         }

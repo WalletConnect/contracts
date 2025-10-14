@@ -122,6 +122,76 @@ contract LockedTokenStaker_Test is Base_Test {
         }
     }
 
+    /**
+     * @notice Documents multiple allocation constraint (CANTINA-12)
+     *
+     *      Setup:
+     *      - A1: 50 ETH allocation
+     *      - A2: 80 ETH allocation
+     *      - Lock 30 ETH from A1
+     *      - Claim 40 ETH from A2 (staying under safe threshold)
+     *
+     *      Behavior: remainingAllocation < lockedAmount - transferredAmount + claimAmount
+     *      80 < 30 - 0 + 40 = 70? FALSE → SUCCEEDS
+     *
+     *      LIMITATION: Lock from A1 (30 ETH) reduces A2's claimable amount to 50 ETH (80 - 30)
+     *      because LockedTokenStaker tracks aggregate locks per address, not per allocation.
+     *
+     *      MITIGATION: Operational constraint—issue only one allocation per wallet.
+     *      No contract fix planned; existing stakes lack allocation identifiers.
+     *      The concrete test suite documents the full revert scenario and safe envelope.
+     */
+    function test_MultiAllocation_WithActiveLock_OnDifferentAllocation() public {
+        vm.startPrank(users.admin);
+        string memory scheduleId = "multi";
+        createUnlockSchedule(scheduleId);
+
+        CalendarAllocation[] memory allocations = new CalendarAllocation[](2);
+        allocations[0] = createAllocation("allocA1", users.alice, 50 ether, scheduleId, true, true, false, false);
+        allocations[1] = createAllocation("allocA2", users.alice, 80 ether, scheduleId, true, true, false, false);
+
+        bytes32[] memory hashes = createHashes(allocations);
+        bytes32 root = merkle.getRoot(hashes);
+        uint256 totalFunding = allocations[0].allocation.totalAllocation + allocations[1].allocation.totalAllocation;
+
+        vester.addAllocationRoot(root);
+        vm.stopPrank();
+
+        deal(address(l2wct), address(vester), totalFunding);
+
+        bytes memory decodableArgsAllocA1 =
+            abi.encode("calendar", allocations[0].allocation, calendarSchedules[scheduleId]);
+        bytes memory decodableArgsAllocA2 =
+            abi.encode("calendar", allocations[1].allocation, calendarSchedules[scheduleId]);
+        bytes32[] memory proofAllocA1 = merkle.getProof(hashes, 0);
+        bytes32[] memory proofAllocA2 = merkle.getProof(hashes, 1);
+
+        // Lock 30 ETH from A1 (50 ETH total)
+        vm.prank(users.alice);
+        lockedTokenStaker.createLockFor(30 ether, block.timestamp + YEAR, 0, decodableArgsAllocA1, proofAllocA1);
+
+        skip(90 days);
+
+        bytes memory extraData = abi.encode(uint32(0), decodableArgsAllocA2, proofAllocA2);
+
+        // Claiming 60 ETH from A2 reverts because A1's lock reduces A2's available amount
+        vm.expectRevert(
+            abi.encodeWithSelector(LockedTokenStaker.CannotClaimLockedTokens.selector, 80 ether, 30 ether, 60 ether)
+        );
+        vm.prank(users.alice);
+        vester.withdraw(60 ether, 0, decodableArgsAllocA2, proofAllocA2, postClaimHandler, extraData);
+
+        // Claim 40 ETH from A2 (stays within safe threshold of 50 ETH = 80 - 30)
+        uint256 claimAmount = 40 ether;
+        uint256 balanceBefore = l2wct.balanceOf(users.alice);
+
+        vm.prank(users.alice);
+        vester.withdraw(claimAmount, 0, decodableArgsAllocA2, proofAllocA2, postClaimHandler, extraData);
+
+        uint256 balanceAfter = l2wct.balanceOf(users.alice);
+        assertEq(balanceAfter - balanceBefore, claimAmount, "Should receive 40 ETH from A2");
+    }
+
     // FULLY STAKED SCENARIOS
 
     function test_FullyStaked_FullyLocked_OngoingStake_StillContributing() public {
@@ -1337,12 +1407,7 @@ contract LockedTokenStaker_Test is Base_Test {
         vm.stopPrank();
     }
 
-    function _terminate(
-        address user,
-        bool isFullyUnlocked,
-        bytes memory decodableArgs,
-        bytes32[] memory proof
-    )
+    function _terminate(address user, bool isFullyUnlocked, bytes memory decodableArgs, bytes32[] memory proof)
         internal
     {
         vm.startPrank(users.admin);

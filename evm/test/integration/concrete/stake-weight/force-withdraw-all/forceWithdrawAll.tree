@@ -5,16 +5,19 @@ forceWithdrawAll.t.sol
     ├── when to address is zero
     │   └── it should revert with invalid address error
     └── when to address is valid
-        ├── when stake weight is paused
-        │   └── it should revert with paused error
-        └── when stake weight is not paused
-            ├── when user has no lock
-            │   └── it should revert with non existent lock error
-            └── when user has lock
-                ├── when lock has no transferred amount
-                │   └── it should not transfer any tokens
-                └── when lock has transferred amount
-                    ├── it should transfer tokens to recipient
-                    ├── it should clear the lock
-                    ├── it should update supply
-                    └── it should emit correct events
+        ├── when user has no lock
+        │   └── it should revert with non existent lock error
+        ├── when user has lock
+        │   ├── when lock has no transferred amount
+        │   │   └── it should not transfer any tokens
+        │   ├── when lock has transferred amount
+        │   │   ├── it should transfer tokens to recipient
+        │   │   ├── it should clear the lock
+        │   │   ├── it should update supply
+        │   │   └── it should emit correct events
+        │   └── when stake weight is paused
+        │       └── it should still work (admin emergency power)
+        ├── when user has permanent lock
+        │   ├── it should clear the lock and permanent weight
+        │   ├── it should decrease supply by lock amount
+        │   └── it should return tokens to the user
