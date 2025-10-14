@@ -36,6 +36,12 @@ const CHAINS: ChainConfig[] = [
     explorerUrl: "https://optimistic.etherscan.io",
     deploymentFile: "evm/deployments/10.json",
   },
+  {
+    id: 8453,
+    name: "Base",
+    explorerUrl: "https://basescan.org",
+    deploymentFile: "evm/deployments/8453.json",
+  },
 ];
 
 // Special handling for contracts that need custom names or ordering
