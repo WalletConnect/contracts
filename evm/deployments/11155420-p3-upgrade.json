@@ -1,0 +1,8 @@
+{
+  "chainId": 11155420,
+  "NewImplementations": {
+    "Pauser": "0xE97faa1a990Ca7aB3bC83C97ceEf4BcF0E8B9185",
+    "StakeWeight": "0x505900D34cF82415D887CCF2258f165A2601600A",
+    "StakingRewardDistributor": "0xE3C2dD8330a701CA5def66F0294783e277607fED"
+  }
+}
