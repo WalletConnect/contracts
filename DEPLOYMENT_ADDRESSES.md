@@ -31,7 +31,7 @@
 | MerkleVesterBackers | [`0x2FF1Cdf8Fe00Ae6952BAA32e37D84D31A31E2EC2`](https://optimistic.etherscan.io/address/0x2FF1Cdf8Fe00Ae6952BAA32e37D84D31A31E2EC2) | - |
 | MerkleVesterReown | [`0x648bddEE207da25e19918460c1Dc9F462F657a19`](https://optimistic.etherscan.io/address/0x648bddEE207da25e19918460c1Dc9F462F657a19) | - |
 | MerkleVesterWalletConnect | [`0x85d0964D328563D502867FF6899C6F73D2E59FD1`](https://optimistic.etherscan.io/address/0x85d0964D328563D502867FF6899C6F73D2E59FD1) | - |
-| StakingRewardsCalculator | [`0xC06d02F26515A56576426deCddac8d7b9Ca326D1`](https://optimistic.etherscan.io/address/0xC06d02F26515A56576426deCddac8d7b9Ca326D1) | - |
+| StakingRewardsCalculator | [`0x5581e8C58bD9Ad4B3A88a5250deBa164938dBcC3`](https://optimistic.etherscan.io/address/0x5581e8C58bD9Ad4B3A88a5250deBa164938dBcC3) | - |
 
 ## Base (Chain ID: 8453)
 

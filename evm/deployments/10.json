@@ -67,7 +67,7 @@
     }
   },
   "StakingRewardsCalculator": {
-    "address": "0xC06d02F26515A56576426deCddac8d7b9Ca326D1"
+    "address": "0x5581e8C58bD9Ad4B3A88a5250deBa164938dBcC3"
   },
   "WalletConnectConfig": {
     "address": "0xd2f149fAA66DC4448176123f850C14Ff14f978B3",

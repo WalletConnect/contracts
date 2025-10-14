@@ -36,14 +36,23 @@ Key properties:
 ### 3. Weekly Rewards Calculation
 
 ```solidity
-weeklyRewards = (totalStakeWeight * targetApy) / (52 * 1e18 * 100)
+weeklyRewards = (totalStakeWeight * 4 * targetApy) / (52 * 1e18 * 100)
 
 where:
 totalStakeWeight = current total stake weight with lock periods
-targetApy       = APY calculated from linear model
+4              = multiplier to convert stake weight to equivalent annual staked tokens
+targetApy      = APY calculated from linear model (e.g., 12% = 12e18)
 52             = weeks in year
 100            = percentage to decimal conversion
+1e18          = precision scaling factor
 ```
+
+Key properties:
+
+- Stake weight is multiplied by 4 to convert to equivalent annual staked tokens
+- This ensures full APY distribution (e.g., 12% APY means exactly 12% annual rewards)
+- Weekly distribution is 1/52 of the annual rewards
+- Precision maintained through calculations using 1e18 scaling
 
 ## Verified Mathematical Invariants
 

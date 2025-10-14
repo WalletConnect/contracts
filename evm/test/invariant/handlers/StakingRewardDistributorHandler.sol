@@ -275,9 +275,10 @@ contract StakingRewardDistributorHandler is BaseHandler {
 
         StakeWeight.LockedBalance memory newLock = stakeWeight.locks(allocation.beneficiary);
 
-        store.addAddressWithLock(allocation.beneficiary);
         store.updateLockedAmount(allocation.beneficiary, SafeCast.toUint256(newLock.amount));
         store.updateUnlockTime(allocation.beneficiary, newLock.end);
+        store.addAddressWithLock(allocation.beneficiary);
+        store.setUserLockStartWeek(allocation.beneficiary, _timestampToFloorWeek(block.timestamp));
     }
 
     function createPermanentLock(
@@ -337,9 +338,10 @@ contract StakingRewardDistributorHandler is BaseHandler {
         stakeWeight.createPermanentLock(amount, duration);
         vm.stopPrank();
 
-        store.addAddressWithLock(user);
         store.updateLockedAmount(user, amount);
         store.updateUnlockTime(user, 0); // Permanent locks have no end time
+        store.addAddressWithLock(user);
+        store.setUserLockStartWeek(user, _timestampToFloorWeek(block.timestamp));
     }
 
     function convertToPermanent(
