@@ -6,6 +6,9 @@
     "Optimism": {
       "rpc": "https://optimism-rpc.publicnode.com"
     },
+    "Base": {
+      "rpc": "https://base-rpc.publicnode.com"
+    },
     "Solana": {
       "rpc": "https://solana-rpc.publicnode.com"
     }

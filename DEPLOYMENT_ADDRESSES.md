@@ -33,6 +33,14 @@
 | MerkleVesterWalletConnect | [`0x85d0964D328563D502867FF6899C6F73D2E59FD1`](https://optimistic.etherscan.io/address/0x85d0964D328563D502867FF6899C6F73D2E59FD1) | - |
 | StakingRewardsCalculator | [`0xC06d02F26515A56576426deCddac8d7b9Ca326D1`](https://optimistic.etherscan.io/address/0xC06d02F26515A56576426deCddac8d7b9Ca326D1) | - |
 
+## Base (Chain ID: 8453)
+
+| Contract | Address | ProxyAdmin/Owner (if Proxy contract) |
+| -------- | ------- | ------------------------------------ |
+| L2WCT Token | [`0xeF4461891DfB3AC8572cCf7C794664A8DD927945`](https://basescan.org/address/0xeF4461891DfB3AC8572cCf7C794664A8DD927945) | [`0x3eD030AAF23b5C52c224Cb72100C22f581D10Df4`](https://basescan.org/address/0x3eD030AAF23b5C52c224Cb72100C22f581D10Df4) (ProxyAdmin) |
+| NTT Manager | [`0x164Be303480f542336bE0bBe0432A13b85e6FD1b`](https://basescan.org/address/0x164Be303480f542336bE0bBe0432A13b85e6FD1b) | [`0x398A2749487B2a91f2f543C01F7afD19AEE4b6b0`](https://basescan.org/address/0x398A2749487B2a91f2f543C01F7afD19AEE4b6b0) (Owner) |
+| NTT Transceiver | [`0x3cB1d3A449a868dd8BF8F8928408836543Fe2A68`](https://basescan.org/address/0x3cB1d3A449a868dd8BF8F8928408836543Fe2A68) | [`0x398A2749487B2a91f2f543C01F7afD19AEE4b6b0`](https://basescan.org/address/0x398A2749487B2a91f2f543C01F7afD19AEE4b6b0) (Owner) |
+
 ## Solana
 
 | Contract | Address |

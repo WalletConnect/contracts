@@ -1,1 +1,31 @@
-{"L2WCT":{"address":"0xeF4461891DfB3AC8572cCf7C794664A8DD927945","admin":"0x3eD030AAF23b5C52c224Cb72100C22f581D10Df4","implementation":"0x4D1070C6e37de5870e11b99e2A006739e77ec5cb"},"chainId":8453}
+{
+  "L2WCT": {
+    "address": "0xeF4461891DfB3AC8572cCf7C794664A8DD927945",
+    "admin": "0x3eD030AAF23b5C52c224Cb72100C22f581D10Df4",
+    "implementation": "0x4D1070C6e37de5870e11b99e2A006739e77ec5cb",
+    "proxy": {
+      "implementation": "0x1b9FC26A506B8CC98F65dE60f337c43f97BB2d40",
+      "admin": "0x3eD030AAF23b5C52c224Cb72100C22f581D10Df4",
+      "type": "transparent"
+    }
+  },
+  "chainId": 8453,
+  "NttManager": {
+    "name": "NTT Manager",
+    "address": "0x164Be303480f542336bE0bBe0432A13b85e6FD1b",
+    "proxy": {
+      "implementation": "0xaf6775d329b6fb20cB6DF29ffE9E21FfbD34A7FD",
+      "owner": "0x398A2749487B2a91f2f543C01F7afD19AEE4b6b0",
+      "type": "uups"
+    }
+  },
+  "NttTransceiver": {
+    "name": "NTT Transceiver",
+    "address": "0x3cB1d3A449a868dd8BF8F8928408836543Fe2A68",
+    "proxy": {
+      "implementation": "0x6eeF2f780493b6F53795FE7C963E2c1aA09B8B16",
+      "owner": "0x398A2749487B2a91f2f543C01F7afD19AEE4b6b0",
+      "type": "uups"
+    }
+  }
+}

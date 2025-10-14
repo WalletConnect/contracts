@@ -1,6 +1,6 @@
 import fs from "fs";
 import { createPublicClient, http, getAddress } from "viem";
-import { mainnet, optimism } from "viem/chains";
+import { mainnet, optimism, base } from "viem/chains";
 
 interface DeploymentEntry {
   name: string;
@@ -66,6 +66,13 @@ const CHAINS: ChainConfig[] = [
     client: createPublicClient({ chain: optimism, transport: http() }),
     deploymentFile: "evm/deployments/10.json",
     nttChainName: "Optimism",
+  },
+  {
+    id: 8453,
+    name: "Base",
+    client: createPublicClient({ chain: base, transport: http() }),
+    deploymentFile: "evm/deployments/8453.json",
+    nttChainName: "Base",
   },
 ];
 
