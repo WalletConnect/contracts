@@ -20,8 +20,8 @@ contract L2WCT_StorageCompatibility_ForkTest is Base_Test {
     address public opBridge;
 
     function setUp() public override {
-        // Fork Optimism mainnet at specific block
-        vm.createSelectFork(vm.envString("OPTIMISM_RPC_URL"), FORK_BLOCK);
+        // Fork Optimism mainnet at specific block (uses foundry.toml RPC alias)
+        vm.createSelectFork("optimism", FORK_BLOCK);
 
         // Set the chain ID to match Optimism mainnet
         vm.chainId(OPTIMISM_CHAIN_ID);

@@ -12,10 +12,13 @@
 ## Fork Testing Setup
 
 ```bash
+# Fork tests use the 'optimism' RPC alias from foundry.toml (uses Infura)
+# Ensure .common.env has API_KEY_INFURA set
 source .common.env && source .optimism.env
-export OPTIMISM_RPC_URL=https://optimism-rpc.publicnode.com
 forge test --force  # --force required for OpenZeppelin plugin
 ```
+
+**Note:** Fork tests use `vm.createSelectFork("optimism", blockNumber)` which references the `optimism` RPC alias in `foundry.toml`. This automatically uses your Infura API key from `.common.env`.
 
 ## Critical System Constraints
 
