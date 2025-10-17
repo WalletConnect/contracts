@@ -60,7 +60,7 @@
         "threshold": 1,
         "wormhole": {
           "address": "0x3cB1d3A449a868dd8BF8F8928408836543Fe2A68",
-          "pauser": "0xdeCafd85661B67bA9c43f3B4DAeF5AD02f8CEa5F"
+          "pauser": "0x2D723C20Cb297E8F3F8cd885584623F97B5A7583"
         }
       },
       "limits": {
@@ -71,7 +71,7 @@
           "Solana": "184467440737.000000000000000000"
         }
       },
-      "pauser": "0xdeCafd85661B67bA9c43f3B4DAeF5AD02f8CEa5F"
+      "pauser": "0x2D723C20Cb297E8F3F8cd885584623F97B5A7583"
     },
     "Solana": {
       "version": "2.0.0",
