@@ -8,6 +8,7 @@ import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { IVotes } from "@openzeppelin/contracts/governance/extensions/IVotes.sol";
 
 import { Pauser } from "./Pauser.sol";
 import { WalletConnectConfig } from "./WalletConnectConfig.sol";
@@ -20,7 +21,7 @@ import { L2WCT } from "./L2WCT.sol";
  * @author WalletConnect
  */
 
-contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuardUpgradeable {
+contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuardUpgradeable, IVotes {
     using SafeERC20 for IERC20;
 
     /*//////////////////////////////////////////////////////////////////////////
@@ -37,6 +38,14 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
         uint256 timestamp;
         /// @notice The block number of the point
         uint256 blockNumber;
+    }
+
+    /// @notice A checkpoint for tracking delegated voting power over time
+    struct DelegationPoint {
+        /// @notice The block number when this checkpoint was created at
+        uint32 fromBlock;
+        /// @notice Total votes delegated to the delegatee at this checkpoint
+        uint224 votes;
     }
 
     /// @notice A struct representing a locked balance
@@ -120,6 +129,11 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
         mapping(uint256 => uint256) globalPermanentSupplyAtEpoch; // epoch -> permanentTotalSupply at that global point
         mapping(address => mapping(uint256 => uint256)) userPermanentWeightAtEpoch; // user, userEpoch -> permanent
             // stake weight at that user point
+
+        /// ---------------- Delegation storage ----------------
+        mapping(address => address) delegates; // maps account to their delegatee
+        mapping(address => uint256)  delegationNonces; // Nonces for delegateBySig
+        mapping(address => DelegationPoint[]) delegationCheckpoints; // Checkpoints for delegation.
     }
 
     function _getStakeWeightStorage() internal pure returns (StakeWeightStorage storage s) {
@@ -1493,5 +1507,59 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
     function permanentBaseWeeks(address user) external view returns (uint256) {
         StakeWeightStorage storage s = _getStakeWeightStorage();
         return s.permanentBaseWeeks[user];
+    }
+
+    // ----- Delegation -----
+
+
+    /// @dev Existing functions return stake weight and don't change:
+    ///      New functions return delegated voting power.
+    ///      Delegation doesn't change what someone has staked -> it changes what they can vote with.
+
+
+    /// @notice Update the delegation storage vars when weight changes
+    function _updateDelegateVotes(address user, uint256 oldWeight, uint256 newWeight) internal {
+        /// Currently: Any time weight changes, we call update _checkpoint()
+        /// Changes to make: Update _checkpoint() to invoke _updateDelegateVotes()
+        /// NOTE: Will have to account for both permanent lock and decay lock to see how that affects the delegation updates
+    }
+
+    /// @notice Get the current voting power of an account
+    function getVotes(address account) external view returns (uint256) {
+        // TODO
+
+        /// How do we handle self delegation initlization after we roll this out?
+        /// If Alice has voting power of 100 and she hasnt interacted with out system after upgrade
+        /// Assuming no one has delegated to her, she will still have 0 votes cause she has not self delegated
+
+
+        // We could do check to see if delegration checkpoint does not exist -> create a new one
+        // We might have to do the same for getPastVotes
+
+    }
+
+    /// @notice Returns the amount of votes that `account` had at a specific moment in the past.
+    function getPastVotes(address account, uint256 timepoint) external view returns (uint256) {
+        // TODO
+    }
+
+    /// @notice Returns the total supply of votes available at a specific moment in the past.
+    function getPastTotalSupply(uint256 timepoint) external view returns (uint256) {
+        // TODO
+    }
+
+    /// @notice Returns the delegate that `account` has chosen.
+    function delegates(address account) external view returns (address) {
+        // TODO
+    }
+
+    /// @notice Delegate votes from the sender to `delegatee`.
+    function delegate(address delegatee) external {
+        // TODO
+    }
+
+    /// @notice Delegates votes from signer to `delegatee`.
+    function delegateBySig(address delegatee, uint256 nonce, uint256 expiry, uint8 v, bytes32 r, bytes32 s) external {
+        // TODO
     }
 }
