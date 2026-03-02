@@ -13,14 +13,14 @@ import { Pauser } from "./Pauser.sol";
 import { WalletConnectConfig } from "./WalletConnectConfig.sol";
 import { L2WCT } from "./L2WCT.sol";
 /**
- * @title StakeWeight
+ * @title OldPermanentLockStakeWeight
  * @notice This contract implements a vote-escrowed token model for WCT (WalletConnect Token)
  * to create a staking mechanism with time-weighted power.
  * @dev This contract was inspired by Curve's veCRV and PancakeSwap's veCake implementations.
  * @author WalletConnect
  */
 
-contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuardUpgradeable {
+contract OldPermanentLockStakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20 for IERC20;
 
     /*//////////////////////////////////////////////////////////////////////////
@@ -812,7 +812,6 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
     function increaseLockAmount(uint256 amount) external nonReentrant {
         StakeWeightStorage storage s = _getStakeWeightStorage();
         _requireNotPaused(s);
-        if (s.isPermanent[msg.sender]) revert AlreadyPermanent();
         _increaseLockAmount(msg.sender, amount, true);
     }
 
@@ -834,7 +833,7 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
         LockedBalance memory lock = s.locks[for_];
         if (amount == 0) revert InvalidAmount(amount);
         if (lock.amount == 0) revert NonExistentLock();
-        if (!s.isPermanent[for_] && lock.end <= block.timestamp) revert ExpiredLock(block.timestamp, lock.end);
+        if (lock.end <= block.timestamp) revert ExpiredLock(block.timestamp, lock.end);
         _depositFor(for_, amount, 0, lock, ACTION_INCREASE_LOCK_AMOUNT, isTransferred);
     }
 
@@ -901,17 +900,6 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
         // Store base weeks for later unlock
         s.permanentBaseWeeks[msg.sender] = baseWeeks;
 
-        // Calculate permanent stake weight using same formula as bias calculation
-        // permanentWeight = amount * duration / MAX_LOCK_CAP
-        // This ensures consistency with decaying positions
-        uint256 amount = SafeCast.toUint256(lock.amount);
-        uint256 permanentWeight = Math.mulDiv(amount, duration, MAX_LOCK_CAP);
-
-        // Update permanent state BEFORE checkpoints so intermediate epochs have correct supply
-        s.isPermanent[msg.sender] = true;
-        s.permanentStakeWeight[msg.sender] = permanentWeight;
-        s.permanentTotalSupply += permanentWeight;
-
         // TWO-PHASE CHECKPOINT for clean conversion:
         // Phase 1: Remove all decaying weight (amount -> 0)
         LockedBalance memory zeroLock = LockedBalance({
@@ -932,8 +920,21 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
         // CRITICAL: Persist the permanent lock with amount restored
         s.locks[msg.sender] = permanentLock;
 
-        // Record in parallel histories AFTER checkpoints created new epochs
-        s.userPermanentWeightAtEpoch[msg.sender][s.userPointEpoch[msg.sender]] = permanentWeight;
+        // Calculate permanent stake weight using same formula as bias calculation
+        // permanentWeight = amount * duration / MAX_LOCK_CAP
+        // This ensures consistency with decaying positions
+        uint256 amount = SafeCast.toUint256(lock.amount);
+        uint256 permanentWeight = Math.mulDiv(amount, duration, MAX_LOCK_CAP);
+
+        // Update permanent state
+        s.isPermanent[msg.sender] = true;
+        s.permanentStakeWeight[msg.sender] = permanentWeight;
+        s.permanentTotalSupply += permanentWeight;
+
+        // Record in parallel histories (after checkpoint incremented epoch)
+        uint256 userEpoch = s.userPointEpoch[msg.sender];
+        s.userPermanentWeightAtEpoch[msg.sender][userEpoch] = permanentWeight;
+        // Use pointHistory.length - 1 as the checkpoint was just pushed
         s.globalPermanentSupplyAtEpoch[s.pointHistory.length - 1] = s.permanentTotalSupply;
 
         emit PermanentConversion(msg.sender, duration, block.timestamp);
@@ -957,21 +958,23 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
         LockedBalance memory next =
             LockedBalance({ amount: prev.amount, end: newEnd, transferredAmount: prev.transferredAmount });
 
-        // Remove permanent stake weight BEFORE checkpoint so intermediate epochs have correct supply
-        uint256 permanentWeight = s.permanentStakeWeight[msg.sender];
-        s.permanentTotalSupply -= permanentWeight;
-        s.isPermanent[msg.sender] = false;
-        s.permanentStakeWeight[msg.sender] = 0;
-        s.permanentBaseWeeks[msg.sender] = 0; // Clear the duration
-
         // Run checkpoint to re-introduce slope and bias
         _checkpoint(msg.sender, prev, next);
 
         // CRITICAL: Persist the lock change with new end time
         s.locks[msg.sender] = next;
 
-        // Update parallel histories AFTER checkpoint created new epochs
-        s.userPermanentWeightAtEpoch[msg.sender][s.userPointEpoch[msg.sender]] = 0;
+        // Remove permanent stake weight
+        uint256 permanentWeight = s.permanentStakeWeight[msg.sender];
+        s.permanentTotalSupply -= permanentWeight;
+        s.isPermanent[msg.sender] = false;
+        s.permanentStakeWeight[msg.sender] = 0;
+        s.permanentBaseWeeks[msg.sender] = 0; // Clear the duration
+
+        // Update parallel histories
+        uint256 userEpoch = s.userPointEpoch[msg.sender];
+        s.userPermanentWeightAtEpoch[msg.sender][userEpoch] = 0;
+        // Use pointHistory.length - 1 as the checkpoint was just pushed
         s.globalPermanentSupplyAtEpoch[s.pointHistory.length - 1] = s.permanentTotalSupply;
 
         emit UnlockTriggered(msg.sender, newEnd, block.timestamp);
@@ -1341,13 +1344,8 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
         uint256 currentBaseWeeks = s.permanentBaseWeeks[msg.sender];
         uint256 newBaseWeeks = _validatePermanentDuration(newDuration);
 
-        // Must add tokens or increase duration - otherwise no-op
-        if (amount == 0 && newBaseWeeks == currentBaseWeeks) {
-            revert InvalidAmount(0);
-        }
-
-        if (newBaseWeeks < currentBaseWeeks) {
-            revert InvalidDuration(newDuration);
+        if (newBaseWeeks != currentBaseWeeks && newBaseWeeks < currentBaseWeeks) {
+            revert InvalidDuration(newDuration); // Simplified: duration must increase when changing
         }
 
         // Store previous lock state for checkpointing
@@ -1369,34 +1367,45 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
             lock.transferredAmount += amount;
         }
 
-        // Calculate old weight to remove
-        uint256 oldWeight = s.permanentStakeWeight[msg.sender];
+        // Update permanent weight if amount added or duration changed
+        if (amount > 0 || newBaseWeeks != currentBaseWeeks) {
+            // Calculate old weight to remove
+            uint256 oldWeight = s.permanentStakeWeight[msg.sender];
 
-        // Calculate new weight based on total amount and new duration
-        uint256 totalAmount = SafeCast.toUint256(int256(lock.amount));
-        uint256 newWeight = Math.mulDiv(totalAmount, newBaseWeeks * 1 weeks, MAX_LOCK_CAP);
+            // Calculate new weight based on total amount and new duration
+            uint256 totalAmount = SafeCast.toUint256(int256(lock.amount));
+            uint256 newWeight = Math.mulDiv(totalAmount, newBaseWeeks * 1 weeks, MAX_LOCK_CAP);
 
-        // Update user's permanent weight
-        s.permanentStakeWeight[msg.sender] = newWeight;
+            // Update user's permanent weight
+            s.permanentStakeWeight[msg.sender] = newWeight;
 
-        // Update global permanent supply
-        s.permanentTotalSupply = s.permanentTotalSupply - oldWeight + newWeight;
+            // Update global permanent supply
+            s.permanentTotalSupply = s.permanentTotalSupply - oldWeight + newWeight;
 
-        // Update duration if changed
-        if (newBaseWeeks != currentBaseWeeks) {
-            s.permanentBaseWeeks[msg.sender] = newBaseWeeks;
-            emit DurationIncreased(msg.sender, newDuration, block.timestamp);
+            // Record history at current global epoch
+            uint256 currentEpoch = s.epoch;
+            if (currentEpoch > 0) {
+                s.globalPermanentSupplyAtEpoch[s.pointHistory.length - 1] = s.permanentTotalSupply;
+            }
+
+            // Record user permanent history at their current epoch
+            uint256 userEpoch = s.userPointEpoch[msg.sender];
+            if (userEpoch > 0) {
+                s.userPermanentWeightAtEpoch[msg.sender][userEpoch] = newWeight;
+            }
+
+            // Update duration if changed
+            if (newBaseWeeks != currentBaseWeeks) {
+                s.permanentBaseWeeks[msg.sender] = newBaseWeeks;
+                emit DurationIncreased(msg.sender, newDuration, block.timestamp);
+            }
         }
 
         // Save updated lock
         s.locks[msg.sender] = lock;
 
-        // Checkpoint FIRST to create new epoch
+        // Checkpoint the change
         _checkpoint(msg.sender, prevLock, lock);
-
-        // THEN record histories at the NEW epochs (after checkpoint created them)
-        s.userPermanentWeightAtEpoch[msg.sender][s.userPointEpoch[msg.sender]] = newWeight;
-        s.globalPermanentSupplyAtEpoch[s.pointHistory.length - 1] = s.permanentTotalSupply;
 
         // Emit deposit event if amount was added
         if (amount > 0) {
@@ -1437,23 +1446,27 @@ contract StakeWeight is Initializable, AccessControlUpgradeable, ReentrancyGuard
         // Update global permanent supply
         s.permanentTotalSupply = s.permanentTotalSupply - oldWeight + newWeight;
 
+        // Record history at current global epoch
+        uint256 currentEpoch = s.epoch;
+        if (currentEpoch > 0) {
+            s.globalPermanentSupplyAtEpoch[s.pointHistory.length - 1] = s.permanentTotalSupply;
+        }
+
+        // Record user permanent history at their current epoch
+        uint256 userEpoch = s.userPointEpoch[msg.sender];
+        if (userEpoch > 0) {
+            s.userPermanentWeightAtEpoch[msg.sender][userEpoch] = newWeight;
+        }
+
         // Store previous lock state for checkpointing (no amount changes)
         LockedBalance memory prevLock =
             LockedBalance({ amount: lock.amount, end: lock.end, transferredAmount: lock.transferredAmount });
 
-        // FIX: Checkpoint FIRST to create new epoch
+        // Checkpoint the change (lock doesn't change, but we need to update global state)
         _checkpoint(msg.sender, prevLock, lock);
-
-        // FIX: THEN record histories at the NEW epochs (after checkpoint created them)
-        s.userPermanentWeightAtEpoch[msg.sender][s.userPointEpoch[msg.sender]] = newWeight;
-        s.globalPermanentSupplyAtEpoch[s.pointHistory.length - 1] = s.permanentTotalSupply;
 
         emit DurationIncreased(msg.sender, newDuration, block.timestamp);
     }
-
-    /*//////////////////////////////////////////////////////////////////////////
-                                    VIEW FUNCTIONS
-    //////////////////////////////////////////////////////////////////////////*/
 
     /// @notice Get the total permanent supply
     /// @return The total permanent supply across all users
