@@ -1,0 +1,16 @@
+claimN.t.sol
+├── when passes is zero
+│   └── it should revert with ZeroPasses
+└── when passes is greater than zero
+    ├── when the helper is not the user's recipient
+    │   └── it should revert with UnauthorizedClaimer
+    └── when the helper is the user's recipient
+        ├── when the user's cursor is more than 52 weeks behind
+        │   └── it should claim across multiple passes
+        │       ├── it should forward the full pending amount to the user
+        │       ├── it should leave the helper balance at zero
+        │       └── it should emit ClaimedN with the total claimed
+        ├── when a single pass settles the user's pending rewards
+        │   └── it should match a direct claim
+        └── when the helper holds stray WCT
+            └── it should forward only the claimed delta and not the stray balance
