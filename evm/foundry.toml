@@ -54,3 +54,5 @@ verbosity = 2
   sepolia = "https://sepolia.infura.io/v3/${API_KEY_INFURA}"
   optimism = "https://optimism-mainnet.infura.io/v3/${API_KEY_INFURA}"
   optimism_sepolia = "https://optimism-sepolia.infura.io/v3/${API_KEY_INFURA}"
+  arbitrum = "https://arbitrum-mainnet.infura.io/v3/${API_KEY_INFURA}"
+  base = "https://base-mainnet.infura.io/v3/${API_KEY_INFURA}"

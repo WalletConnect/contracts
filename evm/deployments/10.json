@@ -16,13 +16,34 @@
     }
   },
   "LockedTokenStakerBackers": {
-    "address": "0x688CfB3e55fCE2540b5491E923Dc6a9C4f240176"
+    "address": "0x37BAdde9E3c9E108065Db36dCcce91E00556e334",
+    "admin": "0x8B79481a2d8EEbe0F4d6Fd1705b0598540875407",
+    "implementation": "0xB52b4633eA577A143fAa811127CeE7163b023bFb",
+    "proxy": {
+      "implementation": "0xB52b4633eA577A143fAa811127CeE7163b023bFb",
+      "admin": "0x8B79481a2d8EEbe0F4d6Fd1705b0598540875407",
+      "type": "transparent"
+    }
   },
   "LockedTokenStakerReown": {
-    "address": "0x5f630a47DE14e346fC28deB8fE379833A6F6B9B2"
+    "address": "0xCcCf4C051C6F5a82D6bD76a1F66fc3cCdE8b3D6b",
+    "admin": "0x54594f1aF2A6bd876bF0f6d45FB7c3cb54eFB5d5",
+    "implementation": "0xABB9F4CCb5025c446c7FF2e000c705332d21f760",
+    "proxy": {
+      "implementation": "0xABB9F4CCb5025c446c7FF2e000c705332d21f760",
+      "admin": "0x54594f1aF2A6bd876bF0f6d45FB7c3cb54eFB5d5",
+      "type": "transparent"
+    }
   },
   "LockedTokenStakerWalletConnect": {
-    "address": "0x8621034C9acD397cc5921d036225f75699c710FA"
+    "address": "0xb6034870fdd84f09cB63433297C667A1A7771824",
+    "admin": "0xBa900e340f781A18C34Ff9D73CDb9756329a71d9",
+    "implementation": "0xEc32c9280163795921caF79205C6850C67023F04",
+    "proxy": {
+      "implementation": "0xEc32c9280163795921caF79205C6850C67023F04",
+      "admin": "0xBa900e340f781A18C34Ff9D73CDb9756329a71d9",
+      "type": "transparent"
+    }
   },
   "ManagerTimelock": {
     "address": "0xB5EFe3783Db55B913C79CBdB81C9d2C0a993f5f0"
@@ -39,9 +60,9 @@
   "Pauser": {
     "address": "0x9163de7F22A9f3ad261B3dBfbB9A42886816adE7",
     "admin": "0x8714E77FA6Aca75A9b21d79295ec7cF04E4821a8",
-    "implementation": "0xB7D30c8C3bF4b7cb9F06A3D7654E8971021ad58e",
+    "implementation": "0xf69771dAc1c783F6Ae6ddbC3BF6B4869E7c43a70",
     "proxy": {
-      "implementation": "0xB7D30c8C3bF4b7cb9F06A3D7654E8971021ad58e",
+      "implementation": "0xf69771dAc1c783F6Ae6ddbC3BF6B4869E7c43a70",
       "admin": "0x8714E77FA6Aca75A9b21d79295ec7cF04E4821a8",
       "type": "transparent"
     }
@@ -49,9 +70,9 @@
   "StakeWeight": {
     "address": "0x521B4C065Bbdbe3E20B3727340730936912DfA46",
     "admin": "0x9898b105fe3679f2d31c3A06B58757D913D88e5F",
-    "implementation": "0xC746f9a45a06CBF2ad761442821C91A479151cc3",
+    "implementation": "0x6845541121e555D1245fe17c6b44273B089C3844",
     "proxy": {
-      "implementation": "0xC746f9a45a06CBF2ad761442821C91A479151cc3",
+      "implementation": "0x6845541121e555D1245fe17c6b44273B089C3844",
       "admin": "0x9898b105fe3679f2d31c3A06B58757D913D88e5F",
       "type": "transparent"
     }
@@ -59,9 +80,9 @@
   "StakingRewardDistributor": {
     "address": "0xF368F535e329c6d08DFf0d4b2dA961C4e7F3fCAF",
     "admin": "0x28672bf553c6AB214985868f68A3a491E227aCcB",
-    "implementation": "0xF6d23184E44f282883c0d145C973442fc7A33AB8",
+    "implementation": "0x98c27ae4C11F67CDE0E3aFDf90fBba01Bf826238",
     "proxy": {
-      "implementation": "0xF6d23184E44f282883c0d145C973442fc7A33AB8",
+      "implementation": "0x98c27ae4C11F67CDE0E3aFDf90fBba01Bf826238",
       "admin": "0x28672bf553c6AB214985868f68A3a491E227aCcB",
       "type": "transparent"
     }
