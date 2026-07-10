@@ -8,7 +8,6 @@ import { WCT } from "src/WCT.sol";
 import { BaseScript, EthereumDeployments, OptimismDeployments } from "script/Base.s.sol";
 import { Eip1967Logger } from "script/utils/Eip1967Logger.sol";
 import { DeploymentJsonWriter } from "script/utils/DeploymentJsonWriter.sol";
-import { TransparentUpgradeableProxy } from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import { Upgrades } from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import { Options } from "openzeppelin-foundry-upgrades/Options.sol";
 import { newL2WCT } from "script/helpers/Proxy.sol";
@@ -78,7 +77,10 @@ contract WCTDeploy is BaseScript {
 
     function upgradeToL2WCT() public broadcast {
         LegacyDeploymentParams memory params = _readDeploymentParamsFromEnv();
-        address legacyAddress = _computeLegacyAddress(params.salt);
+        // Read the deployed proxy from the persisted artifact rather than recomputing its CREATE2 address
+        // (which depends on the proxy's initialOwner/init-calldata and diverges from what other deploy
+        // paths actually deployed).
+        address legacyAddress = _readDeployedProxy();
 
         // Set up upgrade options
         Options memory opts;
@@ -104,8 +106,8 @@ contract WCTDeploy is BaseScript {
     }
 
     function upgradeToWCT() public broadcast {
-        LegacyDeploymentParams memory params = _readDeploymentParamsFromEnv();
-        address legacyAddress = _computeLegacyAddress(params.salt);
+        // Read the deployed proxy from the persisted artifact rather than recomputing its CREATE2 address.
+        address legacyAddress = _readDeployedProxy();
 
         // Set up upgrade options
         Options memory opts;
@@ -128,33 +130,21 @@ contract WCTDeploy is BaseScript {
         }
     }
 
-    function _computeLegacyAddress(bytes32 salt) internal view returns (address) {
-        // First compute implementation address
-        bytes memory bytecode = abi.encodePacked(type(LegacyL2WCT).creationCode);
-        bytes32 initCodeHash = keccak256(bytecode);
-        address implementation = vm.computeCreate2Address(salt, initCodeHash);
-        console2.log("Implementation address:", implementation);
-
-        // Then compute proxy address
-        bytecode = abi.encodePacked(
-            type(TransparentUpgradeableProxy).creationCode,
-            abi.encode(
-                implementation,
-                vm.envAddress("ADMIN_ADDRESS"),
-                abi.encodeCall(
-                    LegacyL2WCT.initialize,
-                    LegacyL2WCT.Init({
-                        initialAdmin: vm.envAddress("ADMIN_ADDRESS"),
-                        initialManager: vm.envAddress("MANAGER_ADDRESS"),
-                        bridge: vm.envAddress("OP_BRIDGE_ADDRESS"),
-                        remoteToken: vm.envAddress("REMOTE_TOKEN_ADDRESS")
-                    })
-                )
-            )
-        );
-        initCodeHash = keccak256(bytecode);
-
-        return vm.computeCreate2Address(salt, initCodeHash);
+    /// @dev Resolve the deployed WCT/L2WCT proxy from the persisted deployment JSON, which is the source of
+    /// truth. Recomputing the CREATE2 address is unsafe: the proxy address depends on its initialOwner and
+    /// init calldata, and those differ across deploy paths (e.g. OptimismDeploy uses the admin timelock as
+    /// owner, WCTDeploy used ADMIN_ADDRESS), so recomputation can silently point at a codeless phantom
+    /// address. Reads the JSON (`deployments/<chainId>.json`) rather than the binary artifact, because some
+    /// chains (e.g. Arbitrum, Base) only ship the JSON. Mirrors the OP-vs-Ethereum branching of _updateDeploymentJson.
+    function _readDeployedProxy() internal returns (address proxy) {
+        string memory path =
+            string.concat(vm.projectRoot(), "/deployments/", vm.toString(block.chainid), ".json");
+        require(vm.exists(path), "WCTDeploy: no deployment JSON for chain");
+        string memory json = vm.readFile(path);
+        string memory key = _isOpSuperchain(block.chainid) ? ".L2WCT.address" : ".WCT.address";
+        proxy = vm.parseJsonAddress(json, key);
+        require(proxy != address(0), "WCTDeploy: no deployed proxy recorded in artifact");
+        require(proxy.code.length > 0, "WCTDeploy: artifact proxy address has no code");
     }
 
     function _readDeploymentParamsFromEnv() private view returns (LegacyDeploymentParams memory) {
