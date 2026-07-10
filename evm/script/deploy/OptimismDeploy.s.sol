@@ -438,6 +438,12 @@ contract OptimismDeploy is BaseScript {
         if (deps.airdrop.reserveAddress() != params.treasury) {
             revert("Airdrop reserveAddress is not Treasury");
         }
+        // claimTokens pulls via transferFrom(reserveAddress, ...), so the reserve MUST have approved the
+        // Airdrop to spend L2WCT — without it the airdrop is deployed but unclaimable. Verify the allowance
+        // so a missing treasury approval fails verification instead of shipping a dead airdrop.
+        if (deps.l2wct.allowance(params.treasury, address(deps.airdrop)) == 0) {
+            revert("Airdrop reserve has not approved the Airdrop (would be unclaimable)");
+        }
         if (!deps.airdrop.hasRole(deps.airdrop.DEFAULT_ADMIN_ROLE(), params.admin)) {
             revert("Airdrop default admin is not Admin MultiSig");
         }
