@@ -42,11 +42,15 @@ verbosity = 2
   tab_width = 4
   wrap_comments = true
 
+# Etherscan V2: a single API key covers every supported chain (routed by chainid),
+# so all entries share ${API_KEY_ETHERSCAN}. The legacy per-explorer V1 keys are deprecated.
 [etherscan]
   sepolia = { key = "${API_KEY_ETHERSCAN}" }
   mainnet = { key = "${API_KEY_ETHERSCAN}" }
-  optimism = { key = "${API_KEY_OPTIMISTIC_ETHERSCAN}" }
-  optimism_sepolia = { key = "${API_KEY_OPTIMISTIC_ETHERSCAN}" }
+  optimism = { key = "${API_KEY_ETHERSCAN}" }
+  optimism_sepolia = { key = "${API_KEY_ETHERSCAN}" }
+  arbitrum = { key = "${API_KEY_ETHERSCAN}", chain = 42161 }
+  base = { key = "${API_KEY_ETHERSCAN}", chain = 8453 }
 
 [rpc_endpoints]
   localhost = "http://localhost:8545"
