@@ -67,17 +67,14 @@ abstract contract BaseScript is Script, StdCheats {
         // Get the specified sender
         address specifiedSender = vm.envOr({ name: "ETH_FROM", defaultValue: address(0) });
 
-        // Allow-list the local + testnet chains where deriving the broadcaster from a mnemonic is acceptable.
-        // EVERY other chain (mainnet, optimism, arbitrum, base, …) is a production deployment and MUST pass an
-        // explicit ETH_FROM — otherwise the deployment would silently fall back to the public TEST_MNEMONIC key.
-        bool isLocalOrTestnet = block.chainid == 31_337 // anvil
-            || block.chainid == 1337 // hardhat / localhost
-            || block.chainid == 11_155_111 // sepolia
-            || block.chainid == 11_155_420 // optimism sepolia
-            || block.chainid == 84_532 // base sepolia
-            || block.chainid == 421_614; // arbitrum sepolia
+        // Production chains where deriving the broadcaster from a mnemonic is unacceptable: an unset ETH_FROM
+        // would silently fall back to the public TEST_MNEMONIC key. Each such chain MUST pass an explicit ETH_FROM.
+        bool isProduction = block.chainid == getChain("mainnet").chainId // ethereum
+            || block.chainid == getChain("optimism").chainId // optimism
+            || block.chainid == 42_161 // arbitrum one
+            || block.chainid == 8453; // base
 
-        if (!isLocalOrTestnet && specifiedSender == address(0)) {
+        if (isProduction && specifiedSender == address(0)) {
             revert("You must specify a sender (ETH_FROM) for a production deployment");
         }
 
