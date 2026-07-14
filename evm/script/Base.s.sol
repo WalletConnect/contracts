@@ -71,8 +71,8 @@ abstract contract BaseScript is Script, StdCheats {
         // would silently fall back to the public TEST_MNEMONIC key. Each such chain MUST pass an explicit ETH_FROM.
         bool isProduction = block.chainid == getChain("mainnet").chainId // ethereum
             || block.chainid == getChain("optimism").chainId // optimism
-            || block.chainid == 42_161 // arbitrum one
-            || block.chainid == 8453; // base
+            || block.chainid == getChain("arbitrum_one").chainId // arbitrum
+            || block.chainid == getChain("base").chainId; // base
 
         if (isProduction && specifiedSender == address(0)) {
             revert("You must specify a sender (ETH_FROM) for a production deployment");
