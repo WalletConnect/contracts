@@ -1,4 +1,7 @@
 {
+  "Timelock": {
+    "address": "0x8b8D9f03027004dB4b607E909246e9270D8fEdee"
+  },
   "L2WCT": {
     "address": "0xeF4461891DfB3AC8572cCf7C794664A8DD927945",
     "admin": "0x3eD030AAF23b5C52c224Cb72100C22f581D10Df4",

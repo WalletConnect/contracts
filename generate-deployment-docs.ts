@@ -42,6 +42,12 @@ const CHAINS: ChainConfig[] = [
     explorerUrl: "https://basescan.org",
     deploymentFile: "evm/deployments/8453.json",
   },
+  {
+    id: 42161,
+    name: "Arbitrum",
+    explorerUrl: "https://arbiscan.io",
+    deploymentFile: "evm/deployments/42161.json",
+  },
 ];
 
 // Special handling for contracts that need custom names or ordering
