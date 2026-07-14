@@ -42,13 +42,6 @@
 | NTT Manager | [`0x164Be303480f542336bE0bBe0432A13b85e6FD1b`](https://basescan.org/address/0x164Be303480f542336bE0bBe0432A13b85e6FD1b) | [`0x398A2749487B2a91f2f543C01F7afD19AEE4b6b0`](https://basescan.org/address/0x398A2749487B2a91f2f543C01F7afD19AEE4b6b0) (Owner) |
 | NTT Transceiver | [`0x3cB1d3A449a868dd8BF8F8928408836543Fe2A68`](https://basescan.org/address/0x3cB1d3A449a868dd8BF8F8928408836543Fe2A68) | [`0x398A2749487B2a91f2f543C01F7afD19AEE4b6b0`](https://basescan.org/address/0x398A2749487B2a91f2f543C01F7afD19AEE4b6b0) (Owner) |
 
-## Arbitrum (Chain ID: 42161)
-
-| Contract | Address | ProxyAdmin/Owner (if Proxy contract) |
-| -------- | ------- | ------------------------------------ |
-| WCT Token | [`0xeF4461891DfB3AC8572cCf7C794664A8DD927945`](https://arbiscan.io/address/0xeF4461891DfB3AC8572cCf7C794664A8DD927945) | - |
-| Timelock | [`0x8b8D9f03027004dB4b607E909246e9270D8fEdee`](https://arbiscan.io/address/0x8b8D9f03027004dB4b607E909246e9270D8fEdee) | - |
-
 ## Solana
 
 | Contract | Address |
