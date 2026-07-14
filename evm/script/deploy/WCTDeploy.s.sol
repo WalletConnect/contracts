@@ -16,9 +16,7 @@ struct LegacyDeploymentParams {
     address admin;
     address manager;
     address bridge;
-    address superchainBridge;
     address remoteToken;
-    bytes32 salt;
 }
 
 contract WCTDeploy is BaseScript {
@@ -76,7 +74,10 @@ contract WCTDeploy is BaseScript {
     }
 
     function upgradeToL2WCT() public broadcast {
-        LegacyDeploymentParams memory params = _readDeploymentParamsFromEnv();
+        // Only the superchain bridge is needed for this upgrade; read it directly rather than loading the
+        // full deployment params, which would revert on unrelated unset env vars (ADMIN_ADDRESS,
+        // OP_BRIDGE_ADDRESS, …) that a pure upgrade has no reason to set.
+        address superchainBridge = vm.envAddress("SUPERCHAIN_BRIDGE_ADDRESS");
         // Read the deployed proxy from the persisted artifact rather than recomputing its CREATE2 address
         // (which depends on the proxy's initialOwner/init-calldata and diverges from what other deploy
         // paths actually deployed).
@@ -95,7 +96,7 @@ contract WCTDeploy is BaseScript {
 
         L2WCT upgraded = L2WCT(legacyAddress);
 
-        upgraded.setBridge(params.superchainBridge);
+        upgraded.setBridge(superchainBridge);
 
         console2.log("Upgraded LegacyL2WCT to L2WCT at:", address(upgraded));
 
@@ -152,9 +153,7 @@ contract WCTDeploy is BaseScript {
             admin: vm.envAddress("ADMIN_ADDRESS"),
             manager: vm.envAddress("MANAGER_ADDRESS"),
             bridge: vm.envAddress("OP_BRIDGE_ADDRESS"),
-            superchainBridge: vm.envAddress("SUPERCHAIN_BRIDGE_ADDRESS"),
-            remoteToken: vm.envAddress("REMOTE_TOKEN_ADDRESS"),
-            salt: keccak256(abi.encodePacked("walletconnect.l2wct"))
+            remoteToken: vm.envAddress("REMOTE_TOKEN_ADDRESS")
         });
     }
 }
