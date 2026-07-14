@@ -27,3 +27,9 @@ airdrop_data.json
 # broadcasts
 */broadcast/*
 evm/.common.env
+
+# Claude Code: track shared skills only; ignore local runtime artifacts
+.claude/*
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/*/
