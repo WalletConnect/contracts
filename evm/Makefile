@@ -108,7 +108,7 @@ fund-deployer:
 _deploy:
 	$(eval include .common.env)
 	$(eval include $(ENV_FILE))
-	$(eval ETHSCAN_KEY = $(if $(findstring optimism,$(ENV_FILE)),${API_KEY_OPTIMISTIC_ETHERSCAN},${API_KEY_ETHERSCAN}))
+	$(eval ETHSCAN_KEY = ${API_KEY_ETHERSCAN})
 
 ifeq ($(IS_ANVIL),)
 	$(eval RPC_URL = https://${CHAIN_NAME}.infura.io/v3/${API_KEY_INFURA})
@@ -174,7 +174,7 @@ endif
 _p3_deploy:
 	$(eval include .common.env)
 	$(eval include $(ENV_FILE))
-	$(eval ETHSCAN_KEY = $(if $(findstring optimism,$(ENV_FILE)),${API_KEY_OPTIMISTIC_ETHERSCAN},${API_KEY_ETHERSCAN}))
+	$(eval ETHSCAN_KEY = ${API_KEY_ETHERSCAN})
 
 ifeq ($(IS_ANVIL),)
 	$(eval RPC_URL = https://${CHAIN_NAME}.infura.io/v3/${API_KEY_INFURA})
