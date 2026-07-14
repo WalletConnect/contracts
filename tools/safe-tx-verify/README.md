@@ -21,11 +21,13 @@ the one that encodes the actual transaction, so it is the value to check against
 
 ```bash
 uv run tools/safe-tx-verify/verify_safe_tx.py "<safe-url-or-address>" --nonce N \
-    [--chain-id N] [--version V] [--onchain] [--rpc URL] [--json]
+    [--index N] [--chain-id N] [--version V] [--onchain] [--rpc URL] [--json]
 ```
 
 - `target` — a Safe app URL (`https://app.safe.global/...?safe=oeth:0x…`) or a `prefix:0xADDRESS` (e.g. `oeth:0x398A…`).
 - `--nonce N` — the queued transaction's nonce to verify (required).
+- `--index N` — when several proposals share the same nonce, the tool refuses to guess: it lists each candidate
+  (index + `safeTxHash`) and exits non-zero. Re-run with `--index N` to pick the exact one you intend to sign.
 - `--chain-id N` — override the chain id (otherwise derived from the prefix).
 - `--version V` — Safe contract version (default `1.3.0`; auto-read with `--onchain`). Governs the EIP-712 domain
   (chainId is only bound for ≥ 1.3.0) and the `SafeTx` typehash.

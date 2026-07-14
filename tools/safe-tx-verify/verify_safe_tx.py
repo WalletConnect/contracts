@@ -323,6 +323,8 @@ def main() -> None:
     ap.add_argument("--version", default=None, help="Safe contract version (default 1.3.0 or on-chain with --onchain)")
     ap.add_argument("--onchain", action="store_true", help="also read nonce/threshold/owners/version via RPC")
     ap.add_argument("--rpc", help="RPC URL (else a public default for the chain)")
+    ap.add_argument("--index", type=int, default=None,
+                    help="which proposal to verify when several share the nonce (see the listing on ambiguity)")
     ap.add_argument("--json", action="store_true", dest="as_json", help="emit machine-readable JSON")
     args = ap.parse_args()
 
@@ -361,11 +363,18 @@ def main() -> None:
     results = http_get_json(api).get("results", [])
     if not results:
         die(f"no queued tx at nonce {args.nonce} for {safe} on chain {chain_id}")
-    if len(results) > 1:
-        print(c(f"WARNING: {len(results)} proposals share nonce {args.nonce}; verifying the first.", "33"),
-              file=sys.stderr)
-    tx = results[0]
-    tx.setdefault("baseGas", tx.get("baseGas", 0))
+    if len(results) > 1 and args.index is None:
+        # Competing proposals at one nonce: never silently pick one — the signer must choose explicitly,
+        # otherwise --json / redirected stdout could verify a different tx than the one being signed.
+        lines = [f"{len(results)} proposals share nonce {args.nonce}; re-run with --index N to pick one:"]
+        for i, r in enumerate(results):
+            lines.append(f"  --index {i}  safeTxHash={r.get('safeTxHash')}  to={r.get('to')}  op={r.get('operation')}")
+        die("\n".join(lines))
+    idx = args.index or 0
+    if idx < 0 or idx >= len(results):
+        die(f"--index {idx} out of range (found {len(results)} proposal(s) at nonce {args.nonce})")
+    tx = results[idx]
+    tx.setdefault("baseGas", 0)
 
     computed = compute_hashes(tx, safe, chain_id, version)
     backend_hash = (tx.get("safeTxHash") or "").lower()

@@ -17,11 +17,13 @@ Only prerequisite is [`uv`](https://docs.astral.sh/uv/) (deps are declared inlin
 
 ```bash
 uv run tools/safe-tx-verify/verify_safe_tx.py "<target>" --nonce N \
-    [--chain-id N] [--version V] [--onchain] [--rpc URL] [--json]
+    [--index N] [--chain-id N] [--version V] [--onchain] [--rpc URL] [--json]
 ```
 
 - `<target>` — a Safe app URL (`https://app.safe.global/...?safe=oeth:0x…`) or `prefix:0xADDRESS` (e.g. `oeth:0x398A…`).
 - `--nonce N` — the queued transaction's nonce to verify (required).
+- `--index N` — if several proposals share the nonce the tool lists them and exits non-zero; re-run with the index
+  of the one being signed. Never guess on the user's behalf here.
 - `--onchain` — also read the Safe's live nonce/threshold/VERSION() via RPC and flag a stale nonce.
 - `--json` — machine-readable; exit `0` = backend hash matches, `2` = mismatch.
 
