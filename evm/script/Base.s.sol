@@ -66,12 +66,16 @@ abstract contract BaseScript is Script, StdCheats {
         require(vm.envUint("CHAIN_ID") == block.chainid, "Chain ID mismatch");
         // Get the specified sender
         address specifiedSender = vm.envOr({ name: "ETH_FROM", defaultValue: address(0) });
-        bool isMainnetOrOptimism =
-            block.chainid == getChain("mainnet").chainId || block.chainid == getChain("optimism").chainId;
 
-        // We exit early if the chain is mainnet or optimism and no sender is specified
-        if (isMainnetOrOptimism && specifiedSender == address(0)) {
-            revert("You must specify a sender for a production deployment");
+        // Production chains where deriving the broadcaster from a mnemonic is unacceptable: an unset ETH_FROM
+        // would silently fall back to the public TEST_MNEMONIC key. Each such chain MUST pass an explicit ETH_FROM.
+        bool isProduction = block.chainid == getChain("mainnet").chainId // ethereum
+            || block.chainid == getChain("optimism").chainId // optimism
+            || block.chainid == getChain("arbitrum_one").chainId // arbitrum
+            || block.chainid == getChain("base").chainId; // base
+
+        if (isProduction && specifiedSender == address(0)) {
+            revert("You must specify a sender (ETH_FROM) for a production deployment");
         }
 
         // Select the broadcaster, either the specified sender or the first derived address from the mnemonic
