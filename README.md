@@ -151,7 +151,7 @@ We welcome contributions! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for gu
 - **Discord**: [Join our Discord](https://discord.gg/walletconnectnetwork)
 - **Forum**: [Governance Forum](https://governance.walletconnect.network/)
 - **Twitter**: [@walletconnect](https://x.com/walletconnect)
-- **Blog**: [walletconnect.network/blog](https://https://walletconnect.network/blog)
+- **Blog**: [walletconnect.com/blog](https://https://walletconnect.com/blog)
 
 ## Documentation
 
@@ -174,4 +174,4 @@ Built with ❤️ by the WalletConnect team
 [discord-shield]: https://img.shields.io/badge/Discord-Join-7289DA?style=for-the-badge&logo=discord&logoColor=white
 [discord-url]: https://discord.com/invite/walletconnectnetwork
 [docs-shield]: https://img.shields.io/badge/Docs-Read-blue?style=for-the-badge
-[docs-url]: https://docs.walletconnect.network
+[docs-url]: https://docs.walletconnect.com

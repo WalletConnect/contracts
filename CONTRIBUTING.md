@@ -63,4 +63,4 @@ For detailed guidelines, see [`.cursor/rules/solidity.mdc`](.cursor/rules/solidi
 ## Questions
 
 - **Discord**: [#dev channel](https://discord.gg/walletconnect)
-- **Documentation**: [docs.walletconnect.network](https://docs.walletconnect.network)
+- **Documentation**: [docs.walletconnect.com](https://docs.walletconnect.com)
